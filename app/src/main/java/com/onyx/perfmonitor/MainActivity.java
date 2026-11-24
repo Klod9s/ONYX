@@ -375,7 +375,13 @@ public class MainActivity extends Activity {
                                 int drop = previous.battery - sample.battery;
                                 long elapsed = sample.timeMs - previous.timeMs;
 
-                                if (drop > 0 && elapsed > 0) {
+                                boolean previousBatteryValid =
+                                        previous.battery >= 0 && previous.battery <= 100;
+                                boolean currentBatteryValid =
+                                        sample.battery >= 0 && sample.battery <= 100;
+
+                                if (previousBatteryValid && currentBatteryValid
+                                        && drop > 0 && elapsed > 0) {
                                     sample.secondsPerPercent =
                                             (elapsed / 1000.0) / drop;
                                 }
