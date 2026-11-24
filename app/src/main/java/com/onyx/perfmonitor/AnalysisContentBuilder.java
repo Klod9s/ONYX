@@ -229,7 +229,10 @@ public class AnalysisContentBuilder {
         addChart(layout, "BATTERY TEMPERATURE", d.temperature, "°C");
         addChart(layout, "BATTERY LEVEL", d.battery, "%");
         addChart(layout, "BATTERY CURRENT", d.current, "mA");
+        addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
         addChart(layout, "BATTERY POWER", d.power, "W");
+        addChart(layout, "SECONDS PER 1% DRAIN",
+                d.secondsPerPercent, "seconds");
 
         // BATTERY DRAIN
         addBatteryDrain(layout, green, white, muted);
