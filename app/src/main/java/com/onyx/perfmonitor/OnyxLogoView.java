@@ -40,6 +40,7 @@ public class OnyxLogoView extends View {
 
     private float shineT = 1f;   // 0..1 animation clock, 1 = idle
     private boolean shining = false;
+    private boolean hasShineStarted = false;
     private long shineStartNs;
     private static final long SHINE_PERIOD_MS = 5200;
 
@@ -121,7 +122,15 @@ public class OnyxLogoView extends View {
     public void startShine() {
         if (shining) return;
         shining = true;
-        shineStartNs = System.nanoTime();
+
+        // Resume from the last animation phase instead of restarting at
+        // the dimmest point whenever MainActivity returns to the foreground.
+        if (!hasShineStarted) {
+            shineT = 0f;
+            hasShineStarted = true;
+        }
+        shineStartNs = System.nanoTime()
+                - (long) (shineT * SHINE_PERIOD_MS * 1_000_000L);
         postOnAnimation(shineTick);
     }
 
@@ -129,7 +138,7 @@ public class OnyxLogoView extends View {
     public void stopShine() {
         shining = false;
         removeCallbacks(shineTick);
-        shineT = 1f;
+        // Keep shineT so the animation resumes from its current visual phase.
         invalidate();
     }
 
