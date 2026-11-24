@@ -147,21 +147,21 @@ public class SessionDataTest {
     private File writeSession(String... lines) throws Exception {
         File file = temporaryFolder.newFile("test_session.csv");
         try (FileWriter writer = new FileWriter(file)) {
-            writer.write("ONYX SESSION\\n");
+            writer.write("ONYX SESSION\n");
             for (String line : lines) {
                 if (line.startsWith("Device,") || line.startsWith("Android,")
                         || line.startsWith("Mode,")) {
                     writer.write(line);
-                    writer.write('\\n');
+                    writer.write('\n');
                 }
             }
-            writer.write("PERFORMANCE READINGS\\n");
-            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,SecondsPerPercent,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount\\n");
+            writer.write("PERFORMANCE READINGS\n");
+            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,SecondsPerPercent,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount\n");
             for (String line : lines) {
                 if (!(line.startsWith("Device,") || line.startsWith("Android,")
                         || line.startsWith("Mode,"))) {
                     writer.write(line);
-                    writer.write('\\n');
+                    writer.write('\n');
                 }
             }
         }
