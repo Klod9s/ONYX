@@ -1208,7 +1208,7 @@ public class FloatingFpsService extends Service {
         String action = intent != null ? intent.getAction() : null;
         if (ACTION_ENGINE_HANDOFF.equals(action)
                 || (intent == null && overlayPrefs.getBoolean(
-                        "overlay_engine_active", false))) {
+                        "overlay_enabled", false))) {
             startBackgroundSampling();
         } else if (ACTION_ENGINE_STOP.equals(action)) {
             stopBackgroundSampling();
