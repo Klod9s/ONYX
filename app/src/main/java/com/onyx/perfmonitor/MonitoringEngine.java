@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.content.pm.PackageManager;
+import rikka.shizuku.Shizuku;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
