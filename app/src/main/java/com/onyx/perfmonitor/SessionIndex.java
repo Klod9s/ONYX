@@ -37,8 +37,10 @@ public class SessionIndex {
 
         try (FileReader reader = new FileReader(indexFile)) {
             Type listType = new TypeToken<ArrayList<Entry>>(){}.getType();
-            return new Gson().fromJson(reader, listType);
-        } catch (IOException e) {
+            List<Entry> entries = new Gson().fromJson(reader, listType);
+            return entries != null ? entries : new ArrayList<>();
+        } catch (IOException | RuntimeException e) {
+            // A missing, unreadable, or malformed index must not crash session history.
             return new ArrayList<>();
         }
     }
@@ -60,7 +62,7 @@ public class SessionIndex {
 
     public static void removeEntry(File filesDir, String fileName) {
         List<Entry> entries = loadIndex(filesDir);
-        entries.removeIf(e -> e.fileName.equals(fileName));
+        entries.removeIf(e -> e == null || fileName.equals(e.fileName));
         saveIndex(filesDir, entries);
     }
 }
