@@ -82,3 +82,9 @@ lint-results.xml
 
 # Mac OS
 .DS_Store
+
+# Android Studio / IntelliJ IDEA files
+.idea/
+*.iml
+local.properties
+/captures/
