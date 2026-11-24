@@ -44,6 +44,13 @@ public class CpuUsageTrackerTest {
         assertEquals(-1.0, tracker.parse("cpu0 200 0 90 0 110")[0], 0.0001);
     }
 
+    @Test public void guestTimeIsNotCountedTwice() {
+        CpuUsageTracker tracker = new CpuUsageTracker();
+        tracker.parse("cpu0 100 0 50 100 0 0 0 0 100 0");
+        double[] loads = tracker.parse("cpu0 150 0 70 130 0 0 0 0 200 0");
+        assertEquals(70.0, loads[0], 0.0001);
+    }
+
     @Test public void clampsUsageToPercentageRange() {
         CpuUsageTracker tracker = new CpuUsageTracker();
         tracker.parse("cpu0 100 0 50 0 100");
