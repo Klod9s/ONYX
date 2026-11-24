@@ -3070,11 +3070,16 @@ public class MainActivity extends Activity {
                                 status == BatteryManager.BATTERY_STATUS_CHARGING
                                         || status == BatteryManager.BATTERY_STATUS_FULL;
 
+                        boolean currentValid = rawCurrent != Long.MIN_VALUE;
+                        boolean voltageValid = rawVoltage > 0;
+                        boolean percentValid = percent >= 0 && percent <= 100;
 
-                        sample.currentMa = batteryCurrent.toMilliamps(rawCurrent, unplugged);
-                        sample.voltage = rawVoltage / 1000000.0;
-                        sample.power = sample.currentMa * sample.voltage / 1000.0;
-                        sample.battery = percent;
+                        sample.currentMa = currentValid
+                                ? batteryCurrent.toMilliamps(rawCurrent, unplugged) : -1;
+                        sample.voltage = voltageValid ? rawVoltage / 1000000.0 : -1;
+                        sample.power = currentValid && voltageValid
+                                ? sample.currentMa * sample.voltage / 1000.0 : -1;
+                        sample.battery = percentValid ? percent : -1;
                     } catch (Exception ignored) {
                         sample.currentMa = -1;
                         sample.voltage = -1;
