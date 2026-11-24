@@ -12,7 +12,8 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 
 ## Requirements
 
-- Android 8.0 (API 26) or higher
+- Android 8.0 (API 26) or higher.
+- Android 14 or higher recommended.
 - [Shizuku](https://shizuku.rikka.app/) installed and authorized (or a rooted device)
 
 ## Installation
