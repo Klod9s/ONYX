@@ -68,6 +68,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.List;
 
 import rikka.shizuku.Shizuku;
 
@@ -242,6 +243,8 @@ public class MainActivity extends Activity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService fileWorker = Executors.newSingleThreadExecutor();
+    private int historyGeneration = 0;
     private final ArrayList<Sample> samples = new ArrayList<>();
 
     private final FpsDetector fpsDetector = new FpsDetector();
@@ -3812,34 +3815,29 @@ public class MainActivity extends Activity {
 
     private void saveSession(String result) {
         try {
-            String stamp = new SimpleDateFormat(
-                    "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
-
+            String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
             String csvName = "session_" + stamp + ".csv";
 
-            try (FileOutputStream out = openFileOutput(
-                    csvName, MODE_PRIVATE)) {
+            // Write CSV
+            try (FileOutputStream out = openFileOutput(csvName, MODE_PRIVATE)) {
                 out.write(buildCsv(result).getBytes(StandardCharsets.UTF_8));
             }
 
-            String historyLine =
-                    "Session " + stamp.replace('_', ' ') + "\n"
-                            + result + "\n"
-                            + "CSV file: " + csvName + "\n\n";
-
-            try (FileOutputStream out = openFileOutput(
-                    "session_history.txt", MODE_APPEND)) {
-                out.write(historyLine.getBytes(StandardCharsets.UTF_8));
-            }
+            // Update JSON Index
+            SessionIndex.Entry entry = new SessionIndex.Entry(
+                    csvName,
+                    System.currentTimeMillis(),
+                    deviceName(),
+                    result,
+                    false,
+                    ""
+            );
+            SessionIndex.addEntry(getFilesDir(), entry);
 
             loadHistory();
-
-            Toast.makeText(this, "Session saved on this device",
-                    Toast.LENGTH_SHORT).show();
-
+            Toast.makeText(this, "Session saved on this device", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Could not save session",
-                    Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Could not save session", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -3848,46 +3846,48 @@ public class MainActivity extends Activity {
 
     private void loadHistory() {
         if (sessionsAdapter == null) return;
-
-        File folder = getFilesDir();
+        final File folder = getFilesDir();
         if (folder == null) return;
 
-        // Forget selections whose files were deleted
+        // snapshot on the main thread — pendingDeletes is only mutated there
+        final java.util.HashSet<String> hidden = new java.util.HashSet<>(pendingDeletes);
+        final int generation = ++historyGeneration;
 
-        File[] files = folder.listFiles((dir, name) ->
-                name.startsWith("session_") && name.endsWith(".csv")
-                        && !pendingDeletes.contains(name));
+        fileWorker.execute(() -> {
+            File[] files = folder.listFiles((dir, name) ->
+                    name.startsWith("session_") && name.endsWith(".csv")
+                            && !hidden.contains(name));
 
-        java.util.List<SessionItem> items = new ArrayList<>();
-
-        if (files != null) {
-            java.util.Arrays.sort(files,
-                    (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-
-            for (File file : files) {
-                SessionData meta = SessionData.readMeta(this, file);
-                long when = meta != null
-                        ? meta.sessionDate().getTime() : file.lastModified();
-
-                items.add(new SessionItem(
-                        file.getName(),
-                        file.lastModified(),
-                        when,
-                        meta != null ? meta.deviceLabel() : "Unknown device",
-                        meta != null && meta.imported,
-                        meta != null ? meta.originalName : ""));
+            java.util.List<SessionItem> items = new ArrayList<>();
+            if (files != null) {
+                java.util.Arrays.sort(files,
+                        (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+                for (File file : files) {
+                    SessionData meta = SessionData.readMeta(this, file);
+                    long when = meta != null
+                            ? meta.sessionDate().getTime() : file.lastModified();
+                    items.add(new SessionItem(
+                            file.getName(),
+                            file.lastModified(),
+                            when,
+                            meta != null ? meta.deviceLabel() : "Unknown device",
+                            meta != null && meta.imported,
+                            meta != null ? meta.originalName : ""));
+                }
             }
-        }
 
-        sessionsAdapter.submit(items);
-
-        if (sessionsCount != null) {
-            sessionsCount.setText(items.size() + " SAVED");
-        }
-
-        boolean empty = items.isEmpty();
-        sessionsEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
-        sessionsList.setVisibility(empty ? View.GONE : View.VISIBLE);
+            runOnUiThread(() -> {
+                if (generation != historyGeneration) return;
+                if (sessionsAdapter == null) return;
+                sessionsAdapter.submit(items);
+                if (sessionsCount != null) {
+                    sessionsCount.setText(items.size() + " SAVED");
+                }
+                boolean empty = items.isEmpty();
+                sessionsEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
+                sessionsList.setVisibility(empty ? View.GONE : View.VISIBLE);
+            });
+        });
     }
 
     private void importSession() {
@@ -4267,23 +4267,23 @@ public class MainActivity extends Activity {
     /** Really deletes everything that is pending. Safe to call any time. */
     private void finalizePendingDeletes() {
         handler.removeCallbacks(finalizeRunnable);
-
         if (!pendingDeletes.isEmpty()) {
-            SharedPreferences.Editor meta =
-                    getSharedPreferences("session_meta", MODE_PRIVATE).edit();
-
             for (String name : pendingDeletes) {
                 new File(getFilesDir(), name).delete();
-                meta.remove(name + ".original").remove(name + ".imported_at");
-            }
-            meta.apply();
-        }
+                // Remove from JSON Index
+                SessionIndex.removeEntry(getFilesDir(), name);
 
+                // Clean up old SharedPreferences meta if you used Step 1 previously
+                getSharedPreferences("session_meta", MODE_PRIVATE).edit()
+                        .remove(name + ".original")
+                        .remove(name + ".imported_at")
+                        .apply();
+            }
+        }
         if (historyFileDeleteRequested) {
             File historyFile = new File(getFilesDir(), "session_history.txt");
             if (historyFile.exists()) historyFile.delete();
         }
-
         pendingDeletes.clear();
         historyFileDeleteRequested = false;
         hideUndoBar();
@@ -4392,7 +4392,7 @@ public class MainActivity extends Activity {
         running = false;
         handler.removeCallbacks(sampler);
         worker.shutdownNow();
-
+        fileWorker.shutdownNow();
         try {
             unregisterReceiver(overlayToggleReceiver);
         } catch (IllegalArgumentException ignored) {
