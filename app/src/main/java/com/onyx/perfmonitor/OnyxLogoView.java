@@ -176,10 +176,12 @@ public class OnyxLogoView extends View {
         canvas.drawBitmap(metal, src, dst, metalPaint);
 
         // neon glow: pulses from 1% to 100%
-        float pulse = 1f;                       // full glow when the animation isn't running
-        if (shining) {
-            pulse = 0.5f - 0.5f * (float) Math.cos(shineT * 2.0 * Math.PI);  // 0..1
-        }
+        // Keep the last animated brightness while paused. Switching to a
+        // full glow when shining becomes false causes a visible flash during
+        // Activity transitions.
+        float pulse = hasShineStarted
+                ? 0.5f - 0.5f * (float) Math.cos(shineT * 2.0 * Math.PI)
+                : 1f;
         float level = 0.01f + 0.99f * pulse;    // 1%..100%
         glowPaint.setAlpha(Math.round(255 * level));
         canvas.drawBitmap(glow, src, dst, glowPaint);
