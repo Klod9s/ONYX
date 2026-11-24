@@ -287,8 +287,17 @@ public class MainActivity extends Activity {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if (FloatingFpsService.ACTION_TOGGLE.equals(intent.getAction())) {
-                        if (running) stopSession();
-                        else startSession();
+                        if (running) {
+                            stopSession();
+                            if (!isAppForeground
+                                    && getPrefs().getBoolean("overlay_enabled", false)) {
+                                handoffOverlaySampling();
+                            }
+                        } else {
+                            stopOverlaySampling();
+                            startSession();
+                            wakeSampler();
+                        }
                     }
                 }
             };
@@ -299,7 +308,29 @@ public class MainActivity extends Activity {
 
     private boolean samplerBusy = false;
 
-    // Only sample while the app is visible, a session is recording, or the overlay is on
+    private void handoffOverlaySampling() {
+        if (!getPrefs().getBoolean("overlay_enabled", false)) return;
+        getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
+        Intent intent = new Intent(this, FloatingFpsService.class);
+        intent.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
+        try {
+            startService(intent);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void stopOverlaySampling() {
+        if (!getPrefs().getBoolean("overlay_enabled", false)) return;
+        getPrefs().edit().putBoolean("overlay_engine_active", false).apply();
+        Intent intent = new Intent(this, FloatingFpsService.class);
+        intent.setAction(FloatingFpsService.ACTION_ENGINE_STOP);
+        try {
+            startService(intent);
+        } catch (Exception ignored) {
+        }
+    }
+
+    // Only sample while the app is visible or a session is recording.
     private boolean samplerNeeded() {
         return isAppForeground || running;
     }
@@ -574,15 +605,7 @@ public class MainActivity extends Activity {
         refreshStatusPill();
 
         loadHistory();
-        if (getPrefs().getBoolean("overlay_enabled", false)) {
-            getPrefs().edit().putBoolean("overlay_engine_active", false).apply();
-            Intent engineStop = new Intent(this, FloatingFpsService.class);
-            engineStop.setAction(FloatingFpsService.ACTION_ENGINE_STOP);
-            try {
-                startService(engineStop);
-            } catch (Exception ignored) {
-            }
-        }
+        stopOverlaySampling();
         sampler.run();
     }
 
@@ -2634,15 +2657,7 @@ public class MainActivity extends Activity {
         if (brand != null) {
             brand.stopShine();
         }
-        if (!running && getPrefs().getBoolean("overlay_enabled", false)) {
-            getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
-            Intent engineHandoff = new Intent(this, FloatingFpsService.class);
-            engineHandoff.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
-            try {
-                startService(engineHandoff);
-            } catch (Exception ignored) {
-            }
-        }
+        if (!running) handoffOverlaySampling();
     }
 
     @Override
@@ -4424,15 +4439,7 @@ public class MainActivity extends Activity {
 
         running = false;
         handler.removeCallbacks(sampler);
-        if (getPrefs().getBoolean("overlay_enabled", false)) {
-            getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
-            Intent engineHandoff = new Intent(this, FloatingFpsService.class);
-            engineHandoff.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
-            try {
-                startService(engineHandoff);
-            } catch (Exception ignored) {
-            }
-        }
+        handoffOverlaySampling();
         worker.shutdownNow();
         fileWorker.shutdownNow();
         try {
