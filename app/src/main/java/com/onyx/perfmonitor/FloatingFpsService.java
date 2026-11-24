@@ -65,6 +65,7 @@ public class FloatingFpsService extends Service {
     private OverlaySessionRecorder sessionRecorder;
     private boolean backgroundSamplingEnabled = false;
     private boolean backgroundShizukuBindRequested = false;
+    private boolean backgroundShizukuBound = false;
     private Shizuku.UserServiceArgs backgroundShizukuArgs;
     private final Runnable backgroundSampleTick = new Runnable() {
         @Override
@@ -110,23 +111,28 @@ public class FloatingFpsService extends Service {
             new ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder binder) {
-                    if (binder != null && binder.pingBinder()) {
+                    backgroundShizukuBindRequested = false;
+                    backgroundShizukuBound = binder != null && binder.pingBinder();
+                    if (backgroundShizukuBound) {
                         monitoringEngine.setShizukuService(
                                 IOnyxUserService.Stub.asInterface(binder));
+                    } else {
+                        monitoringEngine.setShizukuService(null);
                     }
-                    backgroundShizukuBindRequested = false;
                 }
 
                 @Override
                 public void onServiceDisconnected(ComponentName name) {
                     monitoringEngine.setShizukuService(null);
                     backgroundShizukuBindRequested = false;
+                    backgroundShizukuBound = false;
                 }
             };
 
     private final Shizuku.OnBinderDeadListener backgroundBinderDeadListener = () -> {
         monitoringEngine.setShizukuService(null);
         backgroundShizukuBindRequested = false;
+        backgroundShizukuBound = false;
     };
     private SharedPreferences overlayPrefs;
     private SharedPreferences sessionPrefs;
@@ -1294,7 +1300,8 @@ public class FloatingFpsService extends Service {
         overlayExecutor.shutdownNow();
         samplingExecutor.shutdownNow();
         Shizuku.removeBinderDeadListener(backgroundBinderDeadListener);
-        if (backgroundShizukuBindRequested && backgroundShizukuArgs != null) {
+        if ((backgroundShizukuBindRequested || backgroundShizukuBound)
+                && backgroundShizukuArgs != null) {
             try {
                 Shizuku.unbindUserService(
                         backgroundShizukuArgs, backgroundShizukuConnection, true);
