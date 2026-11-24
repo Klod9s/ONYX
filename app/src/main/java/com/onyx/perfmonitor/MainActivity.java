@@ -1282,6 +1282,48 @@ public class MainActivity extends Activity {
         add(content, settingsHeader, 0, 12);
         add(content, overlaySettingsCard, 0, 14);
 
+        // BACKGROUND ACTIVITY CARD
+        LinearLayout backgroundCard = new LinearLayout(this);
+        backgroundCard.setOrientation(LinearLayout.VERTICAL);
+        backgroundCard.setPadding(
+                dp(16), dp(16), dp(16), dp(16));
+        backgroundCard.setBackground(cardBg(16));
+
+        add(backgroundCard, section("BACKGROUND ACTIVITY"), 0, 8);
+
+        TextView backgroundNote = text(
+                "Allow ONYX to keep monitoring when you're using other apps. "
+                        + "For better reliability, set ONYX battery usage to Unrestricted.",
+                12,
+                false,
+                Color.rgb(145, 158, 175)
+        );
+
+        add(backgroundCard, backgroundNote, 0, 12);
+
+        TextView batterySettingsButton = text(
+                "OPEN BATTERY SETTINGS  →",
+                13,
+                true,
+                getAppAccentColor()
+        );
+        appAccentTextViews.add(batterySettingsButton);
+
+        batterySettingsButton.setPadding(
+                dp(4), dp(10), dp(4), dp(10));
+
+        batterySettingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())
+            );
+            startActivity(intent);
+        });
+
+        add(backgroundCard, batterySettingsButton, 0, 0);
+
+        add(content, backgroundCard, 0, 14);
+
         LinearLayout appAppearanceCard = new LinearLayout(this);
         appAppearanceCard.setOrientation(LinearLayout.VERTICAL);
         appAppearanceCard.setPadding(
