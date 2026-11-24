@@ -16,12 +16,22 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 - Android 14 or higher recommended.
 - [Shizuku](https://shizuku.rikka.app/) installed and authorized (or a rooted device)
 
-## Installation
+## ## Installation
 
-1. Download the latest APK from the [Releases](../../releases) page.
-2. Install [Shizuku](https://shizuku.rikka.app/) from the Play Store or F-Droid.
-3. Start Shizuku and grant it permissions via Wireless Debugging or Root.
-4. Open ONYX and grant the necessary overlay and Shizuku permissions.
+ONYX supports two installation methods: **Shizuku** and **Root**.
+
+### Method 1: Shizuku
+1. Install and set up [Shizuku](https://shizuku.rikka.app/).
+2. Start the Shizuku service.
+3. Open ONYX.
+4. Select **Shizuku** as the access method.
+5. Grant ONYX permission when prompted.
+6. Done! ONYX is ready to use.
+
+### Method 2: Root
+1. Install ONYX.
+2. Open ONYX and grant it root access when prompted by your root manager (e.g., Magisk).
+3. Done! ONYX is ready to use.
 
 ## Building from Source
 
