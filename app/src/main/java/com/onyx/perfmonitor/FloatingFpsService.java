@@ -29,6 +29,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.graphics.LinearGradient;
 import android.graphics.Path;
 import android.graphics.Shader;
@@ -66,6 +67,7 @@ public class FloatingFpsService extends Service {
     private boolean backgroundSamplingEnabled = false;
     private boolean backgroundShizukuBindRequested = false;
     private boolean backgroundShizukuBound = false;
+    private boolean shizukuDisconnectToastShown = false;
     private Shizuku.UserServiceArgs backgroundShizukuArgs;
     private final Runnable backgroundSampleTick = new Runnable() {
         @Override
@@ -116,8 +118,10 @@ public class FloatingFpsService extends Service {
                     if (backgroundShizukuBound) {
                         monitoringEngine.setShizukuService(
                                 IOnyxUserService.Stub.asInterface(binder));
+                        handler.post(() -> shizukuDisconnectToastShown = false);
                     } else {
                         monitoringEngine.setShizukuService(null);
+                        notifyShizukuDisconnected();
                     }
                 }
 
@@ -126,6 +130,7 @@ public class FloatingFpsService extends Service {
                     monitoringEngine.setShizukuService(null);
                     backgroundShizukuBindRequested = false;
                     backgroundShizukuBound = false;
+                    notifyShizukuDisconnected();
                 }
             };
 
@@ -133,6 +138,7 @@ public class FloatingFpsService extends Service {
         monitoringEngine.setShizukuService(null);
         backgroundShizukuBindRequested = false;
         backgroundShizukuBound = false;
+        notifyShizukuDisconnected();
     };
     private SharedPreferences overlayPrefs;
     private SharedPreferences sessionPrefs;
@@ -1267,13 +1273,35 @@ public class FloatingFpsService extends Service {
         monitoringEngine.resetBaselines();
     }
 
+    private void notifyShizukuDisconnected() {
+        handler.post(() -> {
+            if (shizukuDisconnectToastShown) return;
+            shizukuDisconnectToastShown = true;
+            Toast.makeText(
+                    getApplicationContext(),
+                    "Shizuku connection lost. Overlay remains active with limited metrics.",
+                    Toast.LENGTH_LONG).show();
+        });
+    }
+
     private void ensureBackgroundShizukuBinding() {
-        if (backgroundShizukuBindRequested
-                || monitoringEngine == null
-                || !Shizuku.pingBinder()
-                || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+        if (monitoringEngine == null) return;
+
+        boolean shizukuAvailable = Shizuku.pingBinder()
+                && Shizuku.checkSelfPermission()
+                == PackageManager.PERMISSION_GRANTED;
+        if (!shizukuAvailable) {
+            if (backgroundShizukuBound || backgroundShizukuBindRequested) {
+                monitoringEngine.setShizukuService(null);
+                backgroundShizukuBindRequested = false;
+                backgroundShizukuBound = false;
+                notifyShizukuDisconnected();
+            }
             return;
         }
+
+        if (backgroundShizukuBindRequested || backgroundShizukuBound) return;
+
         try {
             if (backgroundShizukuArgs == null) {
                 backgroundShizukuArgs = new Shizuku.UserServiceArgs(
