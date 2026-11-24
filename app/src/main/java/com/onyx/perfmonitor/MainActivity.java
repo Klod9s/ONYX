@@ -3062,6 +3062,15 @@ public class MainActivity extends Activity {
                         boolean unplugged = powerIntent != null
                                 && powerIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
 
+                        int status = powerIntent != null
+                                ? powerIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                                : -1;
+
+                        sample.charging =
+                                status == BatteryManager.BATTERY_STATUS_CHARGING
+                                        || status == BatteryManager.BATTERY_STATUS_FULL;
+
+
                         sample.currentMa = batteryCurrent.toMilliamps(rawCurrent, unplugged);
                         sample.voltage = rawVoltage / 1000000.0;
                         sample.power = sample.currentMa * sample.voltage / 1000.0;
@@ -3192,7 +3201,9 @@ public class MainActivity extends Activity {
             sample.battery = (level >= 0 && scale > 0) ? Math.round(level * 100f / scale) : -1;
 
             int status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-            sample.charging = status == BatteryManager.BATTERY_STATUS_CHARGING;
+            sample.charging =
+                    status == BatteryManager.BATTERY_STATUS_CHARGING
+                            || status == BatteryManager.BATTERY_STATUS_FULL;
 
             int voltage = batteryIntent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1);
             sample.voltage = voltage >= 0 ? voltage / 1000.0 : -1;
@@ -3775,15 +3786,22 @@ public class MainActivity extends Activity {
                 : String.format(Locale.US, "%.0f%%", s.gpuLoadPercent));
 
         setTextIfChanged(power,
-                String.format(Locale.US, "%.2f W", s.power));
+                s.power == -1
+                        ? "—"
+                        : String.format(Locale.US, "%.2f W", s.power));
+
         setTextIfChanged(powerState,
                 s.charging ? "charging" : "discharging");
 
         setTextIfChanged(current,
-                String.format(Locale.US, "%.0f mA", s.currentMa));
+                s.currentMa == -1
+                        ? "—"
+                        : String.format(Locale.US, "%.0f mA", s.currentMa));
 
         setTextIfChanged(voltage,
-                String.format(Locale.US, "%.3f V", s.voltage));
+                s.voltage < 0
+                        ? "—"
+                        : String.format(Locale.US, "%.3f V", s.voltage));
 
         setTextIfChanged(battery, s.battery + "%");
 
@@ -4405,33 +4423,6 @@ public class MainActivity extends Activity {
         }
 
         super.onDestroy();
-    }
-
-
-    private static class Sample {
-        long timeMs;
-        String app;
-        double fps = -1;
-        double currentMa;
-        double voltage;
-        double power;
-        double temperatureC;
-        int battery;
-        double secondsPerPercent = -1;
-        boolean charging;
-        double[] cpu = new double[8];
-        double[] cpuFreqMHz = new double[8];
-        double gpuFreqMHz = -1;
-        double gpuLoadPercent = -1;
-        String fpsSource = "";
-        // Frame pacing (-1 means unavailable)
-        double averageFrameTimeMs = -1;
-        double frameTimeStdDevMs = -1;
-        int stutterCount = -1;
-
-        Sample() {
-            java.util.Arrays.fill(cpuFreqMHz, -1);
-        }
     }
 
 }

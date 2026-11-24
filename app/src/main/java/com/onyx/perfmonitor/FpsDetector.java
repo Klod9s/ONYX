@@ -174,6 +174,10 @@ public class FpsDetector {
         return NONE;
     }
 
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
+    }
+
     private Result attempt(int method, Shell shell, long now) {
 
         if (now < retryAt[method]) {
@@ -396,8 +400,7 @@ public class FpsDetector {
         }
 
         String out = shell.run(
-                "dumpsys SurfaceFlinger --latency '"
-                        + selectedLayer + "'"
+                "dumpsys SurfaceFlinger --latency " + shellQuote(selectedLayer)
         );
 
         if (out == null || out.isEmpty()

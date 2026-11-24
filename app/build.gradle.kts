@@ -21,7 +21,6 @@ android {
 
     buildTypes {
         release {
-            applicationIdSuffix = ".releasecheck"
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
