@@ -301,9 +301,7 @@ public class MainActivity extends Activity {
 
     // Only sample while the app is visible, a session is recording, or the overlay is on
     private boolean samplerNeeded() {
-        return isAppForeground
-                || running
-                || getPrefs().getBoolean("overlay_enabled", false);
+        return isAppForeground || running;
     }
 
     private void scheduleSampler() {
@@ -2616,6 +2614,15 @@ public class MainActivity extends Activity {
         rootChecked = false;      // re-check root right after returning from a prompt
         rootFailStreak = 0;
         updateOverlayButton();
+        if (getPrefs().getBoolean("overlay_enabled", false)) {
+            getPrefs().edit().putBoolean("overlay_engine_active", false).apply();
+            Intent engineStop = new Intent(this, FloatingFpsService.class);
+            engineStop.setAction(FloatingFpsService.ACTION_ENGINE_STOP);
+            try {
+                startService(engineStop);
+            } catch (Exception ignored) {
+            }
+        }
         wakeSampler();
     }
 
@@ -2626,6 +2633,15 @@ public class MainActivity extends Activity {
         isAppForeground = false;
         if (brand != null) {
             brand.stopShine();
+        }
+        if (!running && getPrefs().getBoolean("overlay_enabled", false)) {
+            getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
+            Intent engineHandoff = new Intent(this, FloatingFpsService.class);
+            engineHandoff.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
+            try {
+                startService(engineHandoff);
+            } catch (Exception ignored) {
+            }
         }
     }
 
