@@ -33,7 +33,10 @@ final class CpuUsageTracker {
                 if (fields.length < 5) continue;
                 try {
                     long total = 0;
-                    for (int j = 1; j < fields.length; j++) {
+                    // Linux already includes guest and guest_nice in user and nice.
+                    // Count only the first eight CPU time fields to avoid double-counting.
+                    int nonGuestFieldCount = Math.min(fields.length, 9);
+                    for (int j = 1; j < nonGuestFieldCount; j++) {
                         total += Long.parseLong(fields[j]);
                     }
                     long idle = Long.parseLong(fields[4]);
