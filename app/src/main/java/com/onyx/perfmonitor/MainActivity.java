@@ -68,7 +68,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.List;
 
 import rikka.shizuku.Shizuku;
 
@@ -3898,69 +3897,76 @@ public class MainActivity extends Activity {
     }
 
     private void importFromUri(android.net.Uri uri) {
-        try {
-            // Original file name, for the IMPORTED label
-            String original = "unknown.csv";
-            try (android.database.Cursor c = getContentResolver()
-                    .query(uri, null, null, null, null)) {
-                if (c != null && c.moveToFirst()) {
-                    int idx = c.getColumnIndex(
-                            android.provider.OpenableColumns.DISPLAY_NAME);
-                    if (idx >= 0 && !c.isNull(idx)) original = c.getString(idx);
+        Toast.makeText(this, "Importing…", Toast.LENGTH_SHORT).show();
+
+        fileWorker.execute(() -> {
+            boolean ok = false;
+            String message = "Import failed";
+            File dest = null;
+
+            try {
+                String original = "unknown.csv";
+                try (android.database.Cursor c = getContentResolver()
+                        .query(uri, null, null, null, null)) {
+                    if (c != null && c.moveToFirst()) {
+                        int idx = c.getColumnIndex(
+                                android.provider.OpenableColumns.DISPLAY_NAME);
+                        if (idx >= 0 && !c.isNull(idx)) original = c.getString(idx);
+                    }
                 }
-            }
 
-            String stamp = new java.text.SimpleDateFormat(
-                    "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
-                    .format(new java.util.Date());
+                String stamp = new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
+                        .format(new java.util.Date());
+                dest = new File(getFilesDir(),
+                        "session_imported_" + stamp + ".csv");
 
-            File dest = new File(getFilesDir(),
-                    "session_imported_" + stamp + ".csv");
-
-            try (java.io.InputStream in = getContentResolver().openInputStream(uri);
-                 java.io.FileOutputStream out = new java.io.FileOutputStream(dest)) {
-                if (in == null) throw new java.io.IOException("Could not open file.");
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-            }
-
-            // Reject anything that isn't an ONYX export
-            if (SessionData.load(dest) == null) {
-                dest.delete();
-                Toast.makeText(this, "Not a valid ONYX session CSV",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
-
-            // Remember where it came from (SessionData reads these)
-            getSharedPreferences("session_meta", MODE_PRIVATE).edit()
-                    .putString(dest.getName() + ".original", original)
-                    .putLong(dest.getName() + ".imported_at", System.currentTimeMillis())
-                    .apply();
-
-            // If the original name carries the session date, sort by that
-            // instead of the import time
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})")
-                    .matcher(original);
-            if (m.find()) {
-                try {
-                    java.util.Date when = new java.text.SimpleDateFormat(
-                            "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
-                            .parse(m.group(1));
-                    if (when != null) dest.setLastModified(when.getTime());
-                } catch (Exception ignored) {
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri);
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(dest)) {
+                    if (in == null) throw new java.io.IOException("Could not open file.");
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
                 }
+
+                if (SessionData.load(dest) == null) {
+                    dest.delete();
+                    message = "Not a valid ONYX session CSV";
+                } else {
+                    getSharedPreferences("session_meta", MODE_PRIVATE).edit()
+                            .putString(dest.getName() + ".original", original)
+                            .putLong(dest.getName() + ".imported_at",
+                                    System.currentTimeMillis())
+                            .apply();
+
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})")
+                            .matcher(original);
+                    if (m.find()) {
+                        try {
+                            java.util.Date when = new java.text.SimpleDateFormat(
+                                    "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
+                                    .parse(m.group(1));
+                            if (when != null) dest.setLastModified(when.getTime());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    ok = true;
+                    message = "Session imported";
+                }
+            } catch (Exception e) {
+                if (dest != null) dest.delete();   // don't leave a half-copied file
+                message = "Import failed: " + e.getMessage();
             }
 
-            loadHistory();
-            Toast.makeText(this, "Session imported", Toast.LENGTH_SHORT).show();
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Import failed: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
-        }
+            final boolean success = ok;
+            final String result = message;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (success) loadHistory();
+                Toast.makeText(this, result, Toast.LENGTH_LONG).show();
+            });
+        });
     }
 
     private void exportPastSession(String filename) {
