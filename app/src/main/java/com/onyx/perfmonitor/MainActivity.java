@@ -4306,14 +4306,17 @@ public class MainActivity extends Activity {
     private void finalizePendingDeletes() {
         handler.removeCallbacks(finalizeRunnable);
         if (!pendingDeletes.isEmpty()) {
+            SharedPreferences.Editor metaEditor =
+                    getSharedPreferences("session_meta", MODE_PRIVATE).edit();
+
             for (String name : pendingDeletes) {
                 new File(getFilesDir(), name).delete();
-                // Clean up old SharedPreferences meta if you used Step 1 previously
-                getSharedPreferences("session_meta", MODE_PRIVATE).edit()
-                        .remove(name + ".original")
-                        .remove(name + ".imported_at")
-                        .apply();
+                metaEditor.remove(name + ".original")
+                        .remove(name + ".imported_at");
             }
+
+            // Apply all metadata removals together instead of once per session.
+            metaEditor.apply();
         }
         if (historyFileDeleteRequested) {
             File historyFile = new File(getFilesDir(), "session_history.txt");
