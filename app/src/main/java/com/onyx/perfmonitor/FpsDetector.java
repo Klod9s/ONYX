@@ -271,6 +271,10 @@ public class FpsDetector {
 
         double fps = Double.parseDouble(m.group(1));
 
+        if (fps <= 0 || fps > 360) {
+            return NONE;
+        }
+
         return new Result(fps, "display", false);
     }
 
