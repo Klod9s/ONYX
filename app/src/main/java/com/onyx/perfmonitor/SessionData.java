@@ -35,8 +35,10 @@ public class SessionData {
     public final List<Double> times = new ArrayList<>();
     public final List<Double> fps = new ArrayList<>();
     public final List<Double> current = new ArrayList<>();
+    public final List<Double> voltage = new ArrayList<>();
     public final List<Double> power = new ArrayList<>();
     public final List<Double> battery = new ArrayList<>();
+    public final List<Double> secondsPerPercent = new ArrayList<>();
     public final List<Double> temperature = new ArrayList<>();
     public final List<List<Double>> cpu = new ArrayList<>();
     public final List<List<Double>> cpuFreq = new ArrayList<>();
@@ -169,8 +171,10 @@ public class SessionData {
         times.add(parseTime(columns.get(0)));
         fps.add(number(columns, 2));
         current.add(number(columns, 3));
+        voltage.add(number(columns, 4));
         power.add(number(columns, 5));
         battery.add(number(columns, 6));
+        secondsPerPercent.add(number(columns, 7));
         temperature.add(number(columns, 8));
 
         for (int i = 0; i < 8; i++) {
