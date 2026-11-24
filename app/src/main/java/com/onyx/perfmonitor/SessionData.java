@@ -230,7 +230,9 @@ public class SessionData {
         try {
             String value = columns.get(index).trim();
             if (value.isEmpty()) return -1;
-            return Double.parseDouble(value);
+
+            double parsed = Double.parseDouble(value);
+            return Double.isFinite(parsed) ? parsed : -1;
         } catch (Exception e) {
             return -1;
         }
@@ -239,19 +241,25 @@ public class SessionData {
     private double parseTime(String value) {
         try {
             String[] parts = value.split(":");
+            double seconds;
+
             if (parts.length == 3) {
-                return Double.parseDouble(parts[0]) * 3600
+                seconds = Double.parseDouble(parts[0]) * 3600
                         + Double.parseDouble(parts[1]) * 60
                         + Double.parseDouble(parts[2]);
-            }
-            if (parts.length == 2) {
-                return Double.parseDouble(parts[0]) * 60
+            } else if (parts.length == 2) {
+                seconds = Double.parseDouble(parts[0]) * 60
                         + Double.parseDouble(parts[1]);
+            } else {
+                seconds = Double.parseDouble(value);
             }
-            return Double.parseDouble(value);
-        } catch (Exception e) {
-            return times.isEmpty() ? 0 : times.get(times.size() - 1) + 1;
+
+            if (Double.isFinite(seconds)) return seconds;
+        } catch (Exception ignored) {
+            // Fall through to a safe sequential timestamp.
         }
+
+        return times.isEmpty() ? 0 : times.get(times.size() - 1) + 1;
     }
 
     private static final Pattern STAMP =
