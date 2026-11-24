@@ -69,43 +69,59 @@ public class FloatingFpsService extends Service {
     private boolean backgroundShizukuBound = false;
     private boolean shizukuDisconnectToastShown = false;
     private Shizuku.UserServiceArgs backgroundShizukuArgs;
+    private boolean serviceDestroyed = false;
     private final Runnable backgroundSampleTick = new Runnable() {
         @Override
         public void run() {
-            if (!backgroundSamplingEnabled
+            if (serviceDestroyed || !backgroundSamplingEnabled
                     || !overlayPrefs.getBoolean("overlay_enabled", false)) {
                 return;
             }
-            ensureBackgroundShizukuBinding();
-            samplingExecutor.execute(() -> {
-                boolean recording =
-                        sessionPrefs.getBoolean("recording", false);
-                Sample sample = null;
-                try {
-                    sample = monitoringEngine.sample(recording);
-                } catch (Throwable ignored) {
-                }
-                if (sample != null) {
-                    overlayMetricsStore.publish(
-                            sample.fps,
-                            sample.temperatureC,
-                            sample.averageFrameTimeMs,
-                            sample.cpu,
-                            sample.gpuLoadPercent);
-                    if (recording && sessionRecorder != null) {
-                        if (!sessionRecorder.isRecording()) {
-                            sessionRecorder.start();
+
+            try {
+                ensureBackgroundShizukuBinding();
+            } catch (RuntimeException ignored) {
+                // A temporary Shizuku failure must not stop overlay sampling.
+            }
+
+            try {
+                samplingExecutor.execute(() -> {
+                    try {
+                        boolean recording =
+                                sessionPrefs.getBoolean("recording", false);
+                        Sample sample = monitoringEngine.sample(recording);
+                        if (sample != null) {
+                            overlayMetricsStore.publish(
+                                    sample.fps,
+                                    sample.temperatureC,
+                                    sample.averageFrameTimeMs,
+                                    sample.cpu,
+                                    sample.gpuLoadPercent);
+                            if (recording && sessionRecorder != null) {
+                                if (!sessionRecorder.isRecording()) {
+                                    sessionRecorder.start();
+                                }
+                                sessionRecorder.append(
+                                        sample,
+                                        monitoringEngine.getMonitoringMode());
+                            }
                         }
-                        sessionRecorder.append(
-                                sample, monitoringEngine.getMonitoringMode());
-                    }
-                }
-                handler.post(() -> {
-                    if (backgroundSamplingEnabled) {
-                        handler.postDelayed(backgroundSampleTick, 500);
+                    } catch (RuntimeException ignored) {
+                        // Keep the sampling loop alive after an individual failure.
+                    } finally {
+                        handler.post(() -> {
+                            if (!serviceDestroyed
+                                    && backgroundSamplingEnabled
+                                    && overlayPrefs.getBoolean(
+                                            "overlay_enabled", false)) {
+                                handler.postDelayed(backgroundSampleTick, 500);
+                            }
+                        });
                     }
                 });
-            });
+            } catch (java.util.concurrent.RejectedExecutionException ignored) {
+                // The executor may be shutting down as the service is destroyed.
+            }
         }
     };
 
@@ -1322,6 +1338,7 @@ public class FloatingFpsService extends Service {
 
     @Override
     public void onDestroy() {
+        serviceDestroyed = true;
         attached = false;
         backgroundSamplingEnabled = false;
         handler.removeCallbacksAndMessages(null);
