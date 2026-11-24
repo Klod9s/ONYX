@@ -53,6 +53,10 @@ final class MonitoringEngine {
         this.shizukuService = service;
     }
 
+    String getMonitoringMode() {
+        return cachedMonitoringMode.isEmpty() ? "ANDROID" : cachedMonitoringMode;
+    }
+
     void resetBaselines() {
         haveCpuBaseline = false;
         fpsDetector.reset();
