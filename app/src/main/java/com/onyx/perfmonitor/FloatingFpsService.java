@@ -5,6 +5,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.ComponentName;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -16,6 +19,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import rikka.shizuku.Shizuku;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,6 +40,10 @@ import java.util.concurrent.Executors;
 public class FloatingFpsService extends Service {
     public static final String ACTION_TOGGLE =
             "com.onyx.perfmonitor.TOGGLE_SESSION";
+    public static final String ACTION_ENGINE_HANDOFF =
+            "com.onyx.perfmonitor.ENGINE_HANDOFF";
+    public static final String ACTION_ENGINE_STOP =
+            "com.onyx.perfmonitor.ENGINE_STOP";
 
     private static final String CHANNEL = "fps_overlay";
     private static final int NOTIFICATION_ID = 71;
@@ -50,6 +58,67 @@ public class FloatingFpsService extends Service {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService overlayExecutor =
             Executors.newSingleThreadExecutor();
+    private final ExecutorService samplingExecutor =
+            Executors.newSingleThreadExecutor();
+    private MonitoringEngine monitoringEngine;
+    private OverlayMetricsStore overlayMetricsStore;
+    private boolean backgroundSamplingEnabled = false;
+    private boolean backgroundShizukuBindRequested = false;
+    private Shizuku.UserServiceArgs backgroundShizukuArgs;
+    private final Runnable backgroundSampleTick = new Runnable() {
+        @Override
+        public void run() {
+            if (!backgroundSamplingEnabled
+                    || !overlayPrefs.getBoolean("overlay_enabled", false)) {
+                return;
+            }
+            ensureBackgroundShizukuBinding();
+            samplingExecutor.execute(() -> {
+                Sample sample = null;
+                try {
+                    sample = monitoringEngine.sample(
+                            sessionPrefs.getBoolean("recording", false));
+                } catch (Throwable ignored) {
+                }
+                if (sample != null) {
+                    overlayMetricsStore.publish(
+                            sample.fps,
+                            sample.temperatureC,
+                            sample.averageFrameTimeMs,
+                            sample.cpu,
+                            sample.gpuLoadPercent);
+                }
+                handler.post(() -> {
+                    if (backgroundSamplingEnabled) {
+                        handler.postDelayed(backgroundSampleTick, 500);
+                    }
+                });
+            });
+        }
+    };
+
+    private final ServiceConnection backgroundShizukuConnection =
+            new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder binder) {
+                    if (binder != null && binder.pingBinder()) {
+                        monitoringEngine.setShizukuService(
+                                IOnyxUserService.Stub.asInterface(binder));
+                    }
+                    backgroundShizukuBindRequested = false;
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    monitoringEngine.setShizukuService(null);
+                    backgroundShizukuBindRequested = false;
+                }
+            };
+
+    private final Shizuku.OnBinderDeadListener backgroundBinderDeadListener = () -> {
+        monitoringEngine.setShizukuService(null);
+        backgroundShizukuBindRequested = false;
+    };
     private SharedPreferences overlayPrefs;
     private SharedPreferences sessionPrefs;
     private int overlayAccentColor = Color.rgb(55, 210, 130);
@@ -258,6 +327,9 @@ public class FloatingFpsService extends Service {
 
         overlayPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         sessionPrefs = getSharedPreferences("session_state", MODE_PRIVATE);
+        monitoringEngine = new MonitoringEngine(getApplicationContext());
+        overlayMetricsStore = new OverlayMetricsStore(getApplicationContext());
+        Shizuku.addBinderDeadListener(backgroundBinderDeadListener);
 
         overlayPrefs.registerOnSharedPreferenceChangeListener(prefListener);
 
@@ -1133,14 +1205,72 @@ public class FloatingFpsService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent != null ? intent.getAction() : null;
+        if (ACTION_ENGINE_HANDOFF.equals(action)
+                || (intent == null && overlayPrefs.getBoolean(
+                        "overlay_engine_active", false))) {
+            startBackgroundSampling();
+        } else if (ACTION_ENGINE_STOP.equals(action)) {
+            stopBackgroundSampling();
+        }
         return START_STICKY;
+    }
+
+    private void startBackgroundSampling() {
+        if (!overlayPrefs.getBoolean("overlay_enabled", false)) return;
+        backgroundSamplingEnabled = true;
+        overlayPrefs.edit().putBoolean("overlay_engine_active", true).apply();
+        handler.removeCallbacks(backgroundSampleTick);
+        handler.post(backgroundSampleTick);
+    }
+
+    private void stopBackgroundSampling() {
+        backgroundSamplingEnabled = false;
+        overlayPrefs.edit().putBoolean("overlay_engine_active", false).apply();
+        handler.removeCallbacks(backgroundSampleTick);
+        monitoringEngine.resetBaselines();
+    }
+
+    private void ensureBackgroundShizukuBinding() {
+        if (backgroundShizukuBindRequested
+                || monitoringEngine == null
+                || !Shizuku.pingBinder()
+                || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        try {
+            if (backgroundShizukuArgs == null) {
+                backgroundShizukuArgs = new Shizuku.UserServiceArgs(
+                        new ComponentName(getPackageName(),
+                                ShizukuShellService.class.getName()))
+                        .daemon(false)
+                        .processNameSuffix("onyx-overlay")
+                        .debuggable(false)
+                        .version(1);
+            }
+            backgroundShizukuBindRequested = true;
+            Shizuku.bindUserService(
+                    backgroundShizukuArgs, backgroundShizukuConnection);
+        } catch (Exception ignored) {
+            backgroundShizukuBindRequested = false;
+        }
     }
 
     @Override
     public void onDestroy() {
         attached = false;
+        backgroundSamplingEnabled = false;
         handler.removeCallbacksAndMessages(null);
         overlayExecutor.shutdownNow();
+        samplingExecutor.shutdownNow();
+        Shizuku.removeBinderDeadListener(backgroundBinderDeadListener);
+        if (backgroundShizukuBindRequested && backgroundShizukuArgs != null) {
+            try {
+                Shizuku.unbindUserService(
+                        backgroundShizukuArgs, backgroundShizukuConnection, true);
+            } catch (Exception ignored) {
+            }
+        }
 
         if (overlayPrefs != null) {
             overlayPrefs.unregisterOnSharedPreferenceChangeListener(prefListener);
