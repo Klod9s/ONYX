@@ -1063,6 +1063,19 @@ public class AnalysisContentBuilder {
 
             double range = max - min;
 
+            double startTime = Double.POSITIVE_INFINITY;
+            double endTime = Double.NEGATIVE_INFINITY;
+
+            for (double time : times) {
+                if (!Double.isFinite(time)) continue;
+                startTime = Math.min(startTime, time);
+                endTime = Math.max(endTime, time);
+            }
+
+            if (startTime == Double.POSITIVE_INFINITY) return;
+
+            double timeRange = endTime - startTime;
+
             paint.setStrokeWidth(1.2f);
             paint.setColor(Color.rgb(65, 78, 94));
             paint.setStyle(Paint.Style.STROKE);
@@ -1156,19 +1169,6 @@ public class AnalysisContentBuilder {
             paint.setStyle(Paint.Style.FILL);
             paint.setTextSize(9f * getResources().getDisplayMetrics().scaledDensity);
             paint.setColor(Color.rgb(145, 160, 180));
-
-            double startTime = Double.POSITIVE_INFINITY;
-            double endTime = Double.NEGATIVE_INFINITY;
-
-            for (double time : times) {
-                if (!Double.isFinite(time)) continue;
-                startTime = Math.min(startTime, time);
-                endTime = Math.max(endTime, time);
-            }
-
-            if (startTime == Double.POSITIVE_INFINITY) return;
-
-            double timeRange = endTime - startTime;
 
             canvas.drawText(formatTime(startTime), chartLeft, chartBottom + 29f, paint);
             String endStr = formatTime(endTime);
