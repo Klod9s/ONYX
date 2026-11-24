@@ -28,17 +28,9 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.LinearGradient;
-import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.RadialGradient;
-import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.BatteryManager;
@@ -48,7 +40,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
-import android.text.Layout;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -147,26 +138,6 @@ public class MainActivity extends Activity {
     private static final String URL_GITHUB = "https://github.com/Klod9s";
     private static final String URL_XDA = "https://xdaforums.com/m/klod9s.13504375/";
 
-    private final java.util.ArrayList<LinearLayout> overlayAccentOptions =
-            new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<TextView> overlayAccentChecks =
-            new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<android.graphics.drawable.GradientDrawable>
-            overlayAccentPillBackgrounds = new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<Integer> overlayAccentColors =
-            new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<LinearLayout> overlayTextOptions =
-            new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<TextView> overlayTextChecks =
-            new java.util.ArrayList<>();
-
-    private final java.util.ArrayList<android.graphics.drawable.GradientDrawable>
-            overlayTextPillBackgrounds = new java.util.ArrayList<>();
 
     private View statusDot;
     private View headerLine;
@@ -289,7 +260,6 @@ public class MainActivity extends Activity {
 
     private boolean running = false;
     private int sessionId = 0;
-    private boolean rootAvailable = false;
     private long startMs;
     private double lastDisplayedFps = -1;
     private long lastDisplayedFpsTime = 0;
@@ -297,7 +267,6 @@ public class MainActivity extends Activity {
     private long[] previousIdle = new long[8];
     private boolean haveCpuBaseline = false;
     private boolean isAppForeground = false;
-
     private String lastPackage = "Unknown";
     private String cachedMonitoringMode = "";
     private long lastModeCheckMs = 0;
@@ -2003,7 +1972,18 @@ public class MainActivity extends Activity {
 
         @Override
         public int getMovementFlags(RecyclerView rv, RecyclerView.ViewHolder vh) {
-            return makeMovementFlags(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT);
+            // Check if we have enough sessions to allow pinning (left swipe)
+            boolean canPin = visibleSessionNames().size() >= 2;
+
+            // Always allow right swipe (delete)
+            int swipeFlags = ItemTouchHelper.RIGHT;
+
+            // Only allow left swipe (pin/compare) if we have >= 2 sessions
+            if (canPin) {
+                swipeFlags |= ItemTouchHelper.LEFT;
+            }
+
+            return makeMovementFlags(0, swipeFlags);
         }
 
         @Override
@@ -3908,17 +3888,6 @@ public class MainActivity extends Activity {
         boolean empty = items.isEmpty();
         sessionsEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
         sessionsList.setVisibility(empty ? View.GONE : View.VISIBLE);
-    }
-
-
-
-    private void exportCsv() {
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/csv");
-        intent.putExtra(Intent.EXTRA_TITLE, "performance-session.csv");
-
-        startActivityForResult(intent, 42);
     }
 
     private void importSession() {
