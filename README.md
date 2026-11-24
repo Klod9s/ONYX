@@ -16,7 +16,7 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 - Android 14 or higher recommended.
 - [Shizuku](https://shizuku.rikka.app/) installed and authorized (or a rooted device)
 
-## ## Installation
+## Installation
 
 ONYX supports two installation methods: **Shizuku** and **Root**.
 
