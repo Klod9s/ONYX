@@ -145,9 +145,6 @@ final class OverlaySessionRecorder {
                 int count;
                 while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
             }
-            SessionIndex.addEntry(context.getFilesDir(),
-                    new SessionIndex.Entry(fileName, System.currentTimeMillis(),
-                            device, summary, false, ""));
         } catch (Exception ignored) {
             destination.delete();
         } finally {
