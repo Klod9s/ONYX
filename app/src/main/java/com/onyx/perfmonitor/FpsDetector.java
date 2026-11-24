@@ -487,7 +487,7 @@ public class FpsDetector {
 
         double fps = frameIntervals * 1.0e9 / (last - first);
 
-        if (fps <= 0 || fps > 240) {
+        if (fps <= 0 || fps > 360) {
             return NONE;
         }
 
@@ -507,7 +507,7 @@ public class FpsDetector {
 
         if (fastCount >= 3 && last > fastFirst) {
             double fast = (fastCount - 1) * 1.0e9 / (last - fastFirst);
-            if (fast > 0 && fast <= 240) shownFps = fast;
+            if (fast > 0 && fast <= 360) shownFps = fast;
         }
 
 // Calculate individual frame intervals.
@@ -736,7 +736,7 @@ public class FpsDetector {
 
         double fps = frameDelta * 1000.0 / elapsedMs;
 
-        if (fps <= 0 || fps > 240) {
+        if (fps <= 0 || fps > 360) {
             return new Result(-1, "TimeStats", true);
         }
 
