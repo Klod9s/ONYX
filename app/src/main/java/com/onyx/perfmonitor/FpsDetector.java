@@ -84,6 +84,17 @@ public class FpsDetector {
     private static final Pattern DISPLAY_FPS_RE =
             Pattern.compile("fps:\\s*([0-9]+(?:\\.[0-9]+)?)");
 
+    private final java.util.function.LongSupplier elapsedRealtime;
+
+    public FpsDetector() {
+        this(SystemClock::elapsedRealtime);
+    }
+
+    // Package-private clock injection keeps retry and frame-counter tests deterministic.
+    FpsDetector(java.util.function.LongSupplier elapsedRealtime) {
+        this.elapsedRealtime = elapsedRealtime;
+    }
+
     private final long[] retryAt = new long[5];
 
     private final long[] lastAliveMs = new long[5];
@@ -148,7 +159,7 @@ public class FpsDetector {
             pkg = packageName;
         }
 
-        long now = SystemClock.elapsedRealtime();
+        long now = elapsedRealtime.getAsLong();
 
         // 1. BLAST SurfaceFlinger latency
         Result blast = attempt(M_BLAST, shell, now);
@@ -705,7 +716,7 @@ public class FpsDetector {
             return NONE;
         }
 
-        long now = SystemClock.elapsedRealtime();
+        long now = elapsedRealtime.getAsLong();
 
         // Establish initial baseline.
         if (!selectedLayer.equals(timeStatsLayerName)
