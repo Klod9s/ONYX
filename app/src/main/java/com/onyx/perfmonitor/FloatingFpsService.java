@@ -62,6 +62,7 @@ public class FloatingFpsService extends Service {
             Executors.newSingleThreadExecutor();
     private MonitoringEngine monitoringEngine;
     private OverlayMetricsStore overlayMetricsStore;
+    private OverlaySessionRecorder sessionRecorder;
     private boolean backgroundSamplingEnabled = false;
     private boolean backgroundShizukuBindRequested = false;
     private Shizuku.UserServiceArgs backgroundShizukuArgs;
@@ -74,10 +75,11 @@ public class FloatingFpsService extends Service {
             }
             ensureBackgroundShizukuBinding();
             samplingExecutor.execute(() -> {
+                boolean recording =
+                        sessionPrefs.getBoolean("recording", false);
                 Sample sample = null;
                 try {
-                    sample = monitoringEngine.sample(
-                            sessionPrefs.getBoolean("recording", false));
+                    sample = monitoringEngine.sample(recording);
                 } catch (Throwable ignored) {
                 }
                 if (sample != null) {
@@ -87,6 +89,10 @@ public class FloatingFpsService extends Service {
                             sample.averageFrameTimeMs,
                             sample.cpu,
                             sample.gpuLoadPercent);
+                    if (recording && sessionRecorder != null) {
+                        sessionRecorder.append(
+                                sample, monitoringEngine.getMonitoringMode());
+                    }
                 }
                 handler.post(() -> {
                     if (backgroundSamplingEnabled) {
@@ -329,6 +335,7 @@ public class FloatingFpsService extends Service {
         sessionPrefs = getSharedPreferences("session_state", MODE_PRIVATE);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         overlayMetricsStore = new OverlayMetricsStore(getApplicationContext());
+        sessionRecorder = new OverlaySessionRecorder(getApplicationContext());
         Shizuku.addBinderDeadListener(backgroundBinderDeadListener);
 
         overlayPrefs.registerOnSharedPreferenceChangeListener(prefListener);
@@ -1007,9 +1014,15 @@ public class FloatingFpsService extends Service {
     }
 
     private void toggleRecording() {
-        Intent intent = new Intent(ACTION_TOGGLE);
-        intent.setPackage(getPackageName());
-        sendBroadcast(intent);
+        if (overlayPrefs.getBoolean("overlay_engine_active", false)) {
+            Intent intent = new Intent(this, FloatingFpsService.class);
+            intent.setAction(ACTION_TOGGLE);
+            startService(intent);
+        } else {
+            Intent intent = new Intent(ACTION_TOGGLE);
+            intent.setPackage(getPackageName());
+            sendBroadcast(intent);
+        }
     }
 
     private String[] readOverlayValues() {
@@ -1212,8 +1225,22 @@ public class FloatingFpsService extends Service {
             startBackgroundSampling();
         } else if (ACTION_ENGINE_STOP.equals(action)) {
             stopBackgroundSampling();
+        } else if (ACTION_TOGGLE.equals(action)) {
+            toggleBackgroundRecording();
         }
         return START_STICKY;
+    }
+
+    private void toggleBackgroundRecording() {
+        if (sessionPrefs.getBoolean("recording", false)) {
+            sessionPrefs.edit().putBoolean("recording", false).apply();
+            if (sessionRecorder != null) sessionRecorder.finish();
+        } else {
+            if (sessionRecorder != null) sessionRecorder.start();
+            sessionPrefs.edit().putBoolean("recording", true).apply();
+        }
+        handler.removeCallbacks(updater);
+        if (attached) handler.post(updater);
     }
 
     private void startBackgroundSampling() {
