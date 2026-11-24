@@ -7,11 +7,13 @@ final class CpuUsageTracker {
     private boolean haveBaseline;
     private final long[] previousTotal = new long[8];
     private final long[] previousIdle = new long[8];
+    private final boolean[] previousFound = new boolean[8];
 
     void reset() {
         haveBaseline = false;
         Arrays.fill(previousTotal, 0);
         Arrays.fill(previousIdle, 0);
+        Arrays.fill(previousFound, false);
     }
 
     double[] parse(String raw) {
@@ -47,7 +49,7 @@ final class CpuUsageTracker {
 
         if (haveBaseline) {
             for (int i = 0; i < 8; i++) {
-                if (found[i]) {
+                if (found[i] && previousFound[i]) {
                     long totalDiff = currentTotal[i] - previousTotal[i];
                     long idleDiff = currentIdle[i] - previousIdle[i];
                     loads[i] = totalDiff > 0
@@ -62,6 +64,7 @@ final class CpuUsageTracker {
             if (found[i]) {
                 previousTotal[i] = currentTotal[i];
                 previousIdle[i] = currentIdle[i];
+                previousFound[i] = true;
             }
         }
 
