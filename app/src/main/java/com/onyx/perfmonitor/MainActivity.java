@@ -2735,7 +2735,10 @@ public class MainActivity extends Activity {
 
         if (enabled) {
             stopService(new Intent(this, FloatingFpsService.class));
-            getPrefs().edit().putBoolean("overlay_enabled", false).apply();
+            getPrefs().edit()
+                    .putBoolean("overlay_enabled", false)
+                    .putBoolean("overlay_engine_active", false)
+                    .apply();
             overlayButton.setText("TURN ON OVERLAY");
             Toast.makeText(this, "Floating overlay disabled",
                     Toast.LENGTH_SHORT).show();
