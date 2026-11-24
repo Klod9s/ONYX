@@ -180,6 +180,7 @@ public class MainActivity extends Activity {
     private View[] navIndicators = new View[4];
 
     private BatteryCurrent batteryCurrent;
+    private OverlayMetricsStore overlayMetricsStore;
 
     private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
         cachedMonitoringMode = "";
@@ -367,7 +368,13 @@ public class MainActivity extends Activity {
                         setStatus(mode + (running ? " · RECORDING" : " · READY"), false);
                     }
                     if (sample != null) {
-                        publishOverlayValues(sample);
+                        overlayMetricsStore.publish(
+                                sample.fps,
+                                sample.temperatureC,
+                                sample.averageFrameTimeMs,
+                                sample.cpu,
+                                sample.gpuLoadPercent
+                        );
                         if (running) {
                             if (!samples.isEmpty()) {
                                 Sample previous = samples.get(samples.size() - 1);
@@ -529,6 +536,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         batteryCurrent = new BatteryCurrent(this);
+        overlayMetricsStore = new OverlayMetricsStore(this);
         shizukuServiceArgs = new Shizuku.UserServiceArgs(
                 new ComponentName(
                         getPackageName(),
@@ -3736,47 +3744,6 @@ public class MainActivity extends Activity {
         if (!value.contentEquals(view.getText())) {
             view.setText(value);
         }
-    }
-
-
-    private final String[] lastPublished = new String[5];
-
-    private void publishOverlayValues(Sample s) {
-        double cpuTotal = 0;
-        int cpuCount = 0;
-
-        for (double value : s.cpu) {
-            if (value >= 0) {
-                cpuTotal += value;
-                cpuCount++;
-            }
-        }
-
-        double averageCpu = cpuCount > 0 ? cpuTotal / cpuCount : -1;
-
-        String[] v = {
-                s.fps < 0 ? "--" : String.valueOf(Math.round(s.fps)),
-                s.temperatureC < 0 ? "--°C"
-                        : String.format(Locale.US, "%.1f°C", s.temperatureC),
-                s.averageFrameTimeMs < 0 ? "--.- ms"
-                        : String.format(Locale.US, "%.1f ms", s.averageFrameTimeMs),
-                averageCpu < 0 ? "--%"
-                        : String.format(Locale.US, "%.0f%%", averageCpu),
-                s.gpuLoadPercent < 0 ? "--%"
-                        : String.format(Locale.US, "%.0f%%", s.gpuLoadPercent)
-        };
-
-        if (java.util.Arrays.equals(v, lastPublished)) return;
-        System.arraycopy(v, 0, lastPublished, 0, v.length);
-
-        getSharedPreferences("overlay_live", MODE_PRIVATE)
-                .edit()
-                .putString("fps", v[0])
-                .putString("temperature", v[1])
-                .putString("frame_time", v[2])
-                .putString("cpu_load", v[3])
-                .putString("gpu_load", v[4])
-                .apply();
     }
 
 
