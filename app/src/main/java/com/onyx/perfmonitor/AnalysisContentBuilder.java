@@ -263,9 +263,19 @@ public class AnalysisContentBuilder {
         int previousBattery = -1;
         double previousTime = 0;
 
-        for (int i = 0; i < battery.size(); i++) {
-            int currentBattery = (int) Math.round(battery.get(i));
+        for (int i = 0; i < battery.size() && i < times.size(); i++) {
+            double batteryValue = battery.get(i);
             double currentTime = times.get(i);
+
+            // -1 (and any out-of-range/non-finite value) means the
+            // battery reading is unavailable, not an actual percentage.
+            if (!Double.isFinite(batteryValue)
+                    || batteryValue < 0 || batteryValue > 100
+                    || !Double.isFinite(currentTime)) {
+                continue;
+            }
+
+            int currentBattery = (int) Math.round(batteryValue);
 
             if (previousBattery >= 0 && currentBattery < previousBattery) {
                 dropNumber++;
