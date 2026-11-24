@@ -32,9 +32,7 @@ final class CpuUsageTracker {
                 try {
                     long total = 0;
                     for (int j = 1; j < fields.length; j++) {
-                        long value = Long.parseLong(fields[j]);
-                        if (value < 0) throw new NumberFormatException("negative CPU counter");
-                        total += value;
+                        total += Long.parseLong(fields[j]);
                     }
                     long idle = Long.parseLong(fields[4]);
                     if (fields.length > 5) idle += Long.parseLong(fields[5]);
