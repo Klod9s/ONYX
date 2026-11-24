@@ -6,13 +6,12 @@ import android.content.SharedPreferences;
 /**
  * Turns the raw battery current into mA with one convention on every phone:
  * negative = discharging, positive = charging.
- * Learns the phone's sign and unit by itself and remembers them.
+ * Learns the phone's current sign convention and remembers it.
  */
 public final class BatteryCurrent {
 
     private static final String PREFS = "battery_calibration";
     private static final String KEY_INVERTED = "current_inverted";
-    private static final String KEY_MICRO = "current_in_microamps";
 
     private static final double MIN_LEARN_MA = 150;   // ignore tiny, noisy readings
     private static final int VOTES_NEEDED = 4;        // consecutive samples (about 2 s)
@@ -20,7 +19,6 @@ public final class BatteryCurrent {
 
     private final SharedPreferences prefs;
     private boolean inverted;   // true = this phone reports discharging as positive
-    private boolean micro;      // true = this phone reports microamps, false = mA
     private int lastVote = -1;
     private int voteCount = 0;
 
@@ -28,7 +26,6 @@ public final class BatteryCurrent {
         prefs = context.getApplicationContext()
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         inverted = prefs.getBoolean(KEY_INVERTED, false);
-        micro = prefs.getBoolean(KEY_MICRO, false);
     }
 
     /** raw = BATTERY_PROPERTY_CURRENT_NOW or sysfs current_now. Returns mA. */
