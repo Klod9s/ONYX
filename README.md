@@ -26,7 +26,7 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/[YourGitHubUsername]/onyx.git
+   git clone https://github.com/Klod9s/onyx.git
 
 
 ## License
