@@ -3243,14 +3243,10 @@ public class MainActivity extends Activity {
                 sample.gpuFreqMHz = -1;
                 sample.gpuLoadPercent = -1;
 
-                String cpuOutput = service.runCommand("cat /proc/stat");
-                if (cpuOutput != null && !cpuOutput.trim().isEmpty()) {
-                    sample.cpu = parseCpu(cpuOutput);
-                }
-
                 // Universal script with safe Mali discovery guard
                 String freqScript =
-                        "echo __CPU_FREQ__; " +
+                        "echo __PROC_STAT__; cat /proc/stat; " +
+                                "echo __CPU_FREQ__; " +
                                 "for i in 0 1 2 3 4 5 6 7; do " +
                                 "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; " +
                                 "if [ -r \"$F\" ]; then cat \"$F\"; else echo -1; fi; " +
@@ -3307,6 +3303,13 @@ public class MainActivity extends Activity {
                 String freqOutput = service.runCommand(freqScript);
 
                 if (freqOutput != null) {
+                    String cpuOutput = between(
+                            freqOutput, "__PROC_STAT__\n", "__CPU_FREQ__"
+                    ).trim();
+
+                    if (!cpuOutput.isEmpty()) {
+                        sample.cpu = parseCpu(cpuOutput);
+                    }
                     // Parse CPU Freq
                     String cpuFreqRaw = between(freqOutput, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
                     if (!cpuFreqRaw.isEmpty()) {
