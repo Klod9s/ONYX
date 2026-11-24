@@ -51,6 +51,7 @@ final class OverlaySessionRecorder {
                     .putInt("start_battery", -1)
                     .putInt("end_battery", -1)
                     .putString("mode", "ANDROID")
+                    .putBoolean("recording", true)
                     .apply();
             previousSampleTime = -1;
             previousBattery = -1;
@@ -59,7 +60,7 @@ final class OverlaySessionRecorder {
         }
     }
 
-    synchronized void append(Sample sample, String mode) {
+    synchronized boolean isRecording() {\n        return prefs.getBoolean("recording", false);\n    }\n\n    synchronized void append(Sample sample, String mode) {
         if (sample == null || !prefs.getBoolean("recording", false)) return;
         long start = prefs.getLong("start_ms", System.currentTimeMillis());
         long elapsed = Math.max(0, System.currentTimeMillis() - start);
@@ -94,6 +95,7 @@ final class OverlaySessionRecorder {
     }
 
     synchronized void finish() {
+        prefs.edit().putBoolean("recording", false).apply();
         long start = prefs.getLong("start_ms", System.currentTimeMillis());
         long duration = Math.max(0, System.currentTimeMillis() - start);
         int first = prefs.getInt("start_battery", -1);
