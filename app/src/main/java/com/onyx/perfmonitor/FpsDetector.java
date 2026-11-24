@@ -355,7 +355,7 @@ public class FpsDetector {
         lastSfTime = now;
         lastSfFrames = totalFrames;
 
-        if (fps > 170) {
+        if (fps > 360) {
             return new Result(-1, "SF Counter", true);
         }
 
