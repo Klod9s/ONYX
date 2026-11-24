@@ -805,11 +805,11 @@ public class AnalysisContentBuilder {
                             double average = total / count;
 
                             avgValue.setText(String.format(
-                                    Locale.US, "%.1f%%", average));
+                                    Locale.US, "%.0f%%", average));
                             minValue.setText(String.format(
-                                    Locale.US, "MIN %.1f%%", min));
+                                    Locale.US, "MIN %.0f%%", min));
                             maxValue.setText(String.format(
-                                    Locale.US, "MAX %.1f%%", max));
+                                    Locale.US, "MAX %.0f%%", max));
                             bar.setProgress((int) Math.round(
                                     Math.max(0, Math.min(100, average))));
                         } else {
