@@ -1046,8 +1046,14 @@ public class AnalysisContentBuilder {
             double max = -Double.MAX_VALUE;
 
             for (List<Double> values : series) {
-                for (double value : values) {
-                    if (Double.isFinite(value) && value != -1) {
+                int pointCount = Math.min(values.size(), times.size());
+
+                for (int i = 0; i < pointCount; i++) {
+                    double value = values.get(i);
+                    double time = times.get(i);
+
+                    if (Double.isFinite(value) && value != -1
+                            && Double.isFinite(time)) {
                         min = Math.min(min, value);
                         max = Math.max(max, value);
                     }
