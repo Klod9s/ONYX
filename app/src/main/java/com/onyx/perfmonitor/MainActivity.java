@@ -3878,6 +3878,10 @@ public class MainActivity extends Activity {
 
 
     private void loadHistory() {
+        loadHistory(false);
+    }
+
+    private void loadHistory(boolean scrollToTop) {
         if (sessionsAdapter == null) return;
         final File folder = getFilesDir();
         if (folder == null) return;
@@ -3913,6 +3917,9 @@ public class MainActivity extends Activity {
                 if (generation != historyGeneration) return;
                 if (sessionsAdapter == null) return;
                 sessionsAdapter.submit(items);
+                if (scrollToTop && sessionsList != null) {
+                    sessionsList.scrollToPosition(0);
+                }
                 if (sessionsCount != null) {
                     sessionsCount.setText(items.size() + " SAVED");
                 }
@@ -4301,7 +4308,9 @@ public class MainActivity extends Activity {
         pendingDeletes.clear();
         historyFileDeleteRequested = false;
         hideUndoBar();
-        loadHistory();
+        // The history reload runs on a worker; scroll only after the restored
+        // items have been submitted to the adapter on the main thread.
+        loadHistory(true);
     }
 
     /** Really deletes everything that is pending. Safe to call any time. */
