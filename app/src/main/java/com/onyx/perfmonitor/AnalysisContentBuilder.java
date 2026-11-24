@@ -1092,16 +1092,24 @@ public class AnalysisContentBuilder {
                 boolean started = false;
                 float firstX = 0, lastX = 0;
 
-                for (int i = 0; i < values.size(); i++) {
-                    double value = values.get(i);
+                int pointCount = Math.min(values.size(), times.size());
 
-                    if (!Double.isFinite(value) || value == -1) {
+                for (int i = 0; i < pointCount; i++) {
+                    double value = values.get(i);
+                    double time = times.get(i);
+
+                    if (!Double.isFinite(value) || value == -1
+                            || !Double.isFinite(time)) {
                         continue;
                     }
 
+                    double timePosition = timeRange > 0
+                            ? (time - startTime) / timeRange
+                            : (double) i / Math.max(1, pointCount - 1);
+
                     float x = chartLeft
-                            + (chartRight - chartLeft) * i
-                            / Math.max(1f, values.size() - 1);
+                            + (chartRight - chartLeft)
+                            * (float) Math.max(0, Math.min(1, timePosition));
 
                     float y = chartBottom - (float)
                             ((value - min) / range)
@@ -1149,8 +1157,18 @@ public class AnalysisContentBuilder {
             paint.setTextSize(9f * getResources().getDisplayMetrics().scaledDensity);
             paint.setColor(Color.rgb(145, 160, 180));
 
-            double startTime = times.get(0);
-            double endTime = times.get(times.size() - 1);
+            double startTime = Double.POSITIVE_INFINITY;
+            double endTime = Double.NEGATIVE_INFINITY;
+
+            for (double time : times) {
+                if (!Double.isFinite(time)) continue;
+                startTime = Math.min(startTime, time);
+                endTime = Math.max(endTime, time);
+            }
+
+            if (startTime == Double.POSITIVE_INFINITY) return;
+
+            double timeRange = endTime - startTime;
 
             canvas.drawText(formatTime(startTime), chartLeft, chartBottom + 29f, paint);
             String endStr = formatTime(endTime);
