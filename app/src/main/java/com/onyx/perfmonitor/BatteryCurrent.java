@@ -16,7 +16,7 @@ public final class BatteryCurrent {
 
     private static final double MIN_LEARN_MA = 150;   // ignore tiny, noisy readings
     private static final int VOTES_NEEDED = 4;        // consecutive samples (about 2 s)
-    private static final long MICRO_THRESHOLD = 30000; // above this it can't be mA
+
 
     private final SharedPreferences prefs;
     private boolean inverted;   // true = this phone reports discharging as positive
@@ -34,12 +34,8 @@ public final class BatteryCurrent {
     /** raw = BATTERY_PROPERTY_CURRENT_NOW or sysfs current_now. Returns mA. */
     public synchronized double toMilliamps(long raw, boolean unplugged) {
 
-        // Unit: a reading above 30000 can't be mA (30 A), so the phone uses microamps.
-        if (!micro && Math.abs(raw) >= MICRO_THRESHOLD) {
-            micro = true;
-            prefs.edit().putBoolean(KEY_MICRO, true).apply();
-        }
-        double ma = micro ? raw / 1000.0 : raw;
+
+        double ma = raw / 1000.0;
 
         // Sign: unplugged means the battery is really discharging.
         // Positive reading while unplugged = this phone reports it backwards.
