@@ -1221,7 +1221,7 @@ public class FloatingFpsService extends Service {
         backgroundSamplingEnabled = true;
         overlayPrefs.edit().putBoolean("overlay_engine_active", true).apply();
         handler.removeCallbacks(backgroundSampleTick);
-        handler.post(backgroundSampleTick);
+        handler.postDelayed(backgroundSampleTick, 500);
     }
 
     private void stopBackgroundSampling() {
@@ -1286,6 +1286,15 @@ public class FloatingFpsService extends Service {
         overlay = null;
 
         super.onDestroy();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        if (overlayPrefs != null
+                && overlayPrefs.getBoolean("overlay_enabled", false)) {
+            startBackgroundSampling();
+        }
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override
