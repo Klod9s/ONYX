@@ -845,7 +845,7 @@ public class AnalysisContentBuilder {
         }
 
         // STATISTICS (AVG / MIN / MAX)
-        double chartStart = times.isEmpty() ? 0 : times.get(0) + 3;
+        // Use the same full recording range as the chart above.
 
         if (!title.equals("CPU CORE LOAD")
                 && !title.equals("CPU CORE FREQUENCY")) {
@@ -862,7 +862,7 @@ public class AnalysisContentBuilder {
                 for (int i = 0; i < values.size() && i < times.size(); i++) {
                     double value = values.get(i);
 
-                    if (times.get(i) < chartStart
+                    if (!Double.isFinite(times.get(i))
                             || !Double.isFinite(value)
                             || value == -1
                             || (value < 0
