@@ -46,7 +46,7 @@ public class CpuUsageTrackerTest {
 
     @Test public void clampsUsageToPercentageRange() {
         CpuUsageTracker tracker = new CpuUsageTracker();
-        tracker.parse("cpu0 100 0 50 0 50");
-        assertEquals(100.0, tracker.parse("cpu0 150 0 40 0 60")[0], 0.0001);
+        tracker.parse("cpu0 100 0 50 0 100");
+        assertEquals(100.0, tracker.parse("cpu0 150 0 40 0 80")[0], 0.0001);
     }
 }
