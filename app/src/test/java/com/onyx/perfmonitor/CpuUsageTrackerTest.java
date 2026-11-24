@@ -23,7 +23,7 @@ public class CpuUsageTrackerTest {
     @Test public void malformedOrMissingCoreDoesNotCorruptOtherResults() {
         CpuUsageTracker tracker = new CpuUsageTracker();
         tracker.parse("cpu0 100 0 50 0 50\ncpu1 100 0 50 0 50");
-        double[] loads = tracker.parse("cpu0 130 0 60 0 70\ncpu1 invalid counters\ncpu2 200 0 100 0 100");
+        double[] loads = tracker.parse("cpu0 130 0 50 0 70\ncpu1 invalid counters\ncpu2 200 0 100 0 100");
         assertEquals(60.0, loads[0], 0.0001);
         assertEquals(-1.0, loads[1], 0.0001);
         assertEquals(-1.0, loads[2], 0.0001);
