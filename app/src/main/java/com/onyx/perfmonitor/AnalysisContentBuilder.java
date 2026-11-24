@@ -231,8 +231,7 @@ public class AnalysisContentBuilder {
         addChart(layout, "BATTERY CURRENT", d.current, "mA");
         addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
         addChart(layout, "BATTERY POWER", d.power, "W");
-        addChart(layout, "SECONDS PER 1% DRAIN",
-                d.secondsPerPercent, "seconds");
+        // Seconds per 1% Drain chart removed from analysis and comparison.
 
         // BATTERY DRAIN
         addBatteryDrain(layout, green, white, muted);
