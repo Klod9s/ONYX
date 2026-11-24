@@ -3856,17 +3856,6 @@ public class MainActivity extends Activity {
                 out.write(buildCsv(result).getBytes(StandardCharsets.UTF_8));
             }
 
-            // Update JSON Index
-            SessionIndex.Entry entry = new SessionIndex.Entry(
-                    csvName,
-                    System.currentTimeMillis(),
-                    deviceName(),
-                    result,
-                    false,
-                    ""
-            );
-            SessionIndex.addEntry(getFilesDir(), entry);
-
             loadHistory();
             Toast.makeText(this, "Session saved on this device", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
@@ -4319,9 +4308,6 @@ public class MainActivity extends Activity {
         if (!pendingDeletes.isEmpty()) {
             for (String name : pendingDeletes) {
                 new File(getFilesDir(), name).delete();
-                // Remove from JSON Index
-                SessionIndex.removeEntry(getFilesDir(), name);
-
                 // Clean up old SharedPreferences meta if you used Step 1 previously
                 getSharedPreferences("session_meta", MODE_PRIVATE).edit()
                         .remove(name + ".original")
