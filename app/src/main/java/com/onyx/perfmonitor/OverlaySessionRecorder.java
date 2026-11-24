@@ -60,7 +60,11 @@ final class OverlaySessionRecorder {
         }
     }
 
-    synchronized boolean isRecording() {\n        return prefs.getBoolean("recording", false);\n    }\n\n    synchronized void append(Sample sample, String mode) {
+    synchronized boolean isRecording() {
+        return prefs.getBoolean("recording", false);
+    }
+
+    synchronized void append(Sample sample, String mode) {
         if (sample == null || !prefs.getBoolean("recording", false)) return;
         long start = prefs.getLong("start_ms", System.currentTimeMillis());
         long elapsed = Math.max(0, System.currentTimeMillis() - start);
