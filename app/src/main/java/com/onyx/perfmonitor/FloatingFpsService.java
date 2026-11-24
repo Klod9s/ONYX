@@ -90,6 +90,9 @@ public class FloatingFpsService extends Service {
                             sample.cpu,
                             sample.gpuLoadPercent);
                     if (recording && sessionRecorder != null) {
+                        if (!sessionRecorder.isRecording()) {
+                            sessionRecorder.start();
+                        }
                         sessionRecorder.append(
                                 sample, monitoringEngine.getMonitoringMode());
                     }
