@@ -576,6 +576,15 @@ public class MainActivity extends Activity {
         refreshStatusPill();
 
         loadHistory();
+        if (getPrefs().getBoolean("overlay_enabled", false)) {
+            getPrefs().edit().putBoolean("overlay_engine_active", false).apply();
+            Intent engineStop = new Intent(this, FloatingFpsService.class);
+            engineStop.setAction(FloatingFpsService.ACTION_ENGINE_STOP);
+            try {
+                startService(engineStop);
+            } catch (Exception ignored) {
+            }
+        }
         sampler.run();
     }
 
@@ -4396,6 +4405,15 @@ public class MainActivity extends Activity {
 
         running = false;
         handler.removeCallbacks(sampler);
+        if (getPrefs().getBoolean("overlay_enabled", false)) {
+            getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
+            Intent engineHandoff = new Intent(this, FloatingFpsService.class);
+            engineHandoff.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
+            try {
+                startService(engineHandoff);
+            } catch (Exception ignored) {
+            }
+        }
         worker.shutdownNow();
         fileWorker.shutdownNow();
         try {
