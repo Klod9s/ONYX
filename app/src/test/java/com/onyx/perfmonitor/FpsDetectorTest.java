@@ -68,7 +68,7 @@ public class FpsDetectorTest {
 
         FpsDetector.Shell shell = command -> {
             if (command.contains("dumpsys SurfaceFlinger 2>/dev/null")) {
-                return "SurfaceView com.example.game\\nframe=" + frames.get() + "\\n";
+                return "SurfaceView com.example.game\nframe=" + frames.get() + "\n";
             }
             return "";
         };
@@ -94,7 +94,7 @@ public class FpsDetectorTest {
 
         FpsDetector.Shell shell = command -> {
             if (command.contains("dumpsys SurfaceFlinger 2>/dev/null")) {
-                return "SurfaceView com.example.game\\nframe=" + frames.get() + "\\n";
+                return "SurfaceView com.example.game\nframe=" + frames.get() + "\n";
             }
             return "";
         };
