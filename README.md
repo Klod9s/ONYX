@@ -6,7 +6,7 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 
 - **Comprehensive Performance Metrics**: Measures everything you need for deep analysis, including FPS, frametime graph, 1% & 0.1% lows, and stutter counts.
 - **Hardware Telemetry**: Live CPU/GPU load, battery temperature, and power state monitoring to identify throttling.
-- **Smart Foreground Refresh**: The overlay and UI only update when actively in the foreground, ensuring zero background battery drain.
+- **Smart Foreground Refresh**: The overlay and UI only update when actively in the foreground, no polling when idle; sampling only while recording or the overlay is visible.
 - **Shizuku Integration**: Privileged telemetry access without requiring full root (Root also supported).
 - **Highly Customizable**: Adjustable scaling, drag-to-position, and multiple accent color themes (Onyx, Ocean, Violet, Crimson, or Custom).
 
