@@ -34,6 +34,7 @@ public class FpsDetector {
         public final double averageFrameTimeMs;
         public final double frameTimeStdDevMs;
         public final int stutterCount;
+        public final List<Double> frameIntervalsMs;
 
         Result(double fps, String source, boolean pending) {
             this(fps, source, pending, -1, -1, -1, Collections.emptyList());
