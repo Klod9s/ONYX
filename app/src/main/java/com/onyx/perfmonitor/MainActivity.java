@@ -211,7 +211,7 @@ public class MainActivity extends Activity {
 
     private final StatusPillManager statusPillManager = new StatusPillManager(this);
 
-    private void setStatus(String text, boolean error) {
+    void setStatus(String text, boolean error) {
         statusPillManager.setStatus(text, error);
     }
 
