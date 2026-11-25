@@ -2,7 +2,7 @@ package com.onyx.perfmonitor;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.content.Intent;
+import android.app.AlertDialog;\nimport android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -268,11 +268,8 @@ final class SettingsContentBuilder {
                 activity.dp(16), activity.dp(16), activity.dp(16), activity.dp(12));
         analysisDisplayCard.setBackground(activity.cardBg(16));
 
-        activity.add(analysisDisplayCard, activity.section("ANALYSIS DISPLAY"), 0, 8);
-        TextView analysisDisplayNote = activity.text(
-                "Choose which visual indicators appear in Session Analysis and Comparison.",
-                12, false, Color.rgb(145, 158, 175));
-        activity.add(analysisDisplayCard, analysisDisplayNote, 0, 10);
+        addInfoSectionHeader(analysisDisplayCard, "ANALYSIS DISPLAY",
+                "Choose which visual indicators appear in Session Analysis and Comparison.");
 
         android.widget.CheckBox showThermalThrottling =
                 new android.widget.CheckBox(activity);
@@ -302,12 +299,9 @@ final class SettingsContentBuilder {
                 activity.dp(16), activity.dp(16), activity.dp(16), activity.dp(12));
         dataCollectionCard.setBackground(activity.cardBg(16));
 
-        activity.add(dataCollectionCard, activity.section("DATA COLLECTION"), 0, 8);
-        TextView dataCollectionNote = activity.text(
+        addInfoSectionHeader(dataCollectionCard, "DATA COLLECTION",
                 "Choose exactly which metrics are saved to session files and shown in Session Analysis and Session Comparison. "
-                        + "Disabled metrics are not stored and collected. Existing sessions are unchanged.",
-                12, false, Color.rgb(145, 158, 175));
-        activity.add(dataCollectionCard, dataCollectionNote, 0, 12);
+                        + "Disabled metrics are not stored or collected. Existing sessions are unchanged.");
 
         addDataCollectionCategory(dataCollectionCard, "FPS & FRAME PACING",
                 new String[][]{
@@ -356,6 +350,49 @@ final class SettingsContentBuilder {
         // Keep system/background controls after the requested appearance and
         // recording sections.
         activity.add(content, backgroundCard, 0, 14);
+    }
+
+    private void addInfoSectionHeader(
+            LinearLayout parent, String title, String message) {
+        LinearLayout header = new LinearLayout(activity);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView sectionTitle = activity.section(title);
+        header.addView(sectionTitle, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView info = new TextView(activity);
+        info.setText("ⓘ");
+        info.setTextSize(17);
+        info.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        info.setTextColor(Color.rgb(145, 158, 175));
+        info.setGravity(Gravity.CENTER);
+        info.setIncludeFontPadding(false);
+        info.setContentDescription(title + " information");
+        info.setBackground(activity.cardBg(20));
+        info.setPadding(activity.dp(7), activity.dp(3), activity.dp(7), activity.dp(3));
+        info.setOnClickListener(v -> {
+            AlertDialog dialog = new AlertDialog.Builder(activity)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setPositiveButton("OK", null)
+                    .create();
+            dialog.setOnShowListener(ignored -> {
+                dialog.getWindow().setBackgroundDrawable(
+                        activity.cardBg(16));
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                        .setTextColor(activity.getAppAccentColor());
+            });
+            dialog.show();
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(activity.cardBg(16));
+            }
+        });
+
+        header.addView(info, new LinearLayout.LayoutParams(
+                activity.dp(32), activity.dp(32)));
+        activity.add(parent, header, 0, 10);
     }
 
     private void addDataCollectionCategory(
