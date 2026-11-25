@@ -3,6 +3,7 @@ package com.onyx.perfmonitor;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.view.View;
 
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -12,20 +13,17 @@ final class SessionsSwipeCallback extends ItemTouchHelper.Callback {
 
 private final MainActivity activity;
 
-SessionsSwipeCallback(MainActivity activity) {
-    this.activity = activity;
-}
-
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint letterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 private final int RED = Color.rgb(240, 104, 122);
 
-    SwipeCallback() {
+    SessionsSwipeCallback(MainActivity activity) {
+        this.activity = activity;
         labelPaint.setTextSize(activity.dp(13) * 1f);
         labelPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        letterPaint.setTextSize(dp(13) * 1f);
+        letterPaint.setTextSize(activity.dp(13) * 1f);
         letterPaint.setTypeface(Typeface.DEFAULT_BOLD);
         letterPaint.setTextAlign(Paint.Align.CENTER);
     }
@@ -74,13 +72,13 @@ private final int RED = Color.rgb(240, 104, 122);
 
         // LEFT: put the card back in place first, then decide what the swipe means
         sessionsAdapter.notifyItemChanged(pos);
-        sessionsList.performHapticFeedback(
+        activity.sessionsList.performHapticFeedback(
                 android.view.HapticFeedbackConstants.CONFIRM);
 
         if (name.equals(activity.pinnedFile)) {
-            pinnedFile = null;
+            activity.pinnedFile = null;
             activity.updatePinUi(true);
-        } else if (pinnedFile == null) {
+        } else if (activity.pinnedFile == null) {
             activity.setPinned(name);
         } else {
             activity.launchPinnedCompare(name);
@@ -101,20 +99,20 @@ private final int RED = Color.rgb(240, 104, 122);
             c.clipRect(item.getLeft(), item.getTop(),
                     item.getLeft() + dX, item.getBottom());
             c.drawRoundRect(item.getLeft(), item.getTop(),
-                    item.getRight(), item.getBottom(), dp(14), dp(14), fill);
+                    item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
 
             android.graphics.drawable.Drawable icon =
                     activity.getDrawable(R.drawable.ic_delete_outline_x).mutate();
             icon.setTint(RED);
 
-            int size = dp(20);
+            int size = activity.dp(20);
             int cy = (item.getTop() + item.getBottom()) / 2;
-            int ix = item.getLeft() + dp(18);
+            int ix = item.getLeft() + activity.dp(18);
             icon.setBounds(ix, cy - size / 2, ix + size, cy + size / 2);
             icon.draw(c);
 
             Paint.FontMetrics fm = labelPaint.getFontMetrics();
-            c.drawText("Delete", ix + size + dp(8),
+            c.drawText("Delete", ix + size + activity.dp(8),
                     cy - (fm.ascent + fm.descent) / 2f, labelPaint);
             c.restore();
 
@@ -127,11 +125,11 @@ private final int RED = Color.rgb(240, 104, 122);
             String letter;
             String label;
 
-            if (name.equals(pinnedFile)) {
+            if (name.equals(activity.pinnedFile)) {
                 color = Color.rgb(145, 158, 175);
                 letter = null;
                 label = "Unpin";
-            } else if (pinnedFile != null) {
+            } else if (activity.pinnedFile != null) {
                 color = AppColors.compareB(activity);
                 letter = "B";
                 label = "Compare as B";
@@ -147,15 +145,15 @@ private final int RED = Color.rgb(240, 104, 122);
             c.clipRect(item.getRight() + dX, item.getTop(),
                     item.getRight(), item.getBottom());
             c.drawRoundRect(item.getLeft(), item.getTop(),
-                    item.getRight(), item.getBottom(), dp(14), dp(14), fill);
+                    item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
             fill.setColor(Color.argb(90,
                     Color.red(color), Color.green(color), Color.blue(color)));
             c.drawRoundRect(item.getLeft(), item.getTop(),
-                    item.getRight(), item.getBottom(), dp(14), dp(14), fill);
+                    item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
 
             labelPaint.setColor(color);
             float cy = (item.getTop() + item.getBottom()) / 2f;
-            float right = item.getRight() - dp(18);
+            float right = item.getRight() - activity.dp(18);
             float textW = labelPaint.measureText(label);
 
             Paint.FontMetrics fm = labelPaint.getFontMetrics();
@@ -163,12 +161,12 @@ private final int RED = Color.rgb(240, 104, 122);
                     cy - (fm.ascent + fm.descent) / 2f, labelPaint);
 
             if (letter != null) {
-                float size = dp(24);
-                float bx = right - textW - dp(8) - size;
+                float size = activity.dp(24);
+                float bx = right - textW - activity.dp(8) - size;
 
                 badgePaint.setColor(color);
                 c.drawRoundRect(bx, cy - size / 2, bx + size, cy + size / 2,
-                        dp(8), dp(8), badgePaint);
+                        activity.dp(8), activity.dp(8), badgePaint);
 
                 letterPaint.setColor(
                         androidx.core.graphics.ColorUtils
