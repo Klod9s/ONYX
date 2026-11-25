@@ -186,6 +186,8 @@ public class MainActivity extends Activity {
             new CardStyleManager(this);
     private final DialogStyleManager dialogStyleManager =
             new DialogStyleManager(this);
+    private final OverlayStylePickerBuilder overlayStylePickerBuilder =
+            new OverlayStylePickerBuilder(this);
 
     android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
@@ -916,39 +918,7 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void addStylePicker(LinearLayout card) {
-        TextView label = new TextView(this);
-        label.setText("Overlay style");
-        label.setTextColor(Color.WHITE);
-        label.setTextSize(13);
-        add(card, label, 0, 2);
-
-        android.widget.RadioGroup group = new android.widget.RadioGroup(this);
-        group.setOrientation(android.widget.RadioGroup.HORIZONTAL);
-
-        String[] names = {"Classic", "Strip"};
-        int saved = getPrefs().getInt("overlay_style", 0);
-
-        android.content.res.ColorStateList tint =
-                android.content.res.ColorStateList.valueOf(getAppAccentColor());
-
-        for (int i = 0; i < names.length; i++) {
-            android.widget.RadioButton rb = new android.widget.RadioButton(this);
-            rb.setId(View.generateViewId());
-            rb.setText(names[i]);
-            rb.setTextColor(Color.WHITE);
-            rb.setButtonTintList(tint);
-            appAccentRadioButtons.add(rb);
-            group.addView(rb, new android.widget.RadioGroup.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            if (i == saved) rb.setChecked(true);
-        }
-
-        group.setOnCheckedChangeListener((g, checkedId) -> {
-            int index = g.indexOfChild(g.findViewById(checkedId));
-            getPrefs().edit().putInt("overlay_style", index).apply();
-        });
-
-        add(card, group, 0, 2);
+        overlayStylePickerBuilder.build(card);
     }
 
     void showCustomColorPicker(String title, int currentColor,
