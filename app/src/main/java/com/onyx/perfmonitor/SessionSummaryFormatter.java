@@ -38,10 +38,10 @@ final class SessionSummaryFormatter {
         if (samples.isEmpty()) return "No valid readings collected.";
 
         long duration = samples.get(samples.size() - 1).timeMs;
-        if (context != null && !SessionDataPreferences.enabled(
-                context, SessionDataPreferences.BATTERY)) {
+        if (context != null && !SessionDataPreferences.metricEnabledForSettings(
+                context, SessionDataPreferences.BATTERY_LEVEL, SessionDataPreferences.BATTERY)) {
             return String.format(Locale.US,
-                    "Run time: %.1f minutes\nBattery data: not collected",
+                    "Run time: %.1f minutes\nBattery level: not collected",
                     duration / 60000.0);
         }
 
