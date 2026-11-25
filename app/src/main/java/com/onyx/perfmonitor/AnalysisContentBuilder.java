@@ -29,7 +29,7 @@ public class AnalysisContentBuilder {
     private final SessionData d;
 
     private boolean showHeader = true;
-    private int chartHeightDp = 210;
+    private int chartHeightDp = 180;
 
     public AnalysisContentBuilder(Context context, SessionData data) {
         this.context = context;
@@ -666,12 +666,12 @@ public class AnalysisContentBuilder {
 
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14), dp(14), dp(14), dp(12));
+        card.setPadding(dp(11), dp(10), dp(11), dp(9));
         card.setBackground(cardBackground());
         card.setElevation(dp(4));
 
         TextView heading = sectionHeading(title);
-        heading.setPadding(0, 0, 0, dp(10));
+        heading.setPadding(0, 0, 0, dp(6));
         card.addView(heading);
 
         // GRAPH
@@ -688,7 +688,7 @@ public class AnalysisContentBuilder {
         LinearLayout.LayoutParams chartParams =
                 new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(chartHeightDp));
-        chartParams.bottomMargin = dp(12);
+        chartParams.bottomMargin = dp(8);
         card.addView(chart, chartParams);
 
         // CPU CORE CARDS INSIDE CHART CARD
@@ -697,7 +697,7 @@ public class AnalysisContentBuilder {
 
             LinearLayout cpuGrid = new LinearLayout(context);
             cpuGrid.setOrientation(LinearLayout.VERTICAL);
-            cpuGrid.setPadding(0, dp(4), 0, 0);
+            cpuGrid.setPadding(0, dp(2), 0, 0);
 
             for (int row = 0; row < 4; row++) {
                 LinearLayout cpuRow = new LinearLayout(context);
@@ -725,7 +725,7 @@ public class AnalysisContentBuilder {
 
                     LinearLayout coreCard = new LinearLayout(context);
                     coreCard.setOrientation(LinearLayout.VERTICAL);
-                    coreCard.setPadding(dp(8), dp(8), dp(8), dp(8));
+                    coreCard.setPadding(dp(6), dp(6), dp(6), dp(6));
 
                     android.graphics.drawable.GradientDrawable coreBg =
                             new android.graphics.drawable.GradientDrawable();
@@ -753,7 +753,7 @@ public class AnalysisContentBuilder {
 
                         coreCard.addView(coreName);
 
-                        statsRow.setPadding(0, dp(6), 0, 0);
+                        statsRow.setPadding(0, dp(4), 0, 0);
 
                         LinearLayout avgColumn = new LinearLayout(context);
                         avgColumn.setOrientation(LinearLayout.VERTICAL);
@@ -852,7 +852,7 @@ public class AnalysisContentBuilder {
                     LinearLayout.LayoutParams cardParams =
                             new LinearLayout.LayoutParams(
                                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-                    cardParams.setMargins(dp(3), dp(3), dp(3), dp(3));
+                    cardParams.setMargins(dp(2), dp(2), dp(2), dp(2));
                     cpuRow.addView(coreCard, cardParams);
                 }
 
@@ -933,7 +933,7 @@ public class AnalysisContentBuilder {
                 LinearLayout statsRow = new LinearLayout(context);
                 statsRow.setOrientation(LinearLayout.HORIZONTAL);
                 statsRow.setGravity(Gravity.CENTER_VERTICAL);
-                statsRow.setPadding(0, dp(8), 0, dp(8));
+                statsRow.setPadding(0, dp(5), 0, dp(5));
 
                 for (int i = 0; i < statLabels.length; i++) {
 
@@ -969,7 +969,7 @@ public class AnalysisContentBuilder {
                         statDivider.setBackgroundColor(Color.rgb(52, 65, 81));
 
                         statsRow.addView(statDivider,
-                                new LinearLayout.LayoutParams(dp(1), dp(42)));
+                                new LinearLayout.LayoutParams(dp(1), dp(36)));
                     }
                 }
 
@@ -990,7 +990,7 @@ public class AnalysisContentBuilder {
             LinearLayout legendRow = new LinearLayout(context);
             legendRow.setOrientation(LinearLayout.HORIZONTAL);
             legendRow.setGravity(Gravity.CENTER_VERTICAL);
-            legendRow.setPadding(dp(3), dp(9), dp(3), 0);
+            legendRow.setPadding(dp(3), dp(7), dp(3), 0);
 
             String[] legendLabels = {
                     "🟥 Performance",
@@ -1017,7 +1017,7 @@ public class AnalysisContentBuilder {
                 new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(14);
+        cardParams.topMargin = dp(10);
 
         layout.addView(card, cardParams);
     }
