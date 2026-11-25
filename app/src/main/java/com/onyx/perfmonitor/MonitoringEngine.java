@@ -121,9 +121,39 @@ final class MonitoringEngine {
             lastSamplingMode = mode;
         }
 
-        if ("ROOT".equals(mode)) return readSample(recording);
-        if ("SHIZUKU".equals(mode)) return readShizukuSample(recording);
-        return readAndroidSample(recording);
+        Sample sample;
+        if ("ROOT".equals(mode)) {
+            sample = readSample(recording);
+        } else if ("SHIZUKU".equals(mode)) {
+            sample = readShizukuSample(recording);
+        } else {
+            sample = readAndroidSample(recording);
+        }
+        if (sample != null) {
+            sample.ramUsagePercent = readRamUsagePercent();
+        }
+        return sample;
+    }
+
+    private double readRamUsagePercent() {
+        try {
+            android.app.ActivityManager manager =
+                    (android.app.ActivityManager) context.getSystemService(
+                            Context.ACTIVITY_SERVICE);
+            if (manager == null) return -1;
+
+            android.app.ActivityManager.MemoryInfo memoryInfo =
+                    new android.app.ActivityManager.MemoryInfo();
+            manager.getMemoryInfo(memoryInfo);
+
+            if (memoryInfo.totalMem <= 0 || memoryInfo.availMem < 0) return -1;
+
+            double used = Math.max(0,
+                    memoryInfo.totalMem - Math.min(memoryInfo.availMem, memoryInfo.totalMem));
+            return Math.max(0, Math.min(100, used * 100.0 / memoryInfo.totalMem));
+        } catch (RuntimeException ignored) {
+            return -1;
+        }
     }
 
 private Sample readSample(boolean recording) {
