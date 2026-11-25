@@ -31,7 +31,7 @@ ONYX is an Android performance monitor for real-time FPS, frame pacing, hardware
 - Compare two sessions in synchronized panes: stacked in portrait and side-by-side in landscape, with linked scrolling.
 
 ### Customization and data controls
-- Choose an app accent preset: **Ocean**, **Emerald**, **Violet**, or **Crimson**, or use a custom color.
+- Choose an app accent preset: **ONYX**, **Emerald**, **Violet**, or **Crimson**, or use a custom color.
 - Configure which metrics are collected and saved to session files.
 - Toggle thermal-throttling indicators in session analysis and comparison independently of thermal data collection.
 - Enable or disable app animations.
