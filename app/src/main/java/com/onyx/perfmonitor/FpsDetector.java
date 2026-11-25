@@ -129,6 +129,7 @@ public class FpsDetector {
     private boolean frameCaptureActive = false;
     private boolean frameCaptureBaselinePending = false;
     private long lastCapturedPresentationNs = 0;
+    private long frameCaptureStartNs = Long.MAX_VALUE;
 
     // SF Counter state
     private long lastSfTime = 0;
@@ -146,6 +147,7 @@ public class FpsDetector {
         pkg = "";
         lastCapturedPresentationNs = 0;
         frameCaptureBaselinePending = frameCaptureActive;
+        if (frameCaptureActive) frameCaptureStartNs = Long.MAX_VALUE;
 
         blastLayerName = "";
         blastLayerCheckMs = 0;
@@ -167,16 +169,18 @@ public class FpsDetector {
     }
 
     /** Starts collecting unique frame intervals for the next recorded session. */
-    public void beginFrameCapture() {
+    public void beginFrameCapture(long sessionStartNs) {
         frameCaptureActive = true;
         frameCaptureBaselinePending = true;
         lastCapturedPresentationNs = 0;
+        frameCaptureStartNs = sessionStartNs;
     }
 
     public void endFrameCapture() {
         frameCaptureActive = false;
         frameCaptureBaselinePending = false;
         lastCapturedPresentationNs = 0;
+        frameCaptureStartNs = Long.MAX_VALUE;
     }
 
     public Result detect(Shell shell, String packageName) {
@@ -624,19 +628,37 @@ public class FpsDetector {
         }
 
         long latest = presents.get(presents.size() - 1);
-        if (frameCaptureBaselinePending || lastCapturedPresentationNs == 0) {
-            lastCapturedPresentationNs = latest;
-            frameCaptureBaselinePending = false;
-            return Collections.emptyList();
-        }
+        int previousIndex;
 
-        int previousIndex = Collections.binarySearch(
-                presents, lastCapturedPresentationNs);
-        if (previousIndex < 0) {
-            // The layer changed or the rolling buffer no longer contains our
-            // cursor. Re-baseline rather than inventing a long frame interval.
-            lastCapturedPresentationNs = latest;
-            return Collections.emptyList();
+        if (frameCaptureBaselinePending || lastCapturedPresentationNs == 0) {
+            // On the first read, start at the first presented frame at or
+            // after the session start time. After a detector/layer reset,
+            // Long.MAX_VALUE means re-baseline at the newest frame instead.
+            if (frameCaptureStartNs == Long.MAX_VALUE) {
+                previousIndex = presents.size() - 1;
+            } else {
+                previousIndex = 0;
+                while (previousIndex < presents.size()
+                        && presents.get(previousIndex) < frameCaptureStartNs) {
+                    previousIndex++;
+                }
+                if (previousIndex >= presents.size()) {
+                    lastCapturedPresentationNs = latest;
+                    frameCaptureBaselinePending = false;
+                    return Collections.emptyList();
+                }
+            }
+            lastCapturedPresentationNs = presents.get(previousIndex);
+            frameCaptureBaselinePending = false;
+        } else {
+            previousIndex = Collections.binarySearch(
+                    presents, lastCapturedPresentationNs);
+            if (previousIndex < 0) {
+                // The layer changed or the rolling buffer no longer contains
+                // our cursor. Re-baseline rather than inventing a long interval.
+                lastCapturedPresentationNs = latest;
+                return Collections.emptyList();
+            }
         }
 
         List<Double> intervals = new ArrayList<>();
