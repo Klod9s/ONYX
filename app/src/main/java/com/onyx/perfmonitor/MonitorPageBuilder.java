@@ -206,7 +206,7 @@ final class MonitorPageBuilder {
                         android.content.res.ColorStateList.valueOf(appAccentColor));
                 opacitySlider.setThumbTintList(
                         android.content.res.ColorStateList.valueOf(appAccentColor));
-                appAccentSeekBars.add(opacitySlider);
+                activity.appAccentSeekBars.add(opacitySlider);
         
                 int savedOpacity = activity.getPrefs().getInt("overlay_opacity", 85);
                 opacitySlider.setProgress(savedOpacity);
@@ -258,7 +258,7 @@ final class MonitorPageBuilder {
                         android.content.res.ColorStateList.valueOf(appAccentColor));
                 scaleSlider.setThumbTintList(
                         android.content.res.ColorStateList.valueOf(appAccentColor));
-                appAccentSeekBars.add(scaleSlider);
+                activity.appAccentSeekBars.add(scaleSlider);
         
                 int savedScale = activity.getPrefs().getInt("overlay_scale", 100);
                 scaleSlider.setProgress((savedScale - 70) / 5);
