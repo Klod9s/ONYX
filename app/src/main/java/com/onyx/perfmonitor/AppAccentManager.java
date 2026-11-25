@@ -69,6 +69,7 @@ final class AppAccentManager {
             refresher.run();
         }
         activity.updateHeaderLine();
+        activity.refreshPowerStateBadge();
 
         // ONYX glow
         if (activity.brand != null) {
