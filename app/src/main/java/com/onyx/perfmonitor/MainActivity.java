@@ -862,18 +862,31 @@ new MonitorPageBuilder(this).build(page);
 
 
     void saveSession(String result) {
+        File sessionFile = null;
         try {
-            String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
-            String csvName = "session_" + stamp + ".csv";
+            String stamp = new SimpleDateFormat(
+                    "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
+            String baseName = "session_" + stamp;
+            sessionFile = new File(getFilesDir(), baseName + ".csv");
 
-            // Write CSV
-            try (FileOutputStream out = openFileOutput(csvName, MODE_PRIVATE)) {
+            // Reserve a unique filename so a second session in the same
+            // second cannot overwrite an existing recording.
+            int suffix = 1;
+            while (!sessionFile.createNewFile()) {
+                sessionFile = new File(
+                        getFilesDir(), baseName + "-" + suffix++ + ".csv");
+            }
+
+            try (FileOutputStream out = new FileOutputStream(sessionFile)) {
                 out.write(buildCsv(result).getBytes(StandardCharsets.UTF_8));
             }
 
             loadHistory();
             Toast.makeText(this, "Session saved on this device", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
+            if (sessionFile != null) {
+                sessionFile.delete();
+            }
             Toast.makeText(this, "Could not save session", Toast.LENGTH_LONG).show();
         }
     }
