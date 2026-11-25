@@ -843,6 +843,10 @@ public class FloatingFpsService extends Service {
         tempRow.addView(temperatureView, tempTextParams);
 
         leftColumn = makeColumn(leftW, contentH);
+        if (showRam && !showTemperature && showGraph && showCpuGpu) {
+            // Keep the RAM value on the same bottom baseline as CPU/GPU.
+            leftColumn.setGravity(Gravity.BOTTOM);
+        }
 
         if (showRam) {
             int remaining = (showFps ? 1 : 0) + 1
