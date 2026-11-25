@@ -25,6 +25,10 @@ final class Sample {
     double gpuTemperatureC = -1;
     int thermalStatus = ThermalStatusReader.UNAVAILABLE;
     int coolingDeviceActive = ThermalCoolingReader.UNAVAILABLE;
+    int cpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
+    int cpuCoolingMaxState = ThermalCoolingReader.UNAVAILABLE;
+    int gpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
+    int gpuCoolingMaxState = ThermalCoolingReader.UNAVAILABLE;
 
     int battery;
     double secondsPerPercent = -1;
