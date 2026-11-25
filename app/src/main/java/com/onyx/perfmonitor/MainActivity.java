@@ -3177,30 +3177,12 @@ public class MainActivity extends Activity {
         final java.util.List<String> names = visibleSessionNames();
 
         new Thread(() -> {
-            try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(
-                    getContentResolver().openOutputStream(uri))) {
-
-                byte[] buffer = new byte[8192];
-                int count = 0;
-
-                for (String name : names) {
-                    File file = new File(getFilesDir(), name);
-                    if (!file.exists()) continue;
-
-                    zip.putNextEntry(new java.util.zip.ZipEntry(name));
-                    try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
-                        int n;
-                        while ((n = in.read(buffer)) != -1) zip.write(buffer, 0, n);
-                    }
-                    zip.closeEntry();
-                    count++;
-                }
-
-                final int exported = count;
+            try {
+                int exported = SessionFileManager.writeSessionsZip(
+                        getContentResolver(), uri, getFilesDir(), names);
                 runOnUiThread(() -> Toast.makeText(this,
                         "Exported " + exported + " sessions",
                         Toast.LENGTH_SHORT).show());
-
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(this,
                         "Export failed: " + e.getMessage(),
