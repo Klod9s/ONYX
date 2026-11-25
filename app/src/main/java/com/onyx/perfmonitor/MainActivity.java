@@ -881,11 +881,11 @@ new MonitorPageBuilder(this).build(page);
 
 
 
-    private void loadHistory() {
+    void loadHistory() {
         loadHistory(false);
     }
 
-    private void loadHistory(boolean scrollToTop) {
+    void loadHistory(boolean scrollToTop) {
         if (sessionsAdapter == null) return;
         final File folder = getFilesDir();
         if (folder == null) return;
@@ -955,7 +955,6 @@ new MonitorPageBuilder(this).build(page);
 
     // ---------- Pending deletes (undo) ----------
 
-    private static final long UNDO_MS = 5500;
     private SessionDeleteController sessionDeleteController;
 
     private void queueDelete(java.util.Collection<String> names, boolean alsoHistoryFile) {
