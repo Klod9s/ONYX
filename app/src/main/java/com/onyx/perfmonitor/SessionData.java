@@ -49,6 +49,8 @@ public class SessionData {
     public final List<Double> stutterCount = new ArrayList<>();
     public final List<Double> frameIntervalsMs = new ArrayList<>();
     public final List<Double> ramUsage = new ArrayList<>();
+    public final List<Double> cpuTemperature = new ArrayList<>();
+    public final List<Double> gpuTemperature = new ArrayList<>();
 
     private boolean foundReadingsMarker = false;
 
@@ -195,6 +197,8 @@ public class SessionData {
             addFrameIntervals(columns.get(31));
         }
         ramUsage.add(number(columns, 32));
+        cpuTemperature.add(number(columns, 33));
+        gpuTemperature.add(number(columns, 34));
     }
 
     private void addFrameIntervals(String encoded) {
