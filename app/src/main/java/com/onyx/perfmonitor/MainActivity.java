@@ -72,63 +72,8 @@ import rikka.shizuku.Shizuku;
 public class MainActivity extends Activity {
     public MainActivity() {
     }
-    private static final int SHIZUKU_REQUEST_CODE = 1001;
-
-    private final Shizuku.OnRequestPermissionResultListener
-            shizukuPermissionListener = (requestCode, grantResult) -> {
-        if (requestCode == SHIZUKU_REQUEST_CODE) {
-            if (grantResult == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this,
-                        "Shizuku permission granted!",
-                        Toast.LENGTH_SHORT).show();
-
-                startShizukuService();
-            } else {
-                Toast.makeText(this,
-                        "Shizuku permission denied.",
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
-
     IOnyxUserService shizukuService;
     boolean shizukuBindRequested = false;
-
-    private Shizuku.UserServiceArgs shizukuServiceArgs;
-
-    private final ServiceConnection shizukuServiceConnection =
-            new ServiceConnection() {
-                @Override
-                public void onServiceConnected(
-                        ComponentName name, IBinder binder) {
-
-                    if (binder != null && binder.pingBinder()) {
-                        shizukuService =
-                                IOnyxUserService.Stub.asInterface(binder);
-                        if (monitoringEngine != null) {
-                            monitoringEngine.setShizukuService(shizukuService);
-                        }
-                        shizukuBindRequested = false;
-
-                        runOnUiThread(() ->
-                                Toast.makeText(
-                                        MainActivity.this,
-                                        "Shizuku service connected!",
-                                        Toast.LENGTH_SHORT
-                                ).show()
-                        );
-                    }
-                }
-
-                @Override
-                public void onServiceDisconnected(ComponentName name) {
-                    shizukuService = null;
-                    if (monitoringEngine != null) {
-                        monitoringEngine.setShizukuService(null);
-                    }
-                    shizukuBindRequested = false;
-                }
-            };
 
     private static final String PREFS = "overlay_settings";
 
@@ -196,6 +141,9 @@ public class MainActivity extends Activity {
 
     OverlayMetricsStore overlayMetricsStore;
     MonitoringEngine monitoringEngine;
+
+    private final ShizukuController shizukuController =
+            new ShizukuController(this);
 
     private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
         cachedMonitoringMode = "";
@@ -320,67 +268,8 @@ public class MainActivity extends Activity {
         samplingController.wake();
     }
 
-    private void requestShizukuAccess() {
-        if (!Shizuku.pingBinder()) {
-            Toast.makeText(this,
-                    "Shizuku is not running. Please start it first.",
-                    Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        if (Shizuku.isPreV11()) {
-            Toast.makeText(this,
-                    "Your Shizuku version is not supported.",
-                    Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        if (Shizuku.checkSelfPermission()
-                == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this,
-                    "Shizuku access already granted!",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Shizuku.requestPermission(SHIZUKU_REQUEST_CODE);
-    }
-
-
-
     void startShizukuService() {
-        if (!Shizuku.pingBinder()) {
-            shizukuBindRequested = false;
-            Toast.makeText(this,
-                    "Shizuku is not running.",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (Shizuku.checkSelfPermission()
-                != PackageManager.PERMISSION_GRANTED) {
-            shizukuBindRequested = false;
-            requestShizukuAccess();
-            return;
-        }
-
-        try {
-            if (shizukuService != null && shizukuService.asBinder().pingBinder()) {
-                shizukuBindRequested = false;
-                return;
-            }
-            shizukuBindRequested = true;
-            Shizuku.bindUserService(
-                    shizukuServiceArgs,
-                    shizukuServiceConnection
-            );
-        } catch (Exception e) {
-            Toast.makeText(this,
-                    "Failed to start Shizuku service: "
-                            + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
-            shizukuBindRequested = false;
-        }
+        shizukuController.startService();
     }
 
     @Override
@@ -388,23 +277,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         overlayMetricsStore = new OverlayMetricsStore(this);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
-        shizukuServiceArgs = new Shizuku.UserServiceArgs(
-                new ComponentName(
-                        getPackageName(),
-                        ShizukuShellService.class.getName()
-                )
-        )
-                .daemon(false)
-                .processNameSuffix("onyx")
-                .debuggable(false)
-                .version(1);
-
-
-        Shizuku.addBinderDeadListener(binderDeadListener);
-        Shizuku.addBinderReceivedListener(binderReceivedListener);
-        Shizuku.addRequestPermissionResultListener(
-                shizukuPermissionListener
-        );
+        shizukuController.registerListeners();
         buildUi();
 
         getSharedPreferences("session_state", MODE_PRIVATE)
@@ -1437,11 +1310,7 @@ new MonitorPageBuilder(this).build(page);
 
     @Override
     protected void onDestroy() {
-        Shizuku.removeBinderDeadListener(binderDeadListener);
-        Shizuku.removeBinderReceivedListener(binderReceivedListener);
-        Shizuku.removeRequestPermissionResultListener(
-                shizukuPermissionListener
-        );
+        shizukuController.unregisterListeners();
 
         running = false;
         samplingController.stop();
