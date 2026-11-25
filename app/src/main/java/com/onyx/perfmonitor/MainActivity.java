@@ -1025,79 +1025,11 @@ new MonitorPageBuilder(this).build(page);
         powerState = view;
     }
 
+    private final SessionController sessionController =
+            new SessionController(this);
+
     void toggleSessionFromMonitor() {
-        if (running) {
-            stopSession();
-        } else {
-            startSession();
-        }
-    }
-
-    private void startSession() {
-        if (running) return;
-
-        samples.clear();
-        csv.setLength(0);
-
-        SessionCsvFormatter.appendHeader(csv);
-
-        monitoringEngine.resetCpuBaseline();
-        monitoringEngine.resetSessionClock();
-        sessionId++;
-        running = true;
-
-        getSharedPreferences("session_state", MODE_PRIVATE)
-                .edit()
-                .putBoolean("recording", true)
-                .apply();
-
-        startButton.setText("STOP SESSION");
-
-
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable();
-        bg.setColor(Color.rgb(170, 55, 65));
-        bg.setCornerRadius(dp(12));
-        bg.setStroke(dp(1), Color.rgb(205, 85, 95));
-        startButton.setBackground(bg);
-
-        summary.setText("Session in progress…");
-        refreshStatusPill();
-
-    }
-
-    private void stopSession() {
-        if (!running) return;
-
-        running = false;
-        getSharedPreferences("session_state", MODE_PRIVATE)
-                .edit()
-                .putBoolean("recording", false)
-                .apply();
-        sessionId++;
-
-        startButton.setText("START SESSION");
-
-        int accentColor = getAppAccentColor();
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable();
-        bg.setColor(accentColor);
-        bg.setCornerRadius(dp(12));
-        bg.setStroke(dp(1), Color.argb(
-                180,
-                Color.red(accentColor),
-                Color.green(accentColor),
-                Color.blue(accentColor)));
-        startButton.setBackground(bg);
-
-        String result = makeSummary();
-
-        summary.setText(result);
-        refreshStatusPill();
-
-        if (!samples.isEmpty()) {
-            saveSession(result);
-        }
+        sessionController.toggle();
     }
 
     private String buildCsv(String result) {
@@ -1158,12 +1090,12 @@ new MonitorPageBuilder(this).build(page);
 
 
 
-    private String makeSummary() {
+    String makeSummary() {
         return SessionSummaryFormatter.build(samples);
     }
 
 
-    private void saveSession(String result) {
+    void saveSession(String result) {
         try {
             String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
             String csvName = "session_" + stamp + ".csv";
