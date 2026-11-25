@@ -229,7 +229,7 @@ private Sample readSample(boolean recording) {
                         "echo __THERMAL_BLOCK__; " +
                         "for Z in /sys/class/thermal/thermal_zone*; do " +
                         " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                        " case \"$T\" in cpu-*) K=CPU;; gpu-*) K=GPU;; *) continue;; esac; " +
+                        " case \"$T\" in cpu-*) K=CPU;; gpu-*|gpuss-*) K=GPU;; *) continue;; esac; " +
                         " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                         " echo \"$K $V\"; " +
                         "done; " +
@@ -513,7 +513,7 @@ private Sample readShizukuSample(boolean recording) {
                                 "echo __THERMAL_BLOCK__; " +
                                 "for Z in /sys/class/thermal/thermal_zone*; do " +
                                 " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                                " case \"$T\" in cpu-*) K=CPU;; gpu-*) K=GPU;; *) continue;; esac; " +
+                                " case \"$T\" in cpu-*) K=CPU;; gpu-*|gpuss-*) K=GPU;; *) continue;; esac; " +
                                 " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                                 " echo \"$K $V\"; " +
                                 "done; " +
