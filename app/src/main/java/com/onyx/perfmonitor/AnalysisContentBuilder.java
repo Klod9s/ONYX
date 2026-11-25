@@ -1032,17 +1032,6 @@ public class AnalysisContentBuilder {
         private final boolean wholeNumberYAxis;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        private final int[] colors = {
-                Color.rgb(65, 190, 255),
-                Color.rgb(255, 100, 100),
-                Color.rgb(100, 220, 130),
-                Color.rgb(255, 190, 70),
-                Color.rgb(190, 130, 255),
-                Color.rgb(255, 130, 200),
-                Color.rgb(100, 220, 220),
-                Color.rgb(220, 220, 220)
-        };
-
         private final float chartLeft = 65f;
         private float chartRight;
         private final float chartTop = 24f;
