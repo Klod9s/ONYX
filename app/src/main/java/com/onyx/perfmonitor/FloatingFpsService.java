@@ -525,7 +525,7 @@ public class FloatingFpsService extends Service {
         // views (always created, the updater touches all of them)
         fpsView = createMetricView("--");
         fpsView.setIncludeFontPadding(false);
-        setOverlayTextSize(fpsView, 17);
+        setOverlayTextSize(fpsView, showRam ? 14 : 17);
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
@@ -585,11 +585,13 @@ public class FloatingFpsService extends Service {
                 fpsRow.setClipChildren(false);
                 fpsRow.addView(fpsView, new LinearLayout.LayoutParams(
                         fpsNumW, ViewGroup.LayoutParams.WRAP_CONTENT));
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.leftMargin = dpScaled(2);
-                fpsRow.addView(fpsLabel, lp);
+                if (!showRam) {
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lp.leftMargin = dpScaled(2);
+                    fpsRow.addView(fpsLabel, lp);
+                }
                 left.addView(fpsRow);
             }
 
