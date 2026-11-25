@@ -72,6 +72,11 @@ final class SessionDataPreferences {
         s.timeMs = source.timeMs;
         s.app = source.app;
         s.charging = source.charging;
+        s.currentMa = -1;
+        s.voltage = -1;
+        s.power = -1;
+        s.temperatureC = -1;
+        s.battery = -1;
 
         if (metricEnabled(context, FPS_VALUE, FPS)) {
             s.fps = source.fps;
