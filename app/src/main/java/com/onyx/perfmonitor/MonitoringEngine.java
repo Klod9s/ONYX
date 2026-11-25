@@ -324,48 +324,30 @@ private Sample readSample(boolean recording) {
             // Defensive battery parsing
             if (batIndex >= 0) {
                 String bat = between(output, "__BAT__\n", "__CPU__").trim();
-                String[] values = bat.split("\\s+");
-                if (values.length >= 3) {
-                    try {
-                        long rawCurrent = Long.parseLong(values[0].trim());
-                        long rawVoltage = Long.parseLong(values[1].trim());
-                        int percent = Integer.parseInt(values[2].trim());
+                SysfsBatteryValues batteryValues = parseSysfsBatteryValues(bat);
 
-                        Intent powerIntent = context.registerReceiver(
-                                null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-                        boolean unplugged = powerIntent != null
-                                && powerIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
+                Intent powerIntent = context.registerReceiver(
+                        null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                boolean unplugged = powerIntent != null
+                        && powerIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
 
-                        int status = powerIntent != null
-                                ? powerIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                                : -1;
+                int status = powerIntent != null
+                        ? powerIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                        : -1;
 
-                        sample.charging =
-                                status == BatteryManager.BATTERY_STATUS_CHARGING
-                                        || status == BatteryManager.BATTERY_STATUS_FULL;
+                sample.charging =
+                        status == BatteryManager.BATTERY_STATUS_CHARGING
+                                || status == BatteryManager.BATTERY_STATUS_FULL;
 
-                        boolean currentValid = rawCurrent != Long.MIN_VALUE;
-                        boolean voltageValid = rawVoltage > 0;
-                        boolean percentValid = percent >= 0 && percent <= 100;
-
-                        sample.currentMa = currentValid
-                                ? batteryCurrent.toMilliampsFromSysfs(rawCurrent, unplugged) : -1;
-                        sample.voltage = voltageValid ? rawVoltage / 1000000.0 : -1;
-                        sample.power = calculatePowerWatts(
-                                sample.currentMa, sample.voltage, currentValid && voltageValid);
-                        sample.battery = percentValid ? percent : -1;
-                    } catch (Exception ignored) {
-                        sample.currentMa = -1;
-                        sample.voltage = -1;
-                        sample.power = -1;
-                        sample.battery = -1;
-                    }
-                } else {
-                    sample.currentMa = -1;
-                    sample.voltage = -1;
-                    sample.power = -1;
-                    sample.battery = -1;
-                }
+                sample.currentMa = batteryValues.hasCurrent()
+                        ? batteryCurrent.toMilliampsFromSysfs(batteryValues.currentMicroamps, unplugged)
+                        : -1;
+                sample.voltage = batteryValues.hasVoltage()
+                        ? batteryValues.voltageMicrovolts / 1000000.0 : -1;
+                sample.power = calculatePowerWatts(
+                        sample.currentMa, sample.voltage,
+                        batteryValues.hasCurrent() && batteryValues.hasVoltage());
+                sample.battery = batteryValues.batteryPercent;
             }
 
             // Independent CPU Usage parsing
@@ -753,6 +735,66 @@ private Sample readAndroidSample(boolean recording) {
 
 private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
+    }
+
+    static final class SysfsBatteryValues {
+        final long currentMicroamps;
+        final long voltageMicrovolts;
+        final int batteryPercent;
+
+        SysfsBatteryValues(long currentMicroamps, long voltageMicrovolts, int batteryPercent) {
+            this.currentMicroamps = currentMicroamps;
+            this.voltageMicrovolts = voltageMicrovolts;
+            this.batteryPercent = batteryPercent;
+        }
+
+        boolean hasCurrent() {
+            return currentMicroamps != Long.MIN_VALUE;
+        }
+
+        boolean hasVoltage() {
+            return voltageMicrovolts > 0;
+        }
+    }
+
+    /**
+     * Parses current, voltage, and capacity independently so one malformed
+     * sysfs field cannot discard the other valid battery readings.
+     */
+    static SysfsBatteryValues parseSysfsBatteryValues(String raw) {
+        long current = Long.MIN_VALUE;
+        long voltage = -1;
+        int percent = -1;
+        if (raw == null || raw.trim().isEmpty()) {
+            return new SysfsBatteryValues(current, voltage, percent);
+        }
+
+        String[] values = raw.trim().split("\\s+");
+        if (values.length > 0 && !"-".equals(values[0])) {
+            try {
+                long parsed = Long.parseLong(values[0]);
+                if (parsed != Long.MIN_VALUE) current = parsed;
+            } catch (NumberFormatException ignored) {
+                // Keep only the current unavailable.
+            }
+        }
+        if (values.length > 1 && !"-".equals(values[1])) {
+            try {
+                long parsed = Long.parseLong(values[1]);
+                if (parsed > 0) voltage = parsed;
+            } catch (NumberFormatException ignored) {
+                // Keep only the voltage unavailable.
+            }
+        }
+        if (values.length > 2 && !"-".equals(values[2])) {
+            try {
+                int parsed = Integer.parseInt(values[2]);
+                if (parsed >= 0 && parsed <= 100) percent = parsed;
+            } catch (NumberFormatException ignored) {
+                // Keep only the battery percentage unavailable.
+            }
+        }
+        return new SysfsBatteryValues(current, voltage, percent);
     }
 
     static double calculatePowerWatts(
