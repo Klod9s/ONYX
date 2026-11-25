@@ -251,7 +251,7 @@ final class SettingsContentBuilder {
 
         activity.add(dataCollectionCard, activity.section("DATA COLLECTION"), 0, 8);
         TextView dataCollectionNote = activity.text(
-                "Choose which metrics are saved in new sessions and shown in Session Analysis and Session Comparison. "
+                "Choose which metrics are saved to session files and shown in Session Analysis and Session Comparison. "
                         + "Disabled metrics are not stored. Existing sessions are unchanged.",
                 12, false, Color.rgb(145, 158, 175));
         activity.add(dataCollectionCard, dataCollectionNote, 0, 8);
