@@ -760,7 +760,7 @@ public class AnalysisContentBuilder {
             thermalLegend.setPadding(dp(3), 0, 0, dp(5));
 
             TextView statusLabel = new TextView(context);
-            statusLabel.setText("THERMAL STATUS  ·");
+            statusLabel.setText("THERMAL THROTTLING  ·");
             statusLabel.setTextSize(10);
             statusLabel.setTextColor(muted);
             statusLabel.setSingleLine(true);
