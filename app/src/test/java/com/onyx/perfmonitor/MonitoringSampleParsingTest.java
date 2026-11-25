@@ -119,4 +119,60 @@ public class MonitoringSampleParsingTest {
         assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("broken output"), 0.0001);
     }
 
+    @Test
+    public void convertsPerCoreCpuFrequenciesFromKHzToMHzAcrossAllEightCores() {
+        double[] frequencies = new double[8];
+        MonitoringEngine.parseCpuFrequencies(
+                "300000 300000 768000 768000 1800000 1800000 2016000 2016000",
+                frequencies);
+
+        assertEquals(300.0, frequencies[0], 0.0001);
+        assertEquals(300.0, frequencies[1], 0.0001);
+        assertEquals(768.0, frequencies[2], 0.0001);
+        assertEquals(768.0, frequencies[3], 0.0001);
+        assertEquals(1800.0, frequencies[4], 0.0001);
+        assertEquals(1800.0, frequencies[5], 0.0001);
+        assertEquals(2016.0, frequencies[6], 0.0001);
+        assertEquals(2016.0, frequencies[7], 0.0001);
+    }
+
+    @Test
+    public void keepsMalformedCpuFrequencyReadingsUnavailableWithoutShiftingCores() {
+        double[] frequencies = new double[8];
+        MonitoringEngine.parseCpuFrequencies(
+                "300000 broken 0 -1 NaN Infinity 1800000 2016000",
+                frequencies);
+
+        assertEquals(300.0, frequencies[0], 0.0001);
+        assertEquals(-1.0, frequencies[1], 0.0001);
+        assertEquals(-1.0, frequencies[2], 0.0001);
+        assertEquals(-1.0, frequencies[3], 0.0001);
+        assertEquals(-1.0, frequencies[4], 0.0001);
+        assertEquals(-1.0, frequencies[5], 0.0001);
+        assertEquals(1800.0, frequencies[6], 0.0001);
+        assertEquals(2016.0, frequencies[7], 0.0001);
+    }
+
+    @Test
+    public void missingCpuFrequencyCoresRemainUnavailableAndAreReset() {
+        double[] frequencies = new double[8];
+        java.util.Arrays.fill(frequencies, 999.0);
+        MonitoringEngine.parseCpuFrequencies("600000 1200000", frequencies);
+
+        assertEquals(600.0, frequencies[0], 0.0001);
+        assertEquals(1200.0, frequencies[1], 0.0001);
+        for (int i = 2; i < frequencies.length; i++) {
+            assertEquals(-1.0, frequencies[i], 0.0001);
+        }
+
+        MonitoringEngine.parseCpuFrequencies(null, frequencies);
+        for (double frequency : frequencies) {
+            assertEquals(-1.0, frequency, 0.0001);
+        }
+    }
+
+    @Test
+    public void cpuFrequencyParserHandlesNullDestination() {
+        MonitoringEngine.parseCpuFrequencies("600000 1200000", null);
+    }
 }
