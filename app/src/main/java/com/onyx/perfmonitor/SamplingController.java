@@ -85,8 +85,10 @@ final class SamplingController {
                                 }
                             }
 
-                            activity.samples.add(sample);
-                            SessionCsvFormatter.appendSample(activity.csv, sample);
+                            Sample sessionSample = SessionDataPreferences.forSession(
+                                    sample, activity);
+                            activity.samples.add(sessionSample);
+                            SessionCsvFormatter.appendSample(activity.csv, sessionSample);
                         }
 
                         if (activity.isAppForeground) {
