@@ -25,7 +25,6 @@ final class SettingsContentBuilder {
         LinearLayout settingsHeader = activity.tabHeader(R.drawable.ic_nav_settings, "SETTINGS");
 
         activity.add(content, settingsHeader, 0, 12);
-        activity.add(content, activity.overlaySettingsCard, 0, 14);
 
         // BACKGROUND ACTIVITY CARD
         LinearLayout backgroundCard = new LinearLayout(activity);
@@ -67,7 +66,6 @@ final class SettingsContentBuilder {
 
         activity.add(backgroundCard, batterySettingsButton, 0, 0);
 
-        activity.add(content, backgroundCard, 0, 14);
 
         LinearLayout appAppearanceCard = new LinearLayout(activity);
         appAppearanceCard.setOrientation(LinearLayout.VERTICAL);
@@ -240,6 +238,62 @@ final class SettingsContentBuilder {
                 Color.rgb(20, 25, 32), "Custom Background Color", 0);
 
         activity.add(content, overlayAppearanceCard, 0, 14);
-    
+
+        // FLOATING OVERLAY SETTINGS follow all appearance/color controls.
+        activity.add(content, activity.overlaySettingsCard, 0, 14);
+
+        // DATA COLLECTION OPTIONS
+        LinearLayout dataCollectionCard = new LinearLayout(activity);
+        dataCollectionCard.setOrientation(LinearLayout.VERTICAL);
+        dataCollectionCard.setPadding(
+                activity.dp(16), activity.dp(16), activity.dp(16), activity.dp(12));
+        dataCollectionCard.setBackground(activity.cardBg(16));
+
+        activity.add(dataCollectionCard, activity.section("DATA COLLECTION"), 0, 8);
+        TextView dataCollectionNote = activity.text(
+                "Choose which metrics are saved in new sessions and shown in Session Analysis and Session Comparison. "
+                        + "Disabled metrics are not stored. Existing sessions are unchanged.",
+                12, false, Color.rgb(145, 158, 175));
+        activity.add(dataCollectionCard, dataCollectionNote, 0, 8);
+
+        addDataCollectionOption(dataCollectionCard,
+                "FPS & FRAME PACING", "FPS, average frame time, variation, stutters, and frame intervals.",
+                SessionDataPreferences.FPS);
+        addDataCollectionOption(dataCollectionCard,
+                "BATTERY & POWER", "Battery level, current, voltage, power, drain rate, and battery temperature.",
+                SessionDataPreferences.BATTERY);
+        addDataCollectionOption(dataCollectionCard,
+                "CPU", "Per-core usage, per-core frequency, and CPU temperature.",
+                SessionDataPreferences.CPU);
+        addDataCollectionOption(dataCollectionCard,
+                "GPU", "GPU load, frequency, and GPU temperature.",
+                SessionDataPreferences.GPU);
+        addDataCollectionOption(dataCollectionCard,
+                "RAM", "System RAM usage percentage.",
+                SessionDataPreferences.RAM);
+
+        activity.add(content, dataCollectionCard, 0, 14);
+
+        // Keep system/background controls after the requested appearance and
+        // recording sections.
+        activity.add(content, backgroundCard, 0, 14);
+    }
+
+    private void addDataCollectionOption(
+            LinearLayout parent, String title, String description, String key) {
+        android.widget.CheckBox option = new android.widget.CheckBox(activity);
+        option.setText(title + "  ·  " + description);
+        option.setTextColor(Color.WHITE);
+        option.setTextSize(12);
+        option.setGravity(Gravity.CENTER_VERTICAL);
+        option.setPadding(0, activity.dp(5), 0, activity.dp(5));
+        option.setButtonTintList(
+                android.content.res.ColorStateList.valueOf(activity.getAppAccentColor()));
+        option.setChecked(SessionDataPreferences.enabled(activity, key));
+        option.setOnCheckedChangeListener((button, checked) ->
+                SessionDataPreferences.get(activity).edit().putBoolean(key, checked).apply());
+        parent.addView(option, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
     }
 }
