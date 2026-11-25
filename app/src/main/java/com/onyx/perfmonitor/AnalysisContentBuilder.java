@@ -1433,8 +1433,9 @@ public class AnalysisContentBuilder {
                             * (float) ((period.start - startTime) / timeRange);
                     float endX = chartLeft + (chartRight - chartLeft)
                             * (float) ((period.end - startTime) / timeRange);
-                    canvas.drawLine(startX, chartTop, startX, chartBottom, paint);
-                    canvas.drawLine(endX, chartTop, endX, chartBottom, paint);
+                    float boundaryTop = chartTop - dp(10);
+                    canvas.drawLine(startX, boundaryTop, startX, chartBottom, paint);
+                    canvas.drawLine(endX, boundaryTop, endX, chartBottom, paint);
                 }
                 paint.setPathEffect(null);
             }
