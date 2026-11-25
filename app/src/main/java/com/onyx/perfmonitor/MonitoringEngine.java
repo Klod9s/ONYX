@@ -64,6 +64,10 @@ final class MonitoringEngine {
         startMs = System.currentTimeMillis();
     }
 
+    void beginFrameCapture() {
+        fpsDetector.beginFrameCapture();
+    }
+
     void resetMonitoringModeCheck() {
         rootChecked = false;
         rootFailStreak = 0;
@@ -202,6 +206,7 @@ private Sample readSample(boolean recording) {
                 sample.averageFrameTimeMs = r.averageFrameTimeMs;
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
+                sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
             } else if (displayFps > 0) {
                 sample.fps = displayFps;
                 sample.fpsSource = "Display Controller";
