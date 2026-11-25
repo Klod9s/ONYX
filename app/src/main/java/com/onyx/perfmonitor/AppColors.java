@@ -8,7 +8,7 @@ public final class AppColors {
 
     public static int accent(Context context) {
         return context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                .getInt("app_accent_color", Color.rgb(101, 214, 165));
+                .getInt("app_accent_color", Color.rgb(69, 168, 245));
     }
 
     /** B's colour: accent hue rotated by 240 degrees, kept vivid. */
