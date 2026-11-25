@@ -7,38 +7,61 @@ import org.junit.Test;
 public class ThermalCoolingReaderTest {
 
     @Test
-    public void detectsActiveCpuCoolingDevice() {
-        assertEquals(ThermalCoolingReader.ACTIVE,
-                ThermalCoolingReader.parse("cpu0 1 4"));
+    public void separatesCpuAndGpuCoolingStates() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("cpufreq-cpu2 1 4\ndevfreq-gpu 3 5");
+        assertEquals(1, reading.cpuState);
+        assertEquals(4, reading.cpuMaxState);
+        assertEquals(3, reading.gpuState);
+        assertEquals(5, reading.gpuMaxState);
+        assertEquals(ThermalCoolingReader.ACTIVE, reading.overallState());
     }
 
     @Test
-    public void detectsActiveGpuCoolingDevice() {
-        assertEquals(ThermalCoolingReader.ACTIVE,
-                ThermalCoolingReader.parse("gpu 2 5"));
+    public void selectsMostActiveDeviceByNormalizedState() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("cpufreq-cpu0 1 8\ncpufreq-cpu1 2 4");
+        assertEquals(2, reading.cpuState);
+        assertEquals(4, reading.cpuMaxState);
     }
 
     @Test
-    public void reportsIdleWhenAllRelevantDevicesAreIdle() {
-        assertEquals(ThermalCoolingReader.IDLE,
-                ThermalCoolingReader.parse("cpu0 0 4\ngpu 0 3"));
+    public void reportsIdleWhenRelevantDevicesAreIdle() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("cpu0 0 4\ngpu 0 3");
+        assertEquals(ThermalCoolingReader.IDLE, reading.overallState());
+        assertEquals(0, reading.cpuState);
+        assertEquals(0, reading.gpuState);
     }
 
     @Test
-    public void ignoresUnrelatedCoolingDevices() {
-        assertEquals(ThermalCoolingReader.UNAVAILABLE,
-                ThermalCoolingReader.parse("battery 1 4\nfan 2 5"));
+    public void excludesBatteryAndUnrelatedDevices() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("battery 10 10\nfan 2 5");
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.overallState());
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.cpuState);
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.gpuState);
     }
 
     @Test
     public void ignoresMalformedAndOutOfRangeValues() {
-        assertEquals(ThermalCoolingReader.UNAVAILABLE,
-                ThermalCoolingReader.parse("cpu0 unknown 4\ngpu 5 3"));
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("cpu0 unknown 4\ngpu 5 3");
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.overallState());
     }
 
     @Test
     public void emptyInputIsUnavailable() {
         assertEquals(ThermalCoolingReader.UNAVAILABLE,
-                ThermalCoolingReader.parse(""));
+                ThermalCoolingReader.read("").overallState());
+    }
+
+    @Test
+    public void keepsCpuAndGpuAvailabilityIndependent() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("gpu 3 5");
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.cpuState);
+        assertEquals(3, reading.gpuState);
+        assertEquals(5, reading.gpuMaxState);
     }
 }
