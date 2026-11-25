@@ -359,7 +359,9 @@ final class SettingsContentBuilder {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView sectionTitle = activity.section(title);
+        TextView sectionTitle = "DATA COLLECTION".equals(title)
+                ? activity.text("DATA COLLECTION:", 15, true, Color.WHITE)
+                : activity.section(title);
         header.addView(sectionTitle, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -399,7 +401,7 @@ final class SettingsContentBuilder {
         });
 
         header.addView(info, new LinearLayout.LayoutParams(
-                activity.dp(32), activity.dp(20)));
+                activity.dp(32), activity.dp(24)));
         activity.add(parent, header, 0, 8);
     }
 
