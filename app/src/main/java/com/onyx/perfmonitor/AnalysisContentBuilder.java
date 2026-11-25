@@ -1208,36 +1208,6 @@ public class AnalysisContentBuilder {
 
             double timeRange = endTime - startTime;
 
-            // Shade FPS chart intervals using the recorded Android thermal status.
-            // Each sample's status applies until the next sample timestamp.
-            if (thermalStatus != null && timeRange > 0) {
-                int count = Math.min(Math.min(thermalStatus.size(), times.size()),
-                        series.isEmpty() ? 0 : series.get(0).size());
-                for (int i = 0; i + 1 < count; i++) {
-                    double status = thermalStatus.get(i);
-                    double fromTime = times.get(i);
-                    double toTime = times.get(i + 1);
-                    if (!Double.isFinite(status) || status < 1
-                            || !Double.isFinite(fromTime) || !Double.isFinite(toTime)
-                            || toTime <= fromTime) {
-                        continue;
-                    }
-
-                    float left = chartLeft + (chartRight - chartLeft)
-                            * (float) Math.max(0, Math.min(1,
-                            (fromTime - startTime) / timeRange));
-                    float right = chartLeft + (chartRight - chartLeft)
-                            * (float) Math.max(0, Math.min(1,
-                            (toTime - startTime) / timeRange));
-                    int shade = status >= 2
-                            ? Color.argb(58, 255, 75, 75)
-                            : Color.argb(48, 255, 165, 55);
-                    paint.setColor(shade);
-                    paint.setStyle(Paint.Style.FILL);
-                    canvas.drawRect(left, chartTop, right, chartBottom, paint);
-                }
-            }
-
             paint.setStrokeWidth(1.2f);
             paint.setColor(Color.rgb(65, 78, 94));
             paint.setStyle(Paint.Style.STROKE);
@@ -1326,6 +1296,35 @@ public class AnalysisContentBuilder {
                 paint.setStrokeWidth(3f);
                 paint.setStyle(Paint.Style.STROKE);
                 canvas.drawPath(path, paint);
+            }
+
+            // Draw thermal shading above the FPS fill so it remains visible,
+            // while keeping the FPS line readable through the translucent overlay.
+            if (thermalStatus != null && timeRange > 0) {
+                int count = Math.min(Math.min(thermalStatus.size(), times.size()),
+                        series.isEmpty() ? 0 : series.get(0).size());
+                for (int i = 0; i + 1 < count; i++) {
+                    double status = thermalStatus.get(i);
+                    double fromTime = times.get(i);
+                    double toTime = times.get(i + 1);
+                    if (!Double.isFinite(status) || status < 1
+                            || !Double.isFinite(fromTime) || !Double.isFinite(toTime)
+                            || toTime <= fromTime) {
+                        continue;
+                    }
+
+                    float left = chartLeft + (chartRight - chartLeft)
+                            * (float) Math.max(0, Math.min(1,
+                            (fromTime - startTime) / timeRange));
+                    float right = chartLeft + (chartRight - chartLeft)
+                            * (float) Math.max(0, Math.min(1,
+                            (toTime - startTime) / timeRange));
+                    paint.setColor(status >= 2
+                            ? Color.argb(58, 255, 75, 75)
+                            : Color.argb(48, 255, 165, 55));
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawRect(left, chartTop, right, chartBottom, paint);
+                }
             }
 
             // Start and end timestamps at the bottom
