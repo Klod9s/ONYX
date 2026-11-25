@@ -216,6 +216,7 @@ public class MainActivity extends Activity {
     android.graphics.drawable.Drawable customRainbowDrawable;
 
     boolean running = false;
+    boolean overlaySessionUi = false;
     int sessionId = 0;
     boolean isAppForeground = false;
     String cachedMonitoringMode = "";
@@ -226,17 +227,21 @@ public class MainActivity extends Activity {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if (FloatingFpsService.ACTION_TOGGLE.equals(intent.getAction())) {
-                        if (running) {
+                        if (isOverlaySession()) {
+                            Intent stop = new Intent(
+                                    MainActivity.this, FloatingFpsService.class);
+                            stop.setAction(FloatingFpsService.ACTION_STOP_RECORDING);
+                            startService(stop);
+                        } else if (running) {
                             stopSession();
-                            if (!isAppForeground
-                                    && getPrefs().getBoolean("overlay_enabled", false)) {
-                                handoffOverlaySampling();
-                            }
                         } else {
                             stopOverlaySampling();
                             startSession();
                             wakeSampler();
                         }
+                    } else if (FloatingFpsService.ACTION_RECORDING_STATE_CHANGED
+                            .equals(intent.getAction())) {
+                        sessionController.syncOverlaySessionState();
                     }
                 }
             };
@@ -281,13 +286,26 @@ public class MainActivity extends Activity {
         shizukuController.registerListeners();
         buildUi();
 
-        getSharedPreferences("session_state", MODE_PRIVATE)
-                .edit()
-                .putBoolean("recording", false)
-                .apply();
+        android.content.SharedPreferences sessionState =
+                getSharedPreferences("session_state", MODE_PRIVATE);
+        boolean recording = sessionState.getBoolean("recording", false);
+        String owner = sessionState.getString(
+                "owner", FloatingFpsService.SESSION_OWNER_NONE);
+        if (recording
+                && FloatingFpsService.SESSION_OWNER_OVERLAY.equals(owner)) {
+            sessionController.restoreOverlaySession();
+        } else if (recording) {
+            // An app-owned session cannot be resumed after its in-memory samples
+            // have been lost with the Activity process.
+            sessionState.edit()
+                    .putBoolean("recording", false)
+                    .putString("owner", FloatingFpsService.SESSION_OWNER_NONE)
+                    .apply();
+        }
 
         IntentFilter filter =
                 new IntentFilter(FloatingFpsService.ACTION_TOGGLE);
+        filter.addAction(FloatingFpsService.ACTION_RECORDING_STATE_CHANGED);
 
         androidx.core.content.ContextCompat.registerReceiver(
                 this,
@@ -713,7 +731,11 @@ new MonitorPageBuilder(this).build(page);
 
         monitoringEngine.resetMonitoringModeCheck();
         updateOverlayButton();
-        stopOverlaySampling();
+        if (isOverlaySession()) {
+            handoffOverlaySampling();
+        } else {
+            stopOverlaySampling();
+        }
         wakeSampler();
     }
 
@@ -732,6 +754,15 @@ new MonitorPageBuilder(this).build(page);
             brand.stopShine();
         }
         finalizePendingDeletes();
+    }
+
+    boolean isOverlaySession() {
+        android.content.SharedPreferences state =
+                getSharedPreferences("session_state", MODE_PRIVATE);
+        return state.getBoolean("recording", false)
+                && FloatingFpsService.SESSION_OWNER_OVERLAY.equals(
+                        state.getString("owner",
+                                FloatingFpsService.SESSION_OWNER_NONE));
     }
 
     private void updateOverlayButton() {
