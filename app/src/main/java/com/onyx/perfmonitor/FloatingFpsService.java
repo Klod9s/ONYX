@@ -370,6 +370,7 @@ public class FloatingFpsService extends Service {
         Shizuku.addBinderDeadListener(backgroundBinderDeadListener);
 
         overlayPrefs.registerOnSharedPreferenceChangeListener(prefListener);
+        sessionPrefs.registerOnSharedPreferenceChangeListener(prefListener);
 
         createChannel();
 
@@ -1356,6 +1357,9 @@ public class FloatingFpsService extends Service {
 
         if (overlayPrefs != null) {
             overlayPrefs.unregisterOnSharedPreferenceChangeListener(prefListener);
+        }
+        if (sessionPrefs != null) {
+            sessionPrefs.unregisterOnSharedPreferenceChangeListener(prefListener);
         }
 
         if (overlayRoot != null && windowManager != null) {
