@@ -805,9 +805,13 @@ public class FloatingFpsService extends Service {
         int leftSingleH = showFps ? fpsH : (showTemperature ? tempH : 0);
         int rightSingleH = showGraph ? graphH : (showCpuGpu ? stackH : 0);
 
-        int leftStackH = (showFps ? fpsH : 0)
-                + (showRam ? ramH : 0)
-                + (showTemperature ? tempH : 0);
+        boolean leftFpsRamPair = showFps && showRam
+                && !showTemperature && showGraph && showCpuGpu;
+        int leftStackH = leftFpsRamPair
+                ? topH + botH
+                : (showFps ? fpsH : 0)
+                        + (showRam ? ramH : 0)
+                        + (showTemperature ? tempH : 0);
         int contentH = showRam
                 ? Math.max(leftStackH, rightTwo ? topH + botH : rightSingleH)
                 : Math.max(topH + botH, Math.max(
@@ -843,14 +847,18 @@ public class FloatingFpsService extends Service {
         tempRow.addView(temperatureView, tempTextParams);
 
         leftColumn = makeColumn(leftW, contentH);
-        if (showRam && !showTemperature && showGraph && showCpuGpu) {
-            // Keep the RAM value on the same bottom baseline as CPU/GPU.
-            leftColumn.setGravity(Gravity.BOTTOM);
-        }
 
         if (showRam) {
-            int remaining = (showFps ? 1 : 0) + 1
-                    + (showTemperature ? 1 : 0);
+            if (leftFpsRamPair) {
+                // Mirror the original FPS / battery-temperature pairing:
+                // RAM takes the battery-temperature row when temperature is off.
+                View fpsContent = compactFps ? fpsView : fpsRow;
+                leftColumn.addView(cellWithBottomLine(
+                        fpsContent, topH, Gravity.CENTER));
+                leftColumn.addView(cell(ramView, botH));
+            } else {
+                int remaining = (showFps ? 1 : 0) + 1
+                        + (showTemperature ? 1 : 0);
             if (showFps) {
                 remaining--;
                 View fpsContent = compactFps ? fpsView : fpsRow;
@@ -864,8 +872,9 @@ public class FloatingFpsService extends Service {
                         ? cellWithBottomLine(tempRow, tempH, Gravity.CENTER)
                         : cell(tempRow, tempH));
             }
-            remaining--;
-            leftColumn.addView(cell(ramView, ramH));
+                remaining--;
+                leftColumn.addView(cell(ramView, ramH));
+            }
         } else if (leftTwo) {
             leftColumn.addView(cellWithBottomLine(fpsRow, topH, Gravity.CENTER));
             leftColumn.addView(cell(tempRow, botH));
