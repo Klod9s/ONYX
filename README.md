@@ -8,13 +8,22 @@ Lightweight, real-time frame pacing, telemetry, and battery power overlay for An
 - **Hardware Telemetry**: Live CPU/GPU load, battery temperature, and power state monitoring to identify throttling.
 - **Smart Foreground Refresh**: The overlay and UI only update when actively in the foreground, no polling when idle; sampling only while recording or the overlay is visible.
 - **Shizuku Integration**: Privileged telemetry access without requiring full root (Root also supported).
-- **Highly Customizable**: Adjustable scaling, drag-to-position, and multiple accent color themes (Onyx, Emerald, Violet, Crimson, or Custom).
+- **Highly Customizable**: Adjustable scaling, drag-to-position, and multiple accent color themes (Onyx, Ocean, Violet, Crimson, or Custom).
 
 ## Requirements
 
 - Android 8.0 (API 26) or higher.
 - Android 14 or higher recommended.
 - [Shizuku](https://shizuku.rikka.app/) installed and authorized (or a rooted device)
+
+## Tested Devices
+
+ONYX has been verified to work on the following devices and environments:
+
+* **Redmi Turbo 4 Pro** – LineageOS 23.2 (Android 16)
+* **Honor 400 Pro** – Android 16 / Android 17
+* **Lenovo Legion Y70 (2026)** – Android 16 / Android 17
+* **iQOO Z9x** – Android 14
 
 ## Installation
 
