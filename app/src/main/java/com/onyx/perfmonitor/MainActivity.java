@@ -1187,28 +1187,35 @@ new MonitorPageBuilder(this).build(page);
 
         if (request == 43 && result == RESULT_OK
                 && data != null && data.getData() != null) {
-
-            try {
-                SessionFileManager.copySessionToUri(
-                        getContentResolver(),
-                        data.getData(),
-                        getFilesDir(),
-                        pendingExportFile
-                );
-
-                android.widget.Toast.makeText(
-                        this, "Session exported successfully!",
-                        android.widget.Toast.LENGTH_SHORT
-                ).show();
-
-            } catch (Exception e) {
-                android.widget.Toast.makeText(
-                        this, "Export failed: " + e.getMessage(),
-                        android.widget.Toast.LENGTH_LONG
-                ).show();
-            }
-
+            final Uri destination = data.getData();
+            final String filename = pendingExportFile;
             pendingExportFile = null;
+
+            fileWorker.execute(() -> {
+                String message;
+                boolean success;
+                try {
+                    SessionFileManager.copySessionToUri(
+                            getContentResolver(),
+                            destination,
+                            getFilesDir(),
+                            filename);
+                    message = "Session exported successfully!";
+                    success = true;
+                } catch (Exception e) {
+                    message = "Export failed: " + e.getMessage();
+                    success = false;
+                }
+
+                final String resultMessage = message;
+                final boolean exportSucceeded = success;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this, resultMessage,
+                            exportSucceeded ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG)
+                            .show();
+                });
+            });
             return;
         }
 
