@@ -226,6 +226,13 @@ private Sample readSample(boolean recording) {
                         " fi; " +
                         "fi; " +
                         "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
+                        "echo __THERMAL_BLOCK__; " +
+                        "for Z in /sys/class/thermal/thermal_zone*; do " +
+                        " T=$(cat \"$Z/type\" 2>/dev/null); " +
+                        " case \"$T\" in cpu-*) K=CPU;; gpu-*) K=GPU;; *) continue;; esac; " +
+                        " V=$(cat \"$Z/temp\" 2>/dev/null); " +
+                        " echo \"$K $V\"; " +
+                        "done; " +
                         "echo __MALI_BLOCK__; " +
                         "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                         "echo __END__; ";
@@ -400,6 +407,9 @@ private Sample readSample(boolean recording) {
                 } catch (Exception ignored) {}
             }
 
+            parseThermalTemperatures(
+                    between(output, "__THERMAL_BLOCK__\n", "__MALI_BLOCK__"), sample);
+
             // Cache MALI_PATH (FIXED: uses 'output', not 'freqOutput')
             String maliBlock = between(output, "__MALI_BLOCK__\n", "__END__").trim();
             if (!maliBlock.isEmpty()) {
@@ -500,6 +510,13 @@ private Sample readShizukuSample(boolean recording) {
                                 " fi; " +
                                 "fi; " +
                                 "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
+                                "echo __THERMAL_BLOCK__; " +
+                                "for Z in /sys/class/thermal/thermal_zone*; do " +
+                                " T=$(cat \"$Z/type\" 2>/dev/null); " +
+                                " case \"$T\" in cpu-*) K=CPU;; gpu-*) K=GPU;; *) continue;; esac; " +
+                                " V=$(cat \"$Z/temp\" 2>/dev/null); " +
+                                " echo \"$K $V\"; " +
+                                "done; " +
                                 "echo __MALI_BLOCK__; " +
                                 "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                                 "echo __END__;";
@@ -601,6 +618,9 @@ private Sample readShizukuSample(boolean recording) {
                             }
                         } catch (Exception ignored) {}
                     }
+
+                    parseThermalTemperatures(
+                            between(freqOutput, "__THERMAL_BLOCK__\n", "__MALI_BLOCK__"), sample);
 
                     // Cache MALI_PATH safely
                     String maliBlock = between(freqOutput, "__MALI_BLOCK__\n", "__END__").trim();
@@ -744,6 +764,28 @@ private Sample readAndroidSample(boolean recording) {
 
 private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
+    }
+
+    private void parseThermalTemperatures(String raw, Sample sample) {
+        if (raw == null || raw.isEmpty() || sample == null) return;
+        double maxCpu = -1;
+        double maxGpu = -1;
+        for (String line : raw.split("\\r?\\n")) {
+            String[] parts = line.trim().split("\\s+");
+            if (parts.length != 2) continue;
+            try {
+                double milliCelsius = Double.parseDouble(parts[1]);
+                if (!Double.isFinite(milliCelsius)
+                        || milliCelsius <= 0 || milliCelsius > 150000) continue;
+                double celsius = milliCelsius / 1000.0;
+                if ("CPU".equals(parts[0])) maxCpu = Math.max(maxCpu, celsius);
+                else if ("GPU".equals(parts[0])) maxGpu = Math.max(maxGpu, celsius);
+            } catch (NumberFormatException ignored) {
+                // Ignore unreadable or vendor sentinel values.
+            }
+        }
+        sample.cpuTemperatureC = maxCpu;
+        sample.gpuTemperatureC = maxGpu;
     }
 
     private double parseFps(String output) {
