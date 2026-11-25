@@ -215,8 +215,17 @@ public class MonitoringSampleParsingTest {
     }
 
     @Test
+    public void zeroSysfsBatteryCurrentIsAValidReading() {
+        MonitoringEngine.SysfsBatteryValues values =
+                MonitoringEngine.parseSysfsBatteryValues("0 4200000 87");
+        assertEquals(0L, values.currentMicroamps);
+        org.junit.Assert.assertTrue(values.hasCurrent());
+        org.junit.Assert.assertTrue(values.hasVoltage());
+    }
+
+    @Test
     public void missingAndInvalidSysfsBatteryReadingsRemainUnavailable() {
-        String[] inputs = {null, "", "- - -", "0 0 -1", "9223372036854775808 -2 101"};
+        String[] inputs = {null, "", "- - -", "broken 0 -1", "9223372036854775808 -2 101"};
         for (String input : inputs) {
             MonitoringEngine.SysfsBatteryValues values =
                     MonitoringEngine.parseSysfsBatteryValues(input);
