@@ -14,7 +14,7 @@ final class SessionController {
     }
 
         void toggle() {
-            if (running) {
+            if (activity.running) {
                 stopSession();
             } else {
                 startSession();
@@ -22,7 +22,7 @@ final class SessionController {
         }
     
         private void startSession() {
-            if (running) return;
+            if (activity.running) return;
     
             activity.samples.clear();
             activity.csv.setLength(0);
@@ -55,33 +55,33 @@ final class SessionController {
         }
     
         private void stopSession() {
-            if (!running) return;
+            if (!activity.running) return;
     
             activity.running = false;
-            getSharedPreferences("session_state", MODE_PRIVATE)
+            activity.getSharedPreferences("session_state", android.content.Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean("recording", false)
                     .apply();
-            sessionId++;
+            activity.sessionId++;
     
-            startButton.setText("START SESSION");
+            activity.startButton.setText("START SESSION");
     
             int accentColor = activity.getAppAccentColor();
             android.graphics.drawable.GradientDrawable bg =
                     new android.graphics.drawable.GradientDrawable();
             bg.setColor(accentColor);
-            bg.setCornerRadius(dp(12));
-            bg.setStroke(dp(1), Color.argb(
+            bg.setCornerRadius(activity.dp(12));
+            bg.setStroke(activity.dp(1), Color.argb(
                     180,
                     Color.red(accentColor),
                     Color.green(accentColor),
                     Color.blue(accentColor)));
-            startButton.setBackground(bg);
+            activity.startButton.setBackground(bg);
     
             String result = activity.makeSummary();
     
-            summary.setText(result);
-            refreshStatusPill();
+            activity.summary.setText(result);
+            activity.refreshStatusPill();
     
             if (!activity.samples.isEmpty()) {
                 activity.saveSession(result);
