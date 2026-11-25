@@ -518,44 +518,22 @@ private Sample readShizukuSample(boolean recording) {
                             freqOutput, "__BATTERY_BLOCK__\n", "__PROC_STAT__"
                     ).trim();
                     if (!batteryBlock.isEmpty()) {
-                        String[] batteryValues = batteryBlock.split("\\s+");
-                        if (batteryValues.length >= 2) {
-                            try {
-                                if (!batteryValues[0].equals("-")) {
-                                    try {
-                                        long rawCurrent = Long.parseLong(batteryValues[0]);
-                                        if (rawCurrent != Long.MIN_VALUE
-                                                && (rawCurrent != 0 || sample.currentMa < 0)) {
-                                            sample.currentMa = batteryCurrent.toMilliampsFromSysfs(
-                                                    rawCurrent, sample.batteryUnplugged);
-                                        }
-                                    } catch (NumberFormatException ignored) {
-                                        // Preserve the BatteryManager current reading.
-                                    }
-                                }
-                                if (!batteryValues[1].equals("-")) {
-                                    try {
-                                        long rawVoltage = Long.parseLong(batteryValues[1]);
-                                        if (rawVoltage > 0) sample.voltage = rawVoltage / 1000000.0;
-                                    } catch (NumberFormatException ignored) {
-                                        // Preserve the BatteryManager voltage reading.
-                                    }
-                                }
-                                if (batteryValues.length >= 3 && !batteryValues[2].equals("-")) {
-                                    try {
-                                        int percent = Integer.parseInt(batteryValues[2]);
-                                        if (percent >= 0 && percent <= 100) sample.battery = percent;
-                                    } catch (NumberFormatException ignored) {
-                                        // Preserve the BatteryManager battery level.
-                                    }
-                                }
-                                sample.power = calculatePowerWatts(
-                                        sample.currentMa, sample.voltage,
-                                        sample.currentMa != -1 && sample.voltage > 0);
-                            } catch (Exception ignored) {
-                                // Preserve valid BatteryManager readings if fallback parsing fails.
-                            }
+                        SysfsBatteryValues batteryValues =
+                                parseSysfsBatteryValues(batteryBlock);
+                        if (batteryValues.hasCurrent()
+                                && (batteryValues.currentMicroamps != 0 || sample.currentMa < 0)) {
+                            sample.currentMa = batteryCurrent.toMilliampsFromSysfs(
+                                    batteryValues.currentMicroamps, sample.batteryUnplugged);
                         }
+                        if (batteryValues.hasVoltage()) {
+                            sample.voltage = batteryValues.voltageMicrovolts / 1000000.0;
+                        }
+                        if (batteryValues.batteryPercent >= 0) {
+                            sample.battery = batteryValues.batteryPercent;
+                        }
+                        sample.power = calculatePowerWatts(
+                                sample.currentMa, sample.voltage,
+                                sample.currentMa != -1 && sample.voltage > 0);
                     }
 
                     String cpuOutput = between(
