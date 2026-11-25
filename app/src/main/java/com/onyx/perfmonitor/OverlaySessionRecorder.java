@@ -83,11 +83,13 @@ final class OverlaySessionRecorder {
         previousSampleTime = elapsed;
         previousBattery = sample.battery;
 
-        if (prefs.getInt("start_battery", -1) < 0
+        if (SessionDataPreferences.enabled(context, SessionDataPreferences.BATTERY)
+                && prefs.getInt("start_battery", -1) < 0
                 && sample.battery >= 0 && sample.battery <= 100) {
             prefs.edit().putInt("start_battery", sample.battery).apply();
         }
-        if (sample.battery >= 0 && sample.battery <= 100) {
+        if (SessionDataPreferences.enabled(context, SessionDataPreferences.BATTERY)
+                && sample.battery >= 0 && sample.battery <= 100) {
             prefs.edit().putInt("end_battery", sample.battery).apply();
         }
         if (mode != null) prefs.edit().putString("mode", mode).apply();
@@ -107,7 +109,11 @@ final class OverlaySessionRecorder {
         int first = prefs.getInt("start_battery", -1);
         int last = prefs.getInt("end_battery", -1);
         String summary;
-        if (first >= 0 && last >= 0) {
+        if (!SessionDataPreferences.enabled(context, SessionDataPreferences.BATTERY)) {
+            summary = String.format(Locale.US,
+                    "Run time: %.1f minutes\\nBattery data: not collected",
+                    duration / 60000.0);
+        } else if (first >= 0 && last >= 0) {
             summary = String.format(Locale.US,
                     "Run time: %.1f minutes\nBattery level: %d%% → %d%% (%d%% change)",
                     duration / 60000.0, first, last, last - first);
