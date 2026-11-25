@@ -8,8 +8,8 @@ public class MonitoringSampleParsingTest {
 
     @Test
     public void parsesDisplayControllerFpsFromRootOutput() {
-        assertEquals(59.94, MonitoringEngine.parseFps("fps: 59.94\\n"), 0.0001);
-        assertEquals(120.0, MonitoringEngine.parseFps("header\\nfps: 120\\nfooter"), 0.0001);
+        assertEquals(59.94, MonitoringEngine.parseFps("fps: 59.94\n"), 0.0001);
+        assertEquals(120.0, MonitoringEngine.parseFps("header\nfps: 120\nfooter"), 0.0001);
     }
 
     @Test
@@ -24,9 +24,9 @@ public class MonitoringSampleParsingTest {
         Sample sample = new Sample();
 
         MonitoringEngine.parseThermalTemperatures(
-                "CPU 42000\\nCPU 51875\\nGPU 46300\\nGPU 50125\\n"
-                        + "battery 39000\\ninvalid value\\nCPU not-a-number\\n"
-                        + "GPU 0\\nCPU 151000",
+                "CPU 42000\nCPU 51875\nGPU 46300\nGPU 50125\n"
+                        + "battery 39000\ninvalid value\nCPU not-a-number\n"
+                        + "GPU 0\nCPU 151000",
                 sample);
 
         assertEquals(51.875, sample.cpuTemperatureC, 0.0001);
@@ -50,8 +50,8 @@ public class MonitoringSampleParsingTest {
         Sample sample = new Sample();
 
         MonitoringEngine.applyCoolingReading(
-                "thermal-cpufreq-0 2 5\\nthermal-gpu-0 1 4\\n"
-                        + "battery 1 3\\n",
+                "thermal-cpufreq-0 2 5\nthermal-gpu-0 1 4\n"
+                        + "battery 1 3\n",
                 sample);
 
         assertEquals(ThermalCoolingReader.ACTIVE, sample.coolingDeviceActive);
