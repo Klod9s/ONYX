@@ -65,6 +65,7 @@ public class FloatingFpsService extends Service {
     private OverlayMetricsStore overlayMetricsStore;
     private OverlaySessionRecorder sessionRecorder;
     private boolean backgroundSamplingEnabled = false;
+    private volatile boolean backgroundRecordingRequested = false;
     private boolean backgroundShizukuBindRequested = false;
     private boolean backgroundShizukuBound = false;
     private boolean shizukuDisconnectToastShown = false;
@@ -97,10 +98,12 @@ public class FloatingFpsService extends Service {
                                     sample.averageFrameTimeMs,
                                     sample.cpu,
                                     sample.gpuLoadPercent);
-                            if (recording && sessionRecorder != null) {
-                                if (!sessionRecorder.isRecording()) {
-                                    sessionRecorder.start();
-                                }
+                            // Re-check shared state after sampling; Stop may have been
+                            // pressed while this sample was in flight. Never auto-start
+                            // the recorder from the sampling loop.
+                            if (sessionPrefs.getBoolean("recording", false)
+                                    && sessionRecorder != null
+                                    && sessionRecorder.isRecording()) {
                                 sessionRecorder.append(
                                         sample,
                                         monitoringEngine.getMonitoringMode());
@@ -364,6 +367,8 @@ public class FloatingFpsService extends Service {
 
         overlayPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         sessionPrefs = getSharedPreferences("session_state", MODE_PRIVATE);
+        backgroundRecordingRequested =
+                sessionPrefs.getBoolean("recording", false);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         overlayMetricsStore = new OverlayMetricsStore(getApplicationContext());
         sessionRecorder = new OverlaySessionRecorder(getApplicationContext());
@@ -1264,15 +1269,29 @@ public class FloatingFpsService extends Service {
     }
 
     private void toggleBackgroundRecording() {
-        if (sessionPrefs.getBoolean("recording", false)) {
-            monitoringEngine.endFrameCapture();
-            sessionPrefs.edit().putBoolean("recording", false).apply();
-            if (sessionRecorder != null) sessionRecorder.finish();
-        } else {
-            monitoringEngine.beginFrameCapture();
-            if (sessionRecorder != null) sessionRecorder.start();
-            sessionPrefs.edit().putBoolean("recording", true).apply();
+        boolean start = !backgroundRecordingRequested;
+        backgroundRecordingRequested = start;
+
+        // Update the border immediately; serialize recorder/frame-capture changes
+        // behind any sample already running on samplingExecutor.
+        sessionPrefs.edit().putBoolean("recording", start).apply();
+
+        try {
+            samplingExecutor.execute(() -> {
+                if (serviceDestroyed) return;
+
+                if (start) {
+                    monitoringEngine.beginFrameCapture();
+                    if (sessionRecorder != null) sessionRecorder.start();
+                } else {
+                    monitoringEngine.endFrameCapture();
+                    if (sessionRecorder != null) sessionRecorder.finish();
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            // The service is shutting down; no further recording work can run.
         }
+
         handler.removeCallbacks(updater);
         if (attached) handler.post(updater);
     }
