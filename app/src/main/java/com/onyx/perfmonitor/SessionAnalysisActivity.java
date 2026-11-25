@@ -7,16 +7,26 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.File;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Single-session analysis screen.
- * Parsing lives in SessionData, layout lives in AnalysisContentBuilder.
+ * CSV parsing runs off the UI thread; layout lives in AnalysisContentBuilder.
  */
 public class SessionAnalysisActivity extends Activity {
+
+    private final ExecutorService loadExecutor =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread thread = new Thread(r, "onyx-session-analysis");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,14 +40,49 @@ public class SessionAnalysisActivity extends Activity {
             return;
         }
 
+        // Display the screen immediately instead of blocking startup while
+        // the complete CSV is read and parsed.
+        showLoading();
+
         File file = getFileStreamPath(filename);
-        SessionData data = SessionData.load(this, file);
+        loadExecutor.execute(() -> {
+            SessionData data = SessionData.load(this, file);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
 
-        if (data == null) {
-            showError("Could not read this session's CSV data.");
-            return;
-        }
+                if (data == null) {
+                    showError("Could not read this session's CSV data.");
+                } else {
+                    showAnalysis(data);
+                }
+            });
+        });
+    }
 
+    private void showLoading() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setBackgroundColor(Color.rgb(13, 18, 26));
+
+        ProgressBar progress = new ProgressBar(this);
+        root.addView(progress, new LinearLayout.LayoutParams(dp(36), dp(36)));
+
+        TextView label = new TextView(this);
+        label.setText("Loading session…");
+        label.setTextSize(13);
+        label.setTextColor(Color.rgb(180, 194, 210));
+        label.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        labelParams.topMargin = dp(14);
+        root.addView(label, labelParams);
+
+        setContentView(root);
+    }
+
+    private void showAnalysis(SessionData data) {
         int accent = AppColors.accent(this);
 
         LinearLayout root = new LinearLayout(this);
@@ -112,6 +157,12 @@ public class SessionAnalysisActivity extends Activity {
                     v.setPadding(0, bars.top, 0, bars.bottom);
                     return insets;
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        loadExecutor.shutdownNow();
+        super.onDestroy();
     }
 
     private int dp(float value) {
