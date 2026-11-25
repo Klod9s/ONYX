@@ -23,6 +23,7 @@ final class Sample {
     double ramUsagePercent = -1;
     double cpuTemperatureC = -1;
     double gpuTemperatureC = -1;
+    int thermalStatus = ThermalStatusReader.UNAVAILABLE;
 
     int battery;
     double secondsPerPercent = -1;
