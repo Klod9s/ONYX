@@ -1221,6 +1221,10 @@ public class MainActivity extends Activity {
         new SettingsContentBuilder(this).build(settingsPage);
     }
 
+    private void buildAboutContent() {
+        new AboutContentBuilder(this).build(aboutPage);
+    }
+
 
 
 
@@ -2897,8 +2901,4 @@ public class MainActivity extends Activity {
         }
 
         super.onDestroy();
-    }
-
-void buildAboutContent() {
-        new AboutContentBuilder(this).build(aboutPage);
     }
