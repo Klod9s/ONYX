@@ -411,7 +411,7 @@ public class MainActivity extends Activity {
                             }
 
                             samples.add(sample);
-                            appendCsv(sample);
+                            SessionCsvFormatter.appendSample(csv, sample);
                         }
 
                         if (isAppForeground) {
@@ -2782,19 +2782,7 @@ public class MainActivity extends Activity {
         samples.clear();
         csv.setLength(0);
 
-        csv.append(
-                "Time,App,FPS,Current (mA),Voltage (V),Power (W)," +
-                        "Battery (%),Seconds per 1% drain,Temperature (°C)," +
-                        "CPU 0 (%),CPU 1 (%),CPU 2 (%),CPU 3 (%)," +
-                        "CPU 4 (%),CPU 5 (%),CPU 6 (%),CPU 7 (%)," +
-                        "CPU 0 Frequency (MHz),CPU 1 Frequency (MHz)," +
-                        "CPU 2 Frequency (MHz),CPU 3 Frequency (MHz)," +
-                        "CPU 4 Frequency (MHz),CPU 5 Frequency (MHz)," +
-                        "CPU 6 Frequency (MHz),CPU 7 Frequency (MHz)," +
-                        "GPU Frequency (MHz),GPU Load (%)," +
-                        "Average Frame Time (ms),Frame Time Std Dev (ms)," +
-                        "Stutter Count,FPS Source\n"
-        );
+        SessionCsvFormatter.appendHeader(csv);
 
         monitoringEngine.resetCpuBaseline();
         monitoringEngine.resetSessionClock();
@@ -2855,119 +2843,9 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String formatElapsed(long milliseconds) {
-        long totalSeconds = milliseconds / 1000;
-        long minutes = totalSeconds / 60;
-        long seconds = totalSeconds % 60;
-
-        return String.format(Locale.US, "%02d:%02d", minutes, seconds);
-    }
-
-    private void appendCsv(Sample s) {
-        StringBuilder row = new StringBuilder();
-
-        row.append(formatElapsed(s.timeMs)).append(',')
-                .append("\"")
-                .append(s.app.replace("\"", "\"\""))
-                .append("\"").append(',')
-                .append(s.fps < 0 ? "" :
-                        String.format(Locale.US, "%.0f", s.fps))
-                .append(',')
-                .append(String.format(Locale.US,
-                        "%.0f,%.3f,%.2f,%d,",
-                        s.currentMa, s.voltage, s.power,
-                        s.battery));
-
-        if (s.secondsPerPercent >= 0) {
-            row.append(String.format(Locale.US,
-                    "%.1f", s.secondsPerPercent));
-        }
-
-        row.append(',')
-                .append(String.format(Locale.US,
-                        "%.1f", s.temperatureC));
-
-        for (double value : s.cpu) {
-            row.append(',');
-
-            if (value >= 0) {
-                row.append(String.format(Locale.US, "%.1f", value));
-            }
-        }
-
-        for (double value : s.cpuFreqMHz) {
-            row.append(',');
-
-            if (value >= 0) {
-                row.append(String.format(Locale.US, "%.1f", value));
-            }
-        }
-
-        row.append(',');
-
-        if (s.gpuFreqMHz >= 0) {
-            row.append(String.format(Locale.US, "%.1f", s.gpuFreqMHz));
-        }
-
-        row.append(',');
-
-        if (s.gpuLoadPercent >= 0) {
-            row.append(String.format(Locale.US, "%.1f", s.gpuLoadPercent));
-        }
-
-        row.append(',');
-
-        if (s.averageFrameTimeMs >= 0) {
-            row.append(String.format(Locale.US, "%.2f", s.averageFrameTimeMs));
-        }
-
-        row.append(',');
-
-        if (s.frameTimeStdDevMs >= 0) {
-            row.append(String.format(Locale.US, "%.2f", s.frameTimeStdDevMs));
-        }
-
-        row.append(',');
-
-        if (s.stutterCount >= 0) {
-            row.append(s.stutterCount);
-        }
-
-        row.append(',');
-        if (s.fpsSource != null && !s.fpsSource.isEmpty()) {
-            row.append(s.fpsSource);
-        }
-
-        csv.append(row).append('\n');
-    }
-
-    private String deviceName() {
-        String soc = "";
-        if (Build.VERSION.SDK_INT >= 31
-                && !"unknown".equalsIgnoreCase(Build.SOC_MODEL)) {
-            soc = " (" + Build.SOC_MODEL + ")";
-        }
-        return Build.MANUFACTURER + " " + Build.MODEL + soc;
-    }
-
     private String buildCsv(String result) {
-        StringBuilder output = new StringBuilder();
-
-        output.append("SESSION INFO\n");
-        output.append("Device,\"")
-                .append(deviceName().replace("\"", "\"\""))
-                .append("\"\n");
-        output.append("Android,").append(Build.VERSION.RELEASE).append('\n');
-        output.append("Mode,").append(cachedMonitoringMode).append('\n');
-        output.append("Summary\n");
-        output.append("\"")
-                .append(result.replace("\"", "\"\""))
-                .append("\"\n\n");
-
-        output.append("PERFORMANCE READINGS\n");
-        output.append(csv);
-
-        return output.toString();
+        return SessionCsvFormatter.buildSessionCsv(
+                csv, result, cachedMonitoringMode);
     }
 
     private void setTextIfChanged(TextView view, String value) {
