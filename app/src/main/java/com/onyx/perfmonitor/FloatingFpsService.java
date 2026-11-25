@@ -107,7 +107,11 @@ public class FloatingFpsService extends Service {
                                     sample.cpu,
                                     sample.gpuLoadPercent,
                                     sample.ramUsagePercent,
-                                    sample.thermalStatus);
+                                    sample.thermalStatus,
+                                    sample.cpuCoolingState,
+                                    sample.cpuCoolingMaxState,
+                                    sample.gpuCoolingState,
+                                    sample.gpuCoolingMaxState);
                             // Re-check shared state after sampling; Stop may have been
                             // pressed while this sample was in flight. Never auto-start
                             // the recorder from the sampling loop.
@@ -256,10 +260,22 @@ public class FloatingFpsService extends Service {
         String gpu = readings[4];
         String ram = readings[5];
         int thermalStatus;
+        int cpuCoolingState;
+        int gpuCoolingState;
         try {
             thermalStatus = Integer.parseInt(readings[6]);
         } catch (Exception ignored) {
             thermalStatus = ThermalStatusReader.UNAVAILABLE;
+        }
+        try {
+            cpuCoolingState = Integer.parseInt(readings[7]);
+        } catch (Exception ignored) {
+            cpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
+        }
+        try {
+            gpuCoolingState = Integer.parseInt(readings[9]);
+        } catch (Exception ignored) {
+            gpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
         }
 
         boolean showFps = overlayPrefs.getBoolean("show_fps", true);
@@ -372,14 +388,10 @@ public class FloatingFpsService extends Service {
         if (temperatureView != null) temperatureView.setText(temperature);
         if (batteryIconView != null) {
             int thermalLevel = ThermalStatusReader.overlayLevel(thermalStatus);
-            if (thermalLevel == 0) {
-                batteryIconView.setImageResource(R.drawable.ic_battery_temp);
-                batteryIconView.setImageTintList(null);
-                batteryIconView.setContentDescription(
-                        thermalStatus == ThermalStatusReader.UNAVAILABLE
-                                ? "Thermal status unavailable"
-                                : "Normal thermal status");
-            } else {
+            boolean cpuCoolingActive = cpuCoolingState > 0;
+            boolean gpuCoolingActive = gpuCoolingState > 0;
+            if (thermalLevel > 0) {
+                // Android thermal severity remains the primary indicator.
                 batteryIconView.setImageResource(R.drawable.ic_thermal_flame);
                 int flameColor = thermalLevel == 1
                         ? Color.rgb(255, 152, 0)
@@ -387,7 +399,25 @@ public class FloatingFpsService extends Service {
                 batteryIconView.setImageTintList(
                         android.content.res.ColorStateList.valueOf(flameColor));
                 batteryIconView.setContentDescription(
-                        "Thermal status: " + ThermalStatusReader.label(thermalStatus));
+                        "Android thermal status: " + ThermalStatusReader.label(thermalStatus));
+            } else if (cpuCoolingActive || gpuCoolingActive) {
+                // Hardware cooling activity is a fallback signal, not proof of throttling.
+                batteryIconView.setImageResource(R.drawable.ic_thermal_flame);
+                batteryIconView.setImageTintList(
+                        android.content.res.ColorStateList.valueOf(
+                                Color.rgb(255, 152, 0)));
+                String activeDevices = cpuCoolingActive && gpuCoolingActive
+                        ? "CPU and GPU cooling active"
+                        : cpuCoolingActive ? "CPU cooling active" : "GPU cooling active";
+                batteryIconView.setContentDescription(activeDevices
+                        + "; frequency throttling not confirmed");
+            } else {
+                batteryIconView.setImageResource(R.drawable.ic_battery_temp);
+                batteryIconView.setImageTintList(null);
+                batteryIconView.setContentDescription(
+                        thermalStatus == ThermalStatusReader.UNAVAILABLE
+                                ? "Thermal status unavailable; no CPU or GPU cooling activity detected"
+                                : "Normal thermal status; no CPU or GPU cooling activity detected");
             }
         }
         if (frameTimeView != null) frameTimeView.setText(frameTime);
@@ -1195,6 +1225,14 @@ public class FloatingFpsService extends Service {
                 livePrefs.getString("ram_usage", "--%");
         String thermalStatus = String.valueOf(livePrefs.getInt(
                 "thermal_status", ThermalStatusReader.UNAVAILABLE));
+        String cpuCoolingState = String.valueOf(livePrefs.getInt(
+                "cpu_cooling_state", ThermalCoolingReader.UNAVAILABLE));
+        String cpuCoolingMaxState = String.valueOf(livePrefs.getInt(
+                "cpu_cooling_max_state", ThermalCoolingReader.UNAVAILABLE));
+        String gpuCoolingState = String.valueOf(livePrefs.getInt(
+                "gpu_cooling_state", ThermalCoolingReader.UNAVAILABLE));
+        String gpuCoolingMaxState = String.valueOf(livePrefs.getInt(
+                "gpu_cooling_max_state", ThermalCoolingReader.UNAVAILABLE));
 
         return new String[]{
                 fps,
@@ -1203,7 +1241,11 @@ public class FloatingFpsService extends Service {
                 cpu,
                 gpu,
                 ram,
-                thermalStatus
+                thermalStatus,
+                cpuCoolingState,
+                cpuCoolingMaxState,
+                gpuCoolingState,
+                gpuCoolingMaxState
         };
     }
 
