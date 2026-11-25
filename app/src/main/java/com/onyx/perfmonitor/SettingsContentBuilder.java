@@ -307,10 +307,7 @@ final class SettingsContentBuilder {
         addDataCollectionCategory(dataCollectionCard, "FPS & FRAME PACING",
                 new String[][]{
                         {"FPS", SessionDataPreferences.FPS_VALUE},
-                        {"Average frame time", SessionDataPreferences.FRAME_AVERAGE},
-                        {"Frame time variation", SessionDataPreferences.FRAME_VARIATION},
-                        {"Stutters", SessionDataPreferences.FRAME_STUTTERS},
-                        {"Frame intervals", SessionDataPreferences.FRAME_INTERVALS}
+                        {"Frame pacing summary (all metrics)", SessionDataPreferences.FRAME_PACING}
                 }, SessionDataPreferences.FPS);
         addDataCollectionSpacer(dataCollectionCard);
 
@@ -430,8 +427,10 @@ final class SettingsContentBuilder {
         option.setButtonTintList(
                 android.content.res.ColorStateList.valueOf(activity.getAppAccentColor()));
         activity.appAccentCheckBoxes.add(option); // recolours live when the accent changes
-        option.setChecked(SessionDataPreferences.metricEnabledForSettings(
-                activity, key, legacyCategory));
+        option.setChecked(SessionDataPreferences.FRAME_PACING.equals(key)
+                ? SessionDataPreferences.framePacingEnabled(activity)
+                : SessionDataPreferences.metricEnabledForSettings(
+                        activity, key, legacyCategory));
         option.setOnCheckedChangeListener((button, checked) ->
                 SessionDataPreferences.get(activity).edit().putBoolean(key, checked).apply());
         parent.addView(option, new LinearLayout.LayoutParams(
@@ -448,15 +447,14 @@ final class SettingsContentBuilder {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
         }
-        if (SessionDataPreferences.FRAME_INTERVALS.equals(key)) {
+        if (SessionDataPreferences.FRAME_PACING.equals(key)) {
             TextView note = activity.text(
-                    "Frame-time analysis requires BLAST or regular SurfaceFlinger "
-                            + "latency access. If neither is available, ONYX can still "
-                            + "show FPS using fallback methods, but frame intervals, "
-                            + "average frame time, frame-time variation, stutter count, "
-                            + "and related frame-pacing metrics may be unavailable. "
-                            + "ROOT or Shizuku may help on some devices, but cannot "
-                            + "guarantee access.",
+                    "Requires BLAST or regular SurfaceFlinger latency access. "
+                            + "Without it, ONYX can still show FPS using fallback "
+                            + "methods, but frame intervals, average frame time, "
+                            + "frame-time variation, stutter count, and other "
+                            + "frame-pacing metrics may be unavailable. ROOT or "
+                            + "Shizuku may help on some devices, but cannot guarantee access.",
                     11, false, Color.rgb(145, 158, 175));
             note.setPadding(activity.dp(32), 0, activity.dp(8), activity.dp(6));
             parent.addView(note, new LinearLayout.LayoutParams(
