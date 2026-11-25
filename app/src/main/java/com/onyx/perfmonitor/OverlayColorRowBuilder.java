@@ -94,7 +94,7 @@ final class OverlayColorRowBuilder {
         onyx.addView(swatch, new LinearLayout.LayoutParams(
                 activity.dp(22), activity.dp(22)));
 
-        TextView name = activity.text("OCEAN", 9, true, Color.WHITE);
+        TextView name = activity.text("ONYX", 9, true, Color.WHITE);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);

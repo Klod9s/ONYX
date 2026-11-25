@@ -96,7 +96,7 @@ final class SettingsContentBuilder {
         LinearLayout appColorRow = new LinearLayout(activity);
         appColorRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        String[] appColorNames = {"OCEAN", "EMERALD", "VIOLET", "CRIMSON", "CUSTOM"};
+        String[] appColorNames = {"ONYX", "EMERALD", "VIOLET", "CRIMSON", "CUSTOM"};
         int[] appColors = {
                 Color.rgb(69, 168, 245),
                 Color.rgb(101, 214, 165),
@@ -316,7 +316,7 @@ final class SettingsContentBuilder {
 
         addDataCollectionCategory(dataCollectionCard, "BATTERY & POWER",
                 new String[][]{
-                        {"Level", SessionDataPreferences.BATTERY_LEVEL},
+                        {"Level (%)", SessionDataPreferences.BATTERY_LEVEL},
                         {"Current", SessionDataPreferences.BATTERY_CURRENT},
                         {"Voltage", SessionDataPreferences.BATTERY_VOLTAGE},
                         {"Power", SessionDataPreferences.BATTERY_POWER},
