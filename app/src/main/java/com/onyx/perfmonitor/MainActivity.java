@@ -290,6 +290,8 @@ public class MainActivity extends Activity {
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         shizukuController.registerListeners();
         buildUi();
+        setAnimationsEnabled(getSharedPreferences("app_settings", MODE_PRIVATE)
+                .getBoolean("allow_animations", true));
 
         android.content.SharedPreferences sessionState =
                 getSharedPreferences("session_state", MODE_PRIVATE);
@@ -611,6 +613,7 @@ new MonitorPageBuilder(this).build(page);
         pinnedFile = null;
         updatePinUi(false);
         selectedTab = tab;
+        if (samplingController != null) samplingController.onMonitorTabChanged();
 
         View selectedPage;
 
@@ -869,9 +872,24 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void render(Sample s) {
+        if (selectedTab != 0) return;
         MonitorSampleRenderer.render(
                 s, fps, cpuTile, gpuTile, power, powerState,
                 current, voltage, battery, temperature, getAppAccentColor());
+    }
+
+    void setAnimationsEnabled(boolean enabled) {
+        if (brand != null) {
+            brand.setAnimationsEnabled(enabled);
+            if (enabled && isAppForeground) brand.startShine();
+        }
+        TextView[] tiles = {fps, cpuTile, gpuTile, current, voltage, battery, temperature};
+        for (TextView tile : tiles) {
+            if (tile == null || !(tile.getTag() instanceof GlassStyle.TileTag)) continue;
+            GlassStyle.TileTag tag = (GlassStyle.TileTag) tile.getTag();
+            if (tag.matrix != null) tag.matrix.setAnimationsEnabled(enabled);
+            if (tag.graph != null) tag.graph.setAnimationsEnabled(enabled);
+        }
     }
 
 
