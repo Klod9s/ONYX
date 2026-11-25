@@ -317,7 +317,7 @@ final class MonitorPageBuilder {
                 gridRow3.setOrientation(LinearLayout.HORIZONTAL);
                 activity.power = activity.tile(gridRow3, "POWER", false);
                 activity.current = activity.tile(gridRow3, "BATTERY CURRENT", true);
-                activity.powerState = activity.addSubLine(activity.power);
+                activity.setPowerStateView(activity.addSubLine(activity.power));
         
         // make both cards in this row the same height
                 for (int i = 0; i < gridRow3.getChildCount(); i++) {
