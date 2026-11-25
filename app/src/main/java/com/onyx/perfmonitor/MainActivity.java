@@ -147,7 +147,7 @@ public class MainActivity extends Activity {
     private View headerLine;
     android.graphics.drawable.GradientDrawable statusDotBg;
     TextView status, fps, power, current, voltage, battery;
-    private OnyxLogoView brand;
+    OnyxLogoView brand;
 
     // BOTTOM NAVIGATION
     private android.widget.FrameLayout pageContainer;
@@ -162,29 +162,31 @@ public class MainActivity extends Activity {
     TextView pinBannerText, pinBannerCancel;
     android.graphics.drawable.GradientDrawable pinBannerBg;
     private LinearLayout bottomNavigation;
-    private int selectedTab = 0;
-    private TextView[] navLabels = new TextView[4];
+    int selectedTab = 0;
+    TextView[] navLabels = new TextView[4];
     final ArrayList<TextView> appAccentTextViews =
             new ArrayList<>();
 
-    private final ArrayList<android.widget.RadioButton> appAccentRadioButtons =
+    final ArrayList<android.widget.RadioButton> appAccentRadioButtons =
             new ArrayList<>();
 
-    private final ArrayList<CheckBox> appAccentCheckBoxes =
+    final ArrayList<CheckBox> appAccentCheckBoxes =
             new ArrayList<>();
 
-    private final ArrayList<Button> appAccentButtons =
+    final ArrayList<Button> appAccentButtons =
             new ArrayList<>();
 
     final ArrayList<android.widget.SeekBar> appAccentSeekBars =
             new ArrayList<>();
     private final NavigationItemBuilder navigationItemBuilder =
             new NavigationItemBuilder(this);
+    private final AppAccentManager appAccentManager =
+            new AppAccentManager(this);
 
-    private android.widget.ImageView[] navIcons =
+    android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
 
-    private View[] navIndicators = new View[4];
+    View[] navIndicators = new View[4];
 
     private OverlayMetricsStore overlayMetricsStore;
     private MonitoringEngine monitoringEngine;
@@ -217,7 +219,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void refreshStatusPill() {
+    void refreshStatusPill() {
         if (cachedMonitoringMode.isEmpty()) {
             setStatus("CHECKING…", false);
         } else {
@@ -274,7 +276,7 @@ public class MainActivity extends Activity {
 
     android.graphics.drawable.Drawable customRainbowDrawable;
 
-    private boolean running = false;
+    boolean running = false;
     private int sessionId = 0;
     private boolean isAppForeground = false;
     private String cachedMonitoringMode = "";
@@ -301,7 +303,7 @@ public class MainActivity extends Activity {
             };
 
 
-    private OnyxHeroBannerView heroBanner;
+    OnyxHeroBannerView heroBanner;
 
 
     private boolean samplerBusy = false;
@@ -665,7 +667,7 @@ new MonitorPageBuilder(this).build(page);
         showTab(0);
     }
 
-    private void updateHeaderLine() {
+    void updateHeaderLine() {
         if (headerLine == null) return;
 
         int a = getAppAccentColor();
@@ -897,91 +899,7 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void updateAppAccentColor() {
-        int color = getAppAccentColor();
-        if (heroBanner != null) {
-            heroBanner.refreshAccentColor();
-        }
-        if (brand != null) {
-            brand.refreshAccentColor();
-        }
-
-        // Navigation
-        for (int i = 0; i < navLabels.length; i++) {
-            navLabels[i].setTextColor(
-                    i == selectedTab ? color : Color.rgb(145, 158, 175));
-
-            navIcons[i].setColorFilter(
-                    i == selectedTab ? color : Color.rgb(145, 158, 175));
-            navIndicators[i].setBackgroundColor(i == selectedTab ? color : Color.TRANSPARENT);
-        }
-
-        // Section headings
-        for (TextView heading : appAccentTextViews) {
-            heading.setTextColor(color);
-            heading.setCompoundDrawableTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-        }
-
-        // Checkboxes
-        for (CheckBox box : appAccentCheckBoxes) {
-            box.setButtonTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-        }
-        // Style picker radio buttons
-        for (android.widget.RadioButton rb : appAccentRadioButtons) {
-            rb.setButtonTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-        }
-        // View Analysis buttons
-        for (Button button : appAccentButtons) {
-            button.setBackgroundTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-        }
-
-        // Overlay sliders
-        for (android.widget.SeekBar slider : appAccentSeekBars) {
-            slider.setProgressTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-            slider.setThumbTintList(
-                    android.content.res.ColorStateList.valueOf(color));
-        }
-
-        // Overlay color rows (ONYX / CUSTOM highlights)
-        refreshOverlayColorRows();
-
-        // Card borders follow the app accent
-        refreshCardStrokes();
-        for (Runnable r : aboutRefreshers) r.run();
-        updateHeaderLine();
-
-        // ONYX glow
-        if (brand != null) {
-            brand.refreshAccentColor();
-        }
-
-// Status text
-        if (status != null) {
-            refreshStatusPill();
-        }
-
-        // Start Session button
-        if (startButton != null && !running) {
-            android.graphics.drawable.GradientDrawable background =
-                    new android.graphics.drawable.GradientDrawable();
-
-            background.setCornerRadius(dp(12));
-            background.setColor(color);
-            background.setStroke(dp(1), Color.argb(
-                    180,
-                    Color.red(color),
-                    Color.green(color),
-                    Color.blue(color)));
-
-            startButton.setBackground(background);
-        }
-        if (customColorButtonBg != null) {
-            customColorButtonBg.setStroke(dp(1), color);
-        }
+        appAccentManager.update();
     }
 
     void styleCheckBox(CheckBox box) {
@@ -1053,7 +971,7 @@ new MonitorPageBuilder(this).build(page);
         return bg;
     }
 
-    private void refreshCardStrokes() {
+    void refreshCardStrokes() {
         for (android.graphics.drawable.GradientDrawable bg : cardBackgrounds) {
             bg.setStroke(dp(1), cardStrokeColor());
         }
