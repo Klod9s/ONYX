@@ -64,7 +64,11 @@ final class SamplingController {
                                 sample.cpu,
                                 sample.gpuLoadPercent,
                                 sample.ramUsagePercent,
-                                sample.thermalStatus
+                                sample.thermalStatus,
+                                sample.cpuCoolingState,
+                                sample.cpuCoolingMaxState,
+                                sample.gpuCoolingState,
+                                sample.gpuCoolingMaxState
                         );
                         if (activity.running && !activity.isOverlaySession()) {
                             if (!activity.samples.isEmpty()) {
