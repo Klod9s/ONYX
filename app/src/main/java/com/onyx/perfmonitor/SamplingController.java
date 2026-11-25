@@ -63,7 +63,8 @@ final class SamplingController {
                                 sample.averageFrameTimeMs,
                                 sample.cpu,
                                 sample.gpuLoadPercent,
-                                sample.ramUsagePercent
+                                sample.ramUsagePercent,
+                                sample.thermalStatus
                         );
                         if (activity.running && !activity.isOverlaySession()) {
                             if (!activity.samples.isEmpty()) {
