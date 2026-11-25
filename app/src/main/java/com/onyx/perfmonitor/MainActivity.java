@@ -1115,19 +1115,23 @@ new MonitorPageBuilder(this).build(page);
     private void writeAllSessionsZip(Uri uri) {
         final java.util.List<String> names = visibleSessionNames();
 
-        new Thread(() -> {
+        fileWorker.execute(() -> {
             try {
                 int exported = SessionFileManager.writeSessionsZip(
                         getContentResolver(), uri, getFilesDir(), names);
-                runOnUiThread(() -> Toast.makeText(this,
-                        "Exported " + exported + " sessions",
-                        Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this, "Exported " + exported + " sessions",
+                            Toast.LENGTH_SHORT).show();
+                });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(this,
-                        "Export failed: " + e.getMessage(),
-                        Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this, "Export failed: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                });
             }
-        }).start();
+        });
     }
 
     private TextView menuRow(String label, int color, Runnable action) {
