@@ -187,14 +187,22 @@ public class AnalysisContentBuilder {
 
         layout.addView(infoCard);
 
-        // FRAME PACING SUMMARY
-        addFramePacingSummary(layout);
+        // Show only metric groups that contain saved readings. This keeps disabled
+        // collection categories out of both Analysis and Comparison.
+        boolean hasFps = hasAny(d.fps);
+        boolean hasFramePacing = hasFps || hasAny(d.averageFrameTime)
+                || hasAny(d.frameTimeStdDev) || hasAny(d.stutterCount)
+                || !d.frameIntervalsMs.isEmpty();
+        if (hasFramePacing) addFramePacingSummary(layout);
 
-        // FPS and system memory charts
-        addChart(layout, "FPS OVER TIME", d.fps, "FPS");
-        addChart(layout, "RAM USAGE", d.ramUsage, "%");
-        addChart(layout, "CPU TEMPERATURE", d.cpuTemperature, "°C");
-        addChart(layout, "GPU TEMPERATURE", d.gpuTemperature, "°C");
+        if (hasFps) addChart(layout, "FPS OVER TIME", d.fps, "FPS");
+        if (hasAny(d.ramUsage)) addChart(layout, "RAM USAGE", d.ramUsage, "%");
+        if (hasAny(d.cpuTemperature)) {
+            addChart(layout, "CPU TEMPERATURE", d.cpuTemperature, "°C");
+        }
+        if (hasAny(d.gpuTemperature)) {
+            addChart(layout, "GPU TEMPERATURE", d.gpuTemperature, "°C");
+        }
 
         // CPU chart data
         List<List<Double>> cpuSeries = new ArrayList<>();
@@ -211,33 +219,38 @@ public class AnalysisContentBuilder {
             cpuFreqNames.add("CPU" + i);
         }
 
-        addMultiChart(layout, "CPU CORE LOAD", cpuSeries, cpuNames, "%");
-        addMultiChart(layout, "CPU CORE FREQUENCY", cpuFreqSeries, cpuFreqNames, "MHz");
+        if (hasAnySeries(cpuSeries)) {
+            addMultiChart(layout, "CPU CORE LOAD", cpuSeries, cpuNames, "%");
+        }
+        if (hasAnySeries(cpuFreqSeries)) {
+            addMultiChart(layout, "CPU CORE FREQUENCY", cpuFreqSeries, cpuFreqNames, "MHz");
+        }
 
-        // GPU LOAD
+        // GPU charts
         List<List<Double>> gpuLoadSeries = new ArrayList<>();
         gpuLoadSeries.add(d.gpuLoad);
         List<String> gpuLoadNames = new ArrayList<>();
         gpuLoadNames.add("GPU");
-        addMultiChart(layout, "GPU LOAD", gpuLoadSeries, gpuLoadNames, "%");
+        if (hasAny(d.gpuLoad)) {
+            addMultiChart(layout, "GPU LOAD", gpuLoadSeries, gpuLoadNames, "%");
+        }
 
-        // GPU FREQUENCY
         List<List<Double>> gpuSeries = new ArrayList<>();
         gpuSeries.add(d.gpuFreq);
         List<String> gpuNames = new ArrayList<>();
         gpuNames.add("GPU");
-        addMultiChart(layout, "GPU FREQUENCY", gpuSeries, gpuNames, "MHz");
+        if (hasAny(d.gpuFreq)) {
+            addMultiChart(layout, "GPU FREQUENCY", gpuSeries, gpuNames, "MHz");
+        }
 
-        // BATTERY CHARTS
-        addChart(layout, "BATTERY TEMPERATURE", d.temperature, "°C");
-        addChart(layout, "BATTERY LEVEL", d.battery, "%");
-        addChart(layout, "BATTERY CURRENT", d.current, "mA");
-        addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
-        addChart(layout, "BATTERY POWER", d.power, "W");
+        // BATTERY charts and drain summary
+        if (hasAny(d.temperature)) addChart(layout, "BATTERY TEMPERATURE", d.temperature, "°C");
+        if (hasAny(d.battery)) addChart(layout, "BATTERY LEVEL", d.battery, "%");
+        if (hasAny(d.current)) addChart(layout, "BATTERY CURRENT", d.current, "mA");
+        if (hasAny(d.voltage)) addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
+        if (hasAny(d.power)) addChart(layout, "BATTERY POWER", d.power, "W");
         // Seconds per 1% Drain chart removed from analysis and comparison.
-
-        // BATTERY DRAIN
-        addBatteryDrain(layout, green, white, muted);
+        if (hasAny(d.battery)) addBatteryDrain(layout, green, white, muted);
 
         return layout;
     }
@@ -388,6 +401,22 @@ public class AnalysisContentBuilder {
         drainCard.addView(totalRow);
 
         layout.addView(drainCard);
+    }
+
+    private boolean hasAny(List<Double> values) {
+        if (values == null) return false;
+        for (Double value : values) {
+            if (value != null && Double.isFinite(value) && value >= 0) return true;
+        }
+        return false;
+    }
+
+    private boolean hasAnySeries(List<List<Double>> series) {
+        if (series == null) return false;
+        for (List<Double> values : series) {
+            if (hasAny(values)) return true;
+        }
+        return false;
     }
 
     // ---------- Single chart ----------
