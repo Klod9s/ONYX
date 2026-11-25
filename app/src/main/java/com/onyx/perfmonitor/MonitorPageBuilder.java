@@ -166,7 +166,7 @@ final class MonitorPageBuilder {
                 CheckBox showRam = new CheckBox(activity);
                 showRam.setText("Show RAM usage");
                 activity.styleCheckBox(showRam);
-                showRam.setChecked(activity.getPrefs().getBoolean("show_ram", false));
+                showRam.setChecked(activity.getPrefs().getBoolean("show_ram", true));
                 showRam.setOnCheckedChangeListener((button, checked) ->
                         activity.getPrefs().edit().putBoolean("show_ram", checked).apply());
                 activity.add(overlaySettings, showRam, 0, 2);
