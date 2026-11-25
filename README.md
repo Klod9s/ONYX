@@ -37,7 +37,7 @@ ONYX supports two installation methods: **Shizuku** and **Root**.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Klod9s/onyx.git
+   git clone https://github.com/Klod9s/ONYX.git
    ```
 
 ## License
