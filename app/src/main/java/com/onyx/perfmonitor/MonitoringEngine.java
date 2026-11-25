@@ -130,6 +130,8 @@ final class MonitoringEngine {
             sample = readAndroidSample(recording);
         }
         if (sample != null) {
+            // Android thermal status is available independently of ROOT/SHIZUKU mode.
+            sample.thermalStatus = ThermalStatusReader.read(context);
             sample.ramUsagePercent = readRamUsagePercent();
         }
         return sample;
