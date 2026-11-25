@@ -408,7 +408,18 @@ private Sample readShizukuSample(boolean recording) {
 
                 // Universal script with safe Mali discovery guard
                 String freqScript =
-                        "echo __PROC_STAT__; cat /proc/stat; " +
+                        "echo __BATTERY_BLOCK__; " +
+                                "for P in /sys/class/power_supply/*; do " +
+                                " [ -d \"$P\" ] || continue; " +
+                                " TYPE=$(cat \"$P/type\" 2>/dev/null); " +
+                                " [ \"$TYPE\" = \"Battery\" ] || continue; " +
+                                " CURRENT=-; VOLTAGE=-; CAPACITY=-; " +
+                                " [ -r \"$P/current_now\" ] && CURRENT=$(cat \"$P/current_now\"); " +
+                                " [ -r \"$P/voltage_now\" ] && VOLTAGE=$(cat \"$P/voltage_now\"); " +
+                                " [ -r \"$P/capacity\" ] && CAPACITY=$(cat \"$P/capacity\"); " +
+                                " echo \"$CURRENT $VOLTAGE $CAPACITY\"; break; " +
+                                "done; " +
+                                "echo __PROC_STAT__; cat /proc/stat; " +
                                 "echo __CPU_FREQ__; " +
                                 "for i in 0 1 2 3 4 5 6 7; do " +
                                 "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; " +
@@ -466,6 +477,38 @@ private Sample readShizukuSample(boolean recording) {
                 String freqOutput = service.runCommand(freqScript);
 
                 if (freqOutput != null) {
+                    // BatteryManager current reporting is missing on some vendor ROMs.
+                    // Fall back to the Battery-type power-supply sysfs nodes via Shizuku.
+                    String batteryBlock = between(
+                            freqOutput, "__BATTERY_BLOCK__\n", "__PROC_STAT__"
+                    ).trim();
+                    if (!batteryBlock.isEmpty()) {
+                        String[] batteryValues = batteryBlock.split("\\s+");
+                        if (batteryValues.length >= 2) {
+                            try {
+                                if (!batteryValues[0].equals("-")) {
+                                    long rawCurrent = Long.parseLong(batteryValues[0]);
+                                    if (rawCurrent != 0 || sample.currentMa < 0) {
+                                        boolean unplugged = !sample.charging;
+                                        sample.currentMa = batteryCurrent.toMilliamps(rawCurrent, unplugged);
+                                    }
+                                }
+                                if (!batteryValues[1].equals("-")) {
+                                    long rawVoltage = Long.parseLong(batteryValues[1]);
+                                    if (rawVoltage > 0) sample.voltage = rawVoltage / 1000000.0;
+                                }
+                                if (batteryValues.length >= 3 && !batteryValues[2].equals("-")) {
+                                    int percent = Integer.parseInt(batteryValues[2]);
+                                    if (percent >= 0 && percent <= 100) sample.battery = percent;
+                                }
+                                sample.power = sample.currentMa != -1 && sample.voltage > 0
+                                        ? sample.currentMa * sample.voltage / 1000.0 : -1;
+                            } catch (Exception ignored) {
+                                // Preserve the BatteryManager values if sysfs parsing fails.
+                            }
+                        }
+                    }
+
                     String cpuOutput = between(
                             freqOutput, "__PROC_STAT__\n", "__CPU_FREQ__"
                     ).trim();
