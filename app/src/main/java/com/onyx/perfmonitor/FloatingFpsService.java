@@ -273,7 +273,7 @@ public class FloatingFpsService extends Service {
                 overlayPrefs.getBoolean("show_frame_time_graph", true);
         boolean showCpu = overlayPrefs.getBoolean("show_cpu", true);
         boolean showGpu = overlayPrefs.getBoolean("show_gpu", true);
-        boolean showRam = overlayPrefs.getBoolean("show_ram", false);
+        boolean showRam = overlayPrefs.getBoolean("show_ram", true);
         int opacity = overlayPrefs.getInt("overlay_opacity", 85);
         int scalePercent = overlayPrefs.getInt("overlay_scale", 100);
         int style = overlayPrefs.getInt("overlay_style", STYLE_CLASSIC);
@@ -1108,7 +1108,7 @@ public class FloatingFpsService extends Service {
                 overlayPrefs.getBoolean("show_frame_time_graph", true);
         boolean showCpu = overlayPrefs.getBoolean("show_cpu", true);
         boolean showGpu = overlayPrefs.getBoolean("show_gpu", true);
-        boolean showRam = overlayPrefs.getBoolean("show_ram", false);
+        boolean showRam = overlayPrefs.getBoolean("show_ram", true);
 
         buildOverlayLayout(
                 showFps,
@@ -1125,8 +1125,7 @@ public class FloatingFpsService extends Service {
                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                         : WindowManager.LayoutParams.TYPE_PHONE,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);
 
         overlayParams.gravity = Gravity.TOP | Gravity.START;
@@ -1157,6 +1156,7 @@ public class FloatingFpsService extends Service {
                     if (moved) {
                         x = downX + dx;
                         y = downY + dy;
+                        clampOverlayPosition();
 
                         overlayParams.x = x;
                         overlayParams.y = y;
@@ -1373,6 +1373,24 @@ public class FloatingFpsService extends Service {
         }
     }
 
+    private void clampOverlayPosition() {
+        if (overlay == null) return;
+        overlay.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int naturalW = overlay.getMeasuredWidth();
+        int naturalH = overlay.getMeasuredHeight();
+        if (naturalW <= 0 || naturalH <= 0) return;
+
+        float scale = currentScale > 0 ? currentScale / 100f : 1f;
+        int screenW = getResources().getDisplayMetrics().widthPixels;
+        int screenH = getResources().getDisplayMetrics().heightPixels;
+        int scaledW = Math.round(naturalW * scale);
+        int scaledH = Math.round(naturalH * scale);
+        x = Math.max(0, Math.min(x, Math.max(0, screenW - scaledW)));
+        y = Math.max(0, Math.min(y, Math.max(0, screenH - scaledH)));
+    }
+
     private void applyScale(int percent) {
         currentScale = percent;
         float s = percent / 100f;
@@ -1382,9 +1400,10 @@ public class FloatingFpsService extends Service {
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
         int naturalW = overlay.getMeasuredWidth();
+        int naturalH = overlay.getMeasuredHeight();
         int screenW = getResources().getDisplayMetrics().widthPixels;
         if (naturalW > 0) {
-            float maxScale = (screenW - dp(8)) / (float) naturalW;
+            float maxScale = Math.max(0.1f, (screenW - dp(8)) / (float) naturalW);
             s = Math.min(s, maxScale);
         }
 
@@ -1392,11 +1411,15 @@ public class FloatingFpsService extends Service {
         overlay.setScaleY(s);
         overlayRoot.setContentScale(s);
 
-        // Keep the whole overlay on screen
-        if (naturalW > 0) {
+        // Keep the complete scaled overlay inside the display bounds.
+        if (naturalW > 0 && naturalH > 0) {
+            int screenH = getResources().getDisplayMetrics().heightPixels;
             int scaledW = Math.round(naturalW * s);
+            int scaledH = Math.round(naturalH * s);
             x = Math.max(0, Math.min(x, screenW - scaledW));
+            y = Math.max(0, Math.min(y, screenH - scaledH));
             overlayParams.x = x;
+            overlayParams.y = y;
         }
 
         if (attached) {
