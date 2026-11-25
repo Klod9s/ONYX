@@ -737,7 +737,7 @@ public class AnalysisContentBuilder {
                     coreCard.setElevation(dp(2));
 
                     TextView coreName = new TextView(context);
-                    coreName.setText("CPU " + core);
+                    coreName.setText(CpuCoreClassifier.getDisplayName(core));
                     coreName.setTextSize(11);
                     coreName.setTypeface(null, android.graphics.Typeface.BOLD);
                     coreName.setTextColor(ChartView.colorsForCore(core));
@@ -1004,18 +1004,26 @@ public class AnalysisContentBuilder {
     private static class ChartView extends View {
 
         static int colorsForCore(int index) {
-            int[] coreColors = {
-                    Color.rgb(65, 190, 255),
-                    Color.rgb(255, 100, 100),
-                    Color.rgb(100, 220, 130),
-                    Color.rgb(255, 190, 70),
-                    Color.rgb(190, 130, 255),
-                    Color.rgb(255, 130, 200),
-                    Color.rgb(100, 220, 220),
-                    Color.rgb(220, 220, 220)
-            };
-
-            return coreColors[index % coreColors.length];
+            switch (CpuCoreClassifier.getCoreType(index)) {
+                case CpuCoreClassifier.EFFICIENCY:
+                    return Color.rgb(65, 190, 255);
+                case CpuCoreClassifier.NORMAL:
+                    return Color.rgb(100, 220, 130);
+                case CpuCoreClassifier.PERFORMANCE:
+                    return Color.rgb(255, 100, 100);
+                default:
+                    int[] fallback = {
+                            Color.rgb(65, 190, 255),
+                            Color.rgb(255, 100, 100),
+                            Color.rgb(100, 220, 130),
+                            Color.rgb(255, 190, 70),
+                            Color.rgb(190, 130, 255),
+                            Color.rgb(255, 130, 200),
+                            Color.rgb(100, 220, 220),
+                            Color.rgb(220, 220, 220)
+                    };
+                    return fallback[index % fallback.length];
+            }
         }
 
         private final List<List<Double>> series;
@@ -1179,7 +1187,7 @@ public class AnalysisContentBuilder {
 
                 if (!started) continue;
 
-                int lineColor = series.size() == 1 ? accent : colors[s % colors.length];
+                int lineColor = series.size() == 1 ? accent : colorsForCore(s);
 
                 // soft fill under single-line charts
                 if (series.size() == 1) {
