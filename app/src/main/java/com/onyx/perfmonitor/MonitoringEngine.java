@@ -570,6 +570,9 @@ private Sample readShizukuSample(boolean recording) {
                                 sample.power = calculatePowerWatts(
                                         sample.currentMa, sample.voltage,
                                         sample.currentMa != -1 && sample.voltage > 0);
+                            } catch (Exception ignored) {
+                                // Preserve valid BatteryManager readings if fallback parsing fails.
+                            }
                         }
                     }
 
