@@ -23,6 +23,8 @@ final class MonitoringEngine {
     private final BatteryCurrent batteryCurrent;
     private IOnyxUserService shizukuService;
     private final FpsDetector fpsDetector = new FpsDetector();
+    private volatile boolean frameCaptureRequested;
+    private volatile boolean frameCaptureActive;
     private long startMs = System.currentTimeMillis();
     private String lastPackage = "Unknown";
     private final CpuUsageTracker cpuUsageTracker = new CpuUsageTracker();
@@ -65,7 +67,13 @@ final class MonitoringEngine {
     }
 
     void beginFrameCapture() {
-        fpsDetector.beginFrameCapture();
+        frameCaptureRequested = true;
+        frameCaptureActive = true;
+    }
+
+    void endFrameCapture() {
+        frameCaptureActive = false;
+        frameCaptureRequested = false;
     }
 
     void resetMonitoringModeCheck() {
@@ -85,6 +93,15 @@ final class MonitoringEngine {
     }
 
     Sample sample(boolean recording) {
+        if (frameCaptureRequested) {
+            fpsDetector.beginFrameCapture();
+            frameCaptureRequested = false;
+        }
+        if (!recording && frameCaptureActive) {
+            fpsDetector.endFrameCapture();
+            frameCaptureActive = false;
+        }
+
         String mode = detectMonitoringMode();
 
         // CPU counters and FPS frame baselines are source-dependent. Do not
