@@ -582,6 +582,7 @@ private Sample readShizukuSample(boolean recording) {
                 sample.averageFrameTimeMs = r.averageFrameTimeMs;
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
+                sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
 
                 lastDisplayedFps = r.fps;
                 lastDisplayedFpsTime = now;
