@@ -754,13 +754,41 @@ public class AnalysisContentBuilder {
         card.addView(chart, chartParams);
 
         if (showThermalPeriods) {
-            TextView thermalLegend = new TextView(context);
-            thermalLegend.setText("THERMAL STATUS  ·  "
-                    + "🟠 LIGHT  "
-                    + "🔴 MODERATE+");
-            thermalLegend.setTextSize(10);
-            thermalLegend.setTextColor(muted);
+            LinearLayout thermalLegend = new LinearLayout(context);
+            thermalLegend.setOrientation(LinearLayout.HORIZONTAL);
+            thermalLegend.setGravity(Gravity.CENTER_VERTICAL);
             thermalLegend.setPadding(dp(3), 0, 0, dp(5));
+
+            TextView statusLabel = new TextView(context);
+            statusLabel.setText("THERMAL STATUS  ·");
+            statusLabel.setTextSize(10);
+            statusLabel.setTextColor(muted);
+            statusLabel.setSingleLine(true);
+            thermalLegend.addView(statusLabel,
+                    new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            TextView lightLabel = new TextView(context);
+            lightLabel.setText("🟠 LIGHT");
+            lightLabel.setTextSize(10);
+            lightLabel.setTextColor(muted);
+            lightLabel.setGravity(Gravity.CENTER);
+            lightLabel.setSingleLine(true);
+            thermalLegend.addView(lightLabel,
+                    new LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView moderateLabel = new TextView(context);
+            moderateLabel.setText("🔴 MODERATE+");
+            moderateLabel.setTextSize(10);
+            moderateLabel.setTextColor(muted);
+            moderateLabel.setGravity(Gravity.CENTER);
+            moderateLabel.setSingleLine(true);
+            thermalLegend.addView(moderateLabel,
+                    new LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
             card.addView(thermalLegend);
         }
 
