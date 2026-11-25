@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -1126,6 +1127,18 @@ public class AnalysisContentBuilder {
         private final boolean wholeNumberYAxis;
         private final List<Double> thermalStatus;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private int selectedThermalPeriod = -1;
+
+        private static class ThermalPeriod {
+            final int severity;
+            final double start;
+            final double end;
+            ThermalPeriod(int severity, double start, double end) {
+                this.severity = severity;
+                this.start = start;
+                this.end = end;
+            }
+        }
 
         private final float chartLeft = 65f;
         private float chartRight;
@@ -1144,6 +1157,77 @@ public class AnalysisContentBuilder {
             this.accent = accent;
             this.wholeNumberYAxis = wholeNumberYAxis;
             this.thermalStatus = thermalStatus;
+        }
+
+        private List<ThermalPeriod> getThermalPeriods() {
+            List<ThermalPeriod> periods = new ArrayList<>();
+            if (thermalStatus == null) return periods;
+            int count = Math.min(Math.min(thermalStatus.size(), times.size()),
+                    series.isEmpty() ? 0 : series.get(0).size());
+            for (int i = 0; i + 1 < count; i++) {
+                double statusValue = thermalStatus.get(i);
+                double from = times.get(i);
+                double to = times.get(i + 1);
+                if (!Double.isFinite(statusValue) || statusValue < 1
+                        || !Double.isFinite(from) || !Double.isFinite(to) || to <= from) continue;
+                int severity = statusValue >= 2 ? 2 : 1;
+                if (!periods.isEmpty()) {
+                    ThermalPeriod previous = periods.get(periods.size() - 1);
+                    if (previous.severity == severity && Math.abs(previous.end - from) < 0.001) {
+                        periods.set(periods.size() - 1, new ThermalPeriod(severity, previous.start, to));
+                        continue;
+                    }
+                }
+                periods.add(new ThermalPeriod(severity, from, to));
+            }
+            return periods;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (thermalStatus == null) return false;
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                double startTime = Double.POSITIVE_INFINITY;
+                double endTime = Double.NEGATIVE_INFINITY;
+                for (double time : times) {
+                    if (Double.isFinite(time)) {
+                        startTime = Math.min(startTime, time);
+                        endTime = Math.max(endTime, time);
+                    }
+                }
+                double range = endTime - startTime;
+                if (range <= 0) return false;
+                List<ThermalPeriod> periods = getThermalPeriods();
+                int hit = -1;
+                if (event.getY() <= chartTop + dp(12)) {
+                    for (int i = 0; i < periods.size(); i++) {
+                        ThermalPeriod period = periods.get(i);
+                        float left = chartLeft + (chartRight - chartLeft)
+                                * (float) ((period.start - startTime) / range);
+                        float right = chartLeft + (chartRight - chartLeft)
+                                * (float) ((period.end - startTime) / range);
+                        if (event.getX() >= left - dp(8) && event.getX() <= right + dp(8)) {
+                            hit = i;
+                            break;
+                        }
+                    }
+                }
+                selectedThermalPeriod = hit;
+                invalidate();
+                performClick();
+                return true;
+            }
+            return true;
+        }
+
+        private int dp(float value) {
+            return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+        }
+
+        @Override
+        public boolean performClick() {
+            super.performClick();
+            return true;
         }
 
         private String formatTime(double seconds) {
@@ -1298,32 +1382,46 @@ public class AnalysisContentBuilder {
                 canvas.drawPath(path, paint);
             }
 
-            // Draw thermal shading above the FPS fill so it remains visible,
-            // while keeping the FPS line readable through the translucent overlay.
+            // Compact thermal timeline; event details are shown only on tap.
             if (thermalStatus != null && timeRange > 0) {
-                int count = Math.min(Math.min(thermalStatus.size(), times.size()),
-                        series.isEmpty() ? 0 : series.get(0).size());
-                for (int i = 0; i + 1 < count; i++) {
-                    double status = thermalStatus.get(i);
-                    double fromTime = times.get(i);
-                    double toTime = times.get(i + 1);
-                    if (!Double.isFinite(status) || status < 1
-                            || !Double.isFinite(fromTime) || !Double.isFinite(toTime)
-                            || toTime <= fromTime) {
-                        continue;
-                    }
-
+                List<ThermalPeriod> periods = getThermalPeriods();
+                float trackY = chartTop - dp(10);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(3));
+                paint.setStrokeCap(Paint.Cap.ROUND);
+                paint.setColor(Color.rgb(52, 65, 81));
+                canvas.drawLine(chartLeft, trackY, chartRight, trackY, paint);
+                for (ThermalPeriod period : periods) {
                     float left = chartLeft + (chartRight - chartLeft)
-                            * (float) Math.max(0, Math.min(1,
-                            (fromTime - startTime) / timeRange));
+                            * (float) ((period.start - startTime) / timeRange);
                     float right = chartLeft + (chartRight - chartLeft)
-                            * (float) Math.max(0, Math.min(1,
-                            (toTime - startTime) / timeRange));
-                    paint.setColor(status >= 2
-                            ? Color.argb(58, 255, 75, 75)
-                            : Color.argb(48, 255, 165, 55));
+                            * (float) ((period.end - startTime) / timeRange);
+                    paint.setColor(period.severity >= 2
+                            ? Color.rgb(245, 91, 91) : Color.rgb(255, 174, 66));
+                    canvas.drawLine(left, trackY, Math.max(left + dp(2), right), trackY, paint);
+                }
+                paint.setStrokeCap(Paint.Cap.BUTT);
+
+                if (selectedThermalPeriod >= 0 && selectedThermalPeriod < periods.size()) {
+                    ThermalPeriod selected = periods.get(selectedThermalPeriod);
+                    String label = (selected.severity >= 2
+                            ? "MODERATE+ THERMAL STATUS" : "LIGHT THERMAL STATUS")
+                            + " (" + formatTime(selected.start)
+                            + " - " + formatTime(selected.end) + ")";
+                    paint.setTextSize(9f * getResources().getDisplayMetrics().scaledDensity);
+                    paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                    float textWidth = paint.measureText(label);
+                    float boxWidth = Math.min(getWidth() - dp(12), textWidth + dp(14));
+                    float boxLeft = Math.max(dp(6), Math.min(chartRight - boxWidth, chartLeft));
+                    android.graphics.RectF tooltip = new android.graphics.RectF(
+                            boxLeft, dp(2), boxLeft + boxWidth, chartTop - dp(3));
+                    paint.setColor(Color.rgb(39, 48, 61));
                     paint.setStyle(Paint.Style.FILL);
-                    canvas.drawRect(left, chartTop, right, chartBottom, paint);
+                    canvas.drawRoundRect(tooltip, dp(5), dp(5), paint);
+                    paint.setColor(selected.severity >= 2
+                            ? Color.rgb(255, 125, 125) : Color.rgb(255, 194, 105));
+                    canvas.drawText(label, boxLeft + dp(7), chartTop - dp(9), paint);
+                    paint.setTypeface(android.graphics.Typeface.DEFAULT);
                 }
             }
 
