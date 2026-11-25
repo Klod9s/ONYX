@@ -91,8 +91,8 @@ public class MainActivity extends Activity {
         }
     };
 
-    private IOnyxUserService shizukuService;
-    private boolean shizukuBindRequested = false;
+    IOnyxUserService shizukuService;
+    boolean shizukuBindRequested = false;
 
     private Shizuku.UserServiceArgs shizukuServiceArgs;
 
@@ -194,8 +194,8 @@ public class MainActivity extends Activity {
 
     View[] navIndicators = new View[4];
 
-    private OverlayMetricsStore overlayMetricsStore;
-    private MonitoringEngine monitoringEngine;
+    OverlayMetricsStore overlayMetricsStore;
+    MonitoringEngine monitoringEngine;
 
     private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
         cachedMonitoringMode = "";
@@ -249,13 +249,13 @@ public class MainActivity extends Activity {
     Button startButton;
     private Button stopButton;
 
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    final Handler handler = new Handler(Looper.getMainLooper());
+    final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ExecutorService fileWorker = Executors.newSingleThreadExecutor();
     private int historyGeneration = 0;
-    private final ArrayList<Sample> samples = new ArrayList<>();
+    final ArrayList<Sample> samples = new ArrayList<>();
 
-    private final StringBuilder csv = new StringBuilder();
+    final StringBuilder csv = new StringBuilder();
 
     final java.util.ArrayList<LinearLayout> appColorOptions =
             new java.util.ArrayList<>();
@@ -269,8 +269,8 @@ public class MainActivity extends Activity {
     android.graphics.drawable.Drawable customRainbowDrawable;
 
     boolean running = false;
-    private int sessionId = 0;
-    private boolean isAppForeground = false;
+    int sessionId = 0;
+    boolean isAppForeground = false;
     String cachedMonitoringMode = "";
 
 
@@ -298,7 +298,8 @@ public class MainActivity extends Activity {
     OnyxHeroBannerView heroBanner;
 
 
-    private boolean samplerBusy = false;
+    private final SamplingController samplingController =
+            new SamplingController(this);
 
     private void handoffOverlaySampling() {
         if (!getPrefs().getBoolean("overlay_enabled", false)) return;
@@ -322,109 +323,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Only sample while the app is visible or a session is recording.
-    private boolean samplerNeeded() {
-        return isAppForeground || running;
+    void scheduleSampler() {
+        samplingController.schedule();
     }
 
-    private void scheduleSampler() {
-        if (samplerNeeded()) {
-            handler.postDelayed(sampler, 500);
-        } else {
-            monitoringEngine.resetCpuBaseline();   // avoid averaging CPU usage across the idle gap
-        }
+    void wakeSampler() {
+        samplingController.wake();
     }
-
-    private void wakeSampler() {
-        handler.removeCallbacks(sampler);
-        sampler.run();
-    }
-
-    private final Runnable sampler = new Runnable() {
-        @Override
-        public void run() {
-            if (samplerBusy) return;     // a cycle is already running and will reschedule itself
-            samplerBusy = true;
-
-            final int currentSessionId = sessionId;
-            final boolean recording = running;
-
-            worker.execute(() -> {
-                String detected = "ANDROID";
-                Sample taken = null;
-                try {
-                    taken = monitoringEngine.sample(recording);
-                    detected = monitoringEngine.getMonitoringMode();
-                    cachedMonitoringMode = detected;
-
-                    if ("SHIZUKU".equals(detected)
-                            && shizukuService == null
-                            && !shizukuBindRequested) {
-                        runOnUiThread(() -> {
-                            if (shizukuService == null && !shizukuBindRequested) {
-                                shizukuBindRequested = true;
-                                startShizukuService();
-                            }
-                        });
-                    }
-                } catch (Throwable ignored) {
-                }
-                final String mode = detected;
-                final Sample sample = taken;
-
-                runOnUiThread(() -> {
-                    samplerBusy = false;
-
-                    if (currentSessionId != sessionId) {
-                        scheduleSampler();
-                        return;
-                    }
-                    if (isAppForeground) {
-                        setStatus(mode + (running ? " · RECORDING" : " · READY"), false);
-                    }
-                    if (sample != null) {
-                        overlayMetricsStore.publish(
-                                sample.fps,
-                                sample.temperatureC,
-                                sample.averageFrameTimeMs,
-                                sample.cpu,
-                                sample.gpuLoadPercent
-                        );
-                        if (running) {
-                            if (!samples.isEmpty()) {
-                                Sample previous = samples.get(samples.size() - 1);
-
-                                int drop = previous.battery - sample.battery;
-                                long elapsed = sample.timeMs - previous.timeMs;
-
-                                boolean previousBatteryValid =
-                                        previous.battery >= 0 && previous.battery <= 100;
-                                boolean currentBatteryValid =
-                                        sample.battery >= 0 && sample.battery <= 100;
-
-                                if (previousBatteryValid && currentBatteryValid
-                                        && drop > 0 && elapsed > 0) {
-                                    sample.secondsPerPercent =
-                                            (elapsed / 1000.0) / drop;
-                                }
-                            }
-
-                            samples.add(sample);
-                            SessionCsvFormatter.appendSample(csv, sample);
-                        }
-
-                        if (isAppForeground) {
-                            render(sample);
-                        }
-                    }
-
-                    scheduleSampler();
-                });
-            });
-        }
-    };
-
-
 
     private void requestShizukuAccess() {
         if (!Shizuku.pingBinder()) {
@@ -534,7 +439,7 @@ public class MainActivity extends Activity {
 
         loadHistory();
         stopOverlaySampling();
-        sampler.run();
+        samplingController.wake();
     }
 
 
@@ -1207,7 +1112,7 @@ new MonitorPageBuilder(this).build(page);
     }
 
 
-    private void render(Sample s) {
+    void render(Sample s) {
 
         setTextIfChanged(fps, s.fps < 0
                 ? "—"
@@ -1715,7 +1620,7 @@ new MonitorPageBuilder(this).build(page);
         );
 
         running = false;
-        handler.removeCallbacks(sampler);
+        samplingController.stop();
         handoffOverlaySampling();
         worker.shutdownNow();
         fileWorker.shutdownNow();
