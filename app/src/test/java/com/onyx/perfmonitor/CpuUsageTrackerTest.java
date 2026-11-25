@@ -29,6 +29,22 @@ public class CpuUsageTrackerTest {
         assertEquals(-1.0, loads[2], 0.0001);
     }
 
+    @Test public void missingCoreRequiresFreshBaselineWhenItReturns() {
+        CpuUsageTracker tracker = new CpuUsageTracker();
+        tracker.parse("cpu0 100 0 50 0 50");
+        assertEquals(70.0,
+                tracker.parse("cpu0 150 0 70 0 80")[0], 0.0001);
+
+        // A missing or malformed row invalidates only that core's baseline.
+        assertEquals(-1.0, tracker.parse("cpu0 invalid counters")[0], 0.0001);
+        assertEquals(-1.0,
+                tracker.parse("cpu0 250 0 110 0 140")[0], 0.0001);
+
+        // The next consecutive valid sample can be calculated normally.
+        assertEquals(70.0,
+                tracker.parse("cpu0 300 0 130 0 170")[0], 0.0001);
+    }
+
     @Test public void counterResetReturnsUnavailableAndEstablishesNewBaseline() {
         CpuUsageTracker tracker = new CpuUsageTracker();
         tracker.parse("cpu0 500 0 200 0 300");
