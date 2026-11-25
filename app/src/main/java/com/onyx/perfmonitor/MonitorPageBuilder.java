@@ -1,6 +1,7 @@
 package com.onyx.perfmonitor;
 
 import android.graphics.Color;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -134,7 +135,7 @@ final class MonitorPageBuilder {
                 activity.add(page, buttonRow, 0, 18);
         
         
-                // OVERLAY SETTINGS (activity card is shown in the Settings tab)
+                // OVERLAY SETTINGS (this card is shown in the Settings tab)
                 LinearLayout overlaySettings = new LinearLayout(activity);
                 overlaySettings.setOrientation(LinearLayout.VERTICAL);
                 overlaySettings.setBackground(activity.cardBg(16));
@@ -152,7 +153,7 @@ final class MonitorPageBuilder {
                 activity.add(overlaySettings, activity.showFps, 0, 2);
         
                 activity.showTemperature = new CheckBox(activity);
-                activity.showTemperature.setText("Show activity.temperature");
+                activity.showTemperature.setText("Show temperature");
                 activity.styleCheckBox(activity.showTemperature);
                 activity.showTemperature.setChecked(
                         activity.getPrefs().getBoolean("show_temperature", true));
@@ -318,7 +319,7 @@ final class MonitorPageBuilder {
                 activity.current = activity.tile(gridRow3, "BATTERY CURRENT", true);
                 activity.powerState = activity.addSubLine(activity.power);
         
-        // make both cards in activity row the same height
+        // make both cards in this row the same height
                 for (int i = 0; i < gridRow3.getChildCount(); i++) {
                     gridRow3.getChildAt(i).getLayoutParams().height =
                             ViewGroup.LayoutParams.MATCH_PARENT;
@@ -357,8 +358,8 @@ final class MonitorPageBuilder {
                 // FOOTNOTE
                 TextView note = activity.text(
                         "Display FPS is read from the display controller. " +
-                                "CPU loads are system-wide. Battery activity.power is activity.battery-side " +
-                                "activity.power; unplug the phone for discharge measurements. " +
+                                "CPU loads are system-wide. Battery power is battery-side " +
+                                "power; unplug the phone for discharge measurements. " +
                                 "Root access or Shizuku is required.",
                         11, false, Color.rgb(115, 130, 148));
         
