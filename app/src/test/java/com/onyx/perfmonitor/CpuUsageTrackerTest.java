@@ -5,7 +5,7 @@ import org.junit.Test;
 
 public class CpuUsageTrackerTest {
     @Test public void firstSnapshotEstablishesBaseline() {
-        double[] loads = new CpuUsageTracker().parse("cpu0 100 0 50 0 50\\ncpu1 200 0 100 0 100");
+        double[] loads = new CpuUsageTracker().parse("cpu0 100 0 50 0 50\ncpu1 200 0 100 0 100");
         assertEquals(8, loads.length);
         assertEquals(-1.0, loads[0], 0.0001);
         assertEquals(-1.0, loads[1], 0.0001);
@@ -22,8 +22,8 @@ public class CpuUsageTrackerTest {
 
     @Test public void malformedOrMissingCoreDoesNotCorruptOtherResults() {
         CpuUsageTracker tracker = new CpuUsageTracker();
-        tracker.parse("cpu0 100 0 50 0 50\\ncpu1 100 0 50 0 50");
-        double[] loads = tracker.parse("cpu0 130 0 50 0 70\\ncpu1 invalid counters\\ncpu2 200 0 100 0 100");
+        tracker.parse("cpu0 100 0 50 0 50\ncpu1 100 0 50 0 50");
+        double[] loads = tracker.parse("cpu0 130 0 50 0 70\ncpu1 invalid counters\ncpu2 200 0 100 0 100");
         assertEquals(60.0, loads[0], 0.0001);
         assertEquals(-1.0, loads[1], 0.0001);
         assertEquals(-1.0, loads[2], 0.0001);
@@ -59,8 +59,8 @@ public class CpuUsageTrackerTest {
 
     @Test public void ignoresCpuCoresWithMoreThanOneDigitWithoutOverwritingCoreOne() {
         CpuUsageTracker tracker = new CpuUsageTracker();
-        tracker.parse("cpu1 100 0 50 0 50\\ncpu10 1000 0 0 0 0");
-        double[] loads = tracker.parse("cpu1 150 0 70 0 80\\ncpu10 1100 0 0 0 0");
+        tracker.parse("cpu1 100 0 50 0 50\ncpu10 1000 0 0 0 0");
+        double[] loads = tracker.parse("cpu1 150 0 70 0 80\ncpu10 1100 0 0 0 0");
         assertEquals(70.0, loads[1], 0.0001);
     }
 }
