@@ -109,9 +109,7 @@ final class SessionController {
             if (!activity.running) return;
     
             activity.running = false;
-            if (SessionDataPreferences.framePacingEnabled(activity)) {
-                activity.monitoringEngine.endFrameCapture();
-            }
+            activity.monitoringEngine.endFrameCapture();
             activity.getSharedPreferences("session_state", android.content.Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean("recording", false)
