@@ -24,6 +24,7 @@ final class Sample {
     double cpuTemperatureC = -1;
     double gpuTemperatureC = -1;
     int thermalStatus = ThermalStatusReader.UNAVAILABLE;
+    int coolingDeviceActive = ThermalCoolingReader.UNAVAILABLE;
 
     int battery;
     double secondsPerPercent = -1;
