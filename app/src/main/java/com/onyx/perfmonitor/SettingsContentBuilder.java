@@ -448,5 +448,19 @@ final class SettingsContentBuilder {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
         }
+        if (SessionDataPreferences.FRAME_INTERVALS.equals(key)) {
+            TextView note = activity.text(
+                    "Frame-time analysis requires BLAST or regular SurfaceFlinger "
+                            + "latency access. If neither is available, ONYX can still "
+                            + "show FPS using fallback methods, but frame-time charts "
+                            + "and related summary metrics may be unavailable. "
+                            + "ROOT or Shizuku may help on some devices, but cannot "
+                            + "guarantee access.",
+                    11, false, Color.rgb(145, 158, 175));
+            note.setPadding(activity.dp(32), 0, activity.dp(8), activity.dp(6));
+            parent.addView(note, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
     }
 }
