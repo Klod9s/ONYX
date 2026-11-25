@@ -2,6 +2,8 @@
 package com.onyx.perfmonitor;
 
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Holds one performance-monitoring sample.
@@ -36,6 +38,7 @@ final class Sample {
     double averageFrameTimeMs = -1;
     double frameTimeStdDevMs = -1;
     int stutterCount = -1;
+    final List<Double> frameIntervalsMs = new ArrayList<>();
 
     Sample() {
         Arrays.fill(cpuFreqMHz, -1);
