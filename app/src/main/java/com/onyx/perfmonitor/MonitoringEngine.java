@@ -790,7 +790,7 @@ private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
     }
 
-    private void applyCoolingReading(String raw, Sample sample) {
+    static void applyCoolingReading(String raw, Sample sample) {
         if (sample == null) return;
         ThermalCoolingReader.Reading reading = ThermalCoolingReader.read(raw);
         sample.coolingDeviceActive = reading.overallState();
@@ -800,7 +800,7 @@ private double[] parseCpu(String raw) {
         sample.gpuCoolingMaxState = reading.gpuMaxState;
     }
 
-    private void parseThermalTemperatures(String raw, Sample sample) {
+    static void parseThermalTemperatures(String raw, Sample sample) {
         if (raw == null || raw.isEmpty() || sample == null) return;
         double maxCpu = -1;
         double maxGpu = -1;
@@ -822,7 +822,7 @@ private double[] parseCpu(String raw) {
         sample.gpuTemperatureC = maxGpu;
     }
 
-    private double parseFps(String output) {
+    static double parseFps(String output) {
         if (output == null) return -1;
 
         try {
