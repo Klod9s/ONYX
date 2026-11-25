@@ -53,7 +53,7 @@ final class SessionController {
         updateRecordingButton(false);
         activity.summary.setText("Session saved from floating overlay.");
         activity.refreshStatusPill();
-        activity.loadHistory();
+        activity.loadHistory(true);
     }
 
     private void updateRecordingButton(boolean recording) {
