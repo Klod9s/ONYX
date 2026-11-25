@@ -234,6 +234,10 @@ public class MainActivity extends Activity {
                             startService(stop);
                         } else if (running) {
                             stopSession();
+                            if (!isAppForeground
+                                    && getPrefs().getBoolean("overlay_enabled", false)) {
+                                handoffOverlaySampling();
+                            }
                         } else {
                             stopOverlaySampling();
                             startSession();
