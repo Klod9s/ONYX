@@ -271,7 +271,6 @@ public class MainActivity extends Activity {
 
     private boolean running = false;
     private int sessionId = 0;
-    private long startMs;
     private boolean isAppForeground = false;
     private String cachedMonitoringMode = "";
 
@@ -2799,7 +2798,6 @@ public class MainActivity extends Activity {
 
         monitoringEngine.resetCpuBaseline();
         monitoringEngine.resetSessionClock();
-        startMs = System.currentTimeMillis();
         sessionId++;
         running = true;
 
