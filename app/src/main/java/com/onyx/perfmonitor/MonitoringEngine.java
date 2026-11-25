@@ -379,15 +379,7 @@ private Sample readSample(boolean recording) {
             // GPU Freq Block (FIXED: uses 'output', not 'freqOutput')
             String gpuFreqBlock = between(output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
             String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
-            if (gpuFreqParts.length >= 1) {
-                try {
-                    double val = Double.parseDouble(gpuFreqParts[0]);
-                    if (val > 100000) sample.gpuFreqMHz = val / 1000000.0;
-                    else if (val > 100) sample.gpuFreqMHz = val / 1000.0;
-                    else sample.gpuFreqMHz = val;
-                    if (sample.gpuFreqMHz <= 0) sample.gpuFreqMHz = -1;
-                } catch (Exception ignored) {}
-            }
+            sample.gpuFreqMHz = parseGpuFrequencyMHz(gpuFreqBlock);
             if (gpuFreqParts.length >= 2 && !gpuFreqParts[1].equals("none")) {
                 cachedGpuFreqPath = validateSysfsPath(gpuFreqParts[1]);
             }
@@ -395,27 +387,10 @@ private Sample readSample(boolean recording) {
             // GPU Load Block (FIXED: uses 'output', not 'freqOutput')
             String gpuLoadBlock = between(output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
             String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
+            sample.gpuLoadPercent = parseGpuLoadPercent(gpuLoadBlock);
             if (gpuLoadParts.length >= 2) {
-                try {
-                    String path = gpuLoadParts[gpuLoadParts.length - 1];
-                    if (!path.equals("none")) {
-                        cachedGpuLoadPath = validateSysfsPath(path);
-                    }
-                    if (gpuLoadParts.length == 3) {
-                        double busy = Double.parseDouble(gpuLoadParts[0]);
-                        double total = Double.parseDouble(gpuLoadParts[1]);
-                        if (total == -1 && busy >= 0 && busy <= 100) {
-                            sample.gpuLoadPercent = busy;
-                        } else if (total > 0 && busy >= 0) {
-                            sample.gpuLoadPercent = Math.max(0, Math.min(100, busy / total * 100.0));
-                        }
-                    } else if (gpuLoadParts.length == 2) {
-                        double load = Double.parseDouble(gpuLoadParts[0]);
-                        if (load >= 0 && load <= 100) {
-                            sample.gpuLoadPercent = load;
-                        }
-                    }
-                } catch (Exception ignored) {}
+                String path = gpuLoadParts[gpuLoadParts.length - 1];
+                if (!path.equals("none")) cachedGpuLoadPath = validateSysfsPath(path);
             }
 
             parseThermalTemperatures(
@@ -602,15 +577,7 @@ private Sample readShizukuSample(boolean recording) {
                     // Parse GPU Freq
                     String gpuFreqBlock = between(freqOutput, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
                     String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
-                    if (gpuFreqParts.length >= 1) {
-                        try {
-                            double val = Double.parseDouble(gpuFreqParts[0]);
-                            if (val > 100000) sample.gpuFreqMHz = val / 1000000.0;
-                            else if (val > 100) sample.gpuFreqMHz = val / 1000.0;
-                            else sample.gpuFreqMHz = val;
-                            if (sample.gpuFreqMHz <= 0) sample.gpuFreqMHz = -1;
-                        } catch (Exception ignored) {}
-                    }
+                    sample.gpuFreqMHz = parseGpuFrequencyMHz(gpuFreqBlock);
                     if (gpuFreqParts.length >= 2 && !gpuFreqParts[1].equals("none")) {
                         cachedGpuFreqPath = validateSysfsPath(gpuFreqParts[1]);
                     }
@@ -618,27 +585,10 @@ private Sample readShizukuSample(boolean recording) {
                     // Parse GPU Load
                     String gpuLoadBlock = between(freqOutput, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
                     String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
+                    sample.gpuLoadPercent = parseGpuLoadPercent(gpuLoadBlock);
                     if (gpuLoadParts.length >= 2) {
-                        try {
-                            String path = gpuLoadParts[gpuLoadParts.length - 1];
-                            if (!path.equals("none")) {
-                                cachedGpuLoadPath = validateSysfsPath(path);
-                            }
-                            if (gpuLoadParts.length == 3) {
-                                double busy = Double.parseDouble(gpuLoadParts[0]);
-                                double total = Double.parseDouble(gpuLoadParts[1]);
-                                if (total == -1 && busy >= 0 && busy <= 100) {
-                                    sample.gpuLoadPercent = busy;
-                                } else if (total > 0 && busy >= 0) {
-                                    sample.gpuLoadPercent = Math.max(0, Math.min(100, busy / total * 100.0));
-                                }
-                            } else if (gpuLoadParts.length == 2) {
-                                double load = Double.parseDouble(gpuLoadParts[0]);
-                                if (load >= 0 && load <= 100) {
-                                    sample.gpuLoadPercent = load;
-                                }
-                            }
-                        } catch (Exception ignored) {}
+                        String path = gpuLoadParts[gpuLoadParts.length - 1];
+                        if (!path.equals("none")) cachedGpuLoadPath = validateSysfsPath(path);
                     }
 
                     parseThermalTemperatures(
@@ -820,6 +770,40 @@ private double[] parseCpu(String raw) {
         }
         sample.cpuTemperatureC = maxCpu;
         sample.gpuTemperatureC = maxGpu;
+    }
+
+    static double parseGpuFrequencyMHz(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return -1;
+        String[] parts = raw.trim().split("\\s+");
+        try {
+            double value = Double.parseDouble(parts[0]);
+            if (!Double.isFinite(value) || value <= 0) return -1;
+            if (value > 100000) return value / 1000000.0;
+            if (value > 100) return value / 1000.0;
+            return value;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    static double parseGpuLoadPercent(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return -1;
+        String[] parts = raw.trim().split("\\s+");
+        try {
+            if (parts.length == 3) {
+                double busy = Double.parseDouble(parts[0]);
+                double total = Double.parseDouble(parts[1]);
+                if (!Double.isFinite(busy) || !Double.isFinite(total) || busy < 0) return -1;
+                if (total == -1 && busy <= 100) return busy;
+                if (total > 0) return Math.max(0, Math.min(100, busy / total * 100.0));
+            } else if (parts.length == 2) {
+                double load = Double.parseDouble(parts[0]);
+                if (Double.isFinite(load) && load >= 0 && load <= 100) return load;
+            }
+        } catch (NumberFormatException ignored) {
+            // Unsupported or malformed driver output.
+        }
+        return -1;
     }
 
     static double parseFps(String output) {
