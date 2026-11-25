@@ -737,7 +737,7 @@ public class AnalysisContentBuilder {
                     coreCard.setElevation(dp(2));
 
                     TextView coreName = new TextView(context);
-                    coreName.setText(CpuCoreClassifier.getDisplayName(core));
+                    coreName.setText("CPU " + core);
                     coreName.setTextSize(11);
                     coreName.setTypeface(null, android.graphics.Typeface.BOLD);
                     coreName.setTextColor(ChartView.colorsForCore(core));
@@ -984,7 +984,12 @@ public class AnalysisContentBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(1)));
 
         TextView legend = new TextView(context);
-        legend.setText(times.size() + " samples  •  Elapsed session time  •  " + unit);
+        String legendText = unit;
+        if (title.equals("CPU CORE LOAD")
+                || title.equals("CPU CORE FREQUENCY")) {
+            legendText += "   🟥 Performance   🟩 Normal   🟦 Efficiency";
+        }
+        legend.setText(legendText);
         legend.setTextSize(10);
         legend.setTextColor(muted);
         legend.setPadding(0, dp(9), 0, 0);
