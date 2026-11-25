@@ -13,7 +13,7 @@ final class AboutContentBuilder {
         this.activity = activity;
     }
 
-    private void build(android.widget.ScrollView aboutPage) {
+    void build(android.widget.ScrollView aboutPage) {
         LinearLayout content = (LinearLayout) aboutPage.getChildAt(0);
         content.removeViewAt(0);
         activity.aboutRefreshers.clear();
@@ -87,7 +87,7 @@ final class AboutContentBuilder {
         activity.add(supportCard, activity.section("SUPPORT DEVELOPMENT"), 0, 8);
 
         TextView supportText = activity.text(
-                "ONYX is free, ad-free, and open source. If activity tool helps you benchmark or optimize your device, consider supporting the project.",
+                "ONYX is free, ad-free, and open source. If this tool helps you benchmark or optimize your device, consider supporting the project.",
                 12, false, Color.rgb(145, 158, 175));
         supportText.setLineSpacing(activity.dp(2), 1f);
         activity.add(supportCard, supportText, 0, 12);
