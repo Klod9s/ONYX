@@ -1846,6 +1846,10 @@ new MonitorPageBuilder(this).build(page);
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
+    void setPowerStateView(TextView view) {
+        powerState = view;
+    }
+
     void toggleSessionFromMonitor() {
         if (running) {
             stopSession();
