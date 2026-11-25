@@ -5,6 +5,7 @@ import android.os.SystemClock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,7 +36,7 @@ public class FpsDetector {
         public final int stutterCount;
 
         Result(double fps, String source, boolean pending) {
-            this(fps, source, pending, -1, -1, -1);
+            this(fps, source, pending, -1, -1, -1, Collections.emptyList());
         }
 
         Result(
@@ -45,6 +46,18 @@ public class FpsDetector {
                 double averageFrameTimeMs,
                 double frameTimeStdDevMs,
                 int stutterCount) {
+            this(fps, source, pending, averageFrameTimeMs,
+                    frameTimeStdDevMs, stutterCount, Collections.emptyList());
+        }
+
+        Result(
+                double fps,
+                String source,
+                boolean pending,
+                double averageFrameTimeMs,
+                double frameTimeStdDevMs,
+                int stutterCount,
+                List<Double> frameIntervalsMs) {
 
             this.fps = fps;
             this.source = source;
@@ -52,6 +65,8 @@ public class FpsDetector {
             this.averageFrameTimeMs = averageFrameTimeMs;
             this.frameTimeStdDevMs = frameTimeStdDevMs;
             this.stutterCount = stutterCount;
+            this.frameIntervalsMs = Collections.unmodifiableList(
+                    new ArrayList<>(frameIntervalsMs));
         }
 
         public boolean valid() {
@@ -109,6 +124,11 @@ public class FpsDetector {
     private String otherLayerName = "";
     private long otherLayerCheckMs = 0;
 
+    // Session-scoped cursor through SurfaceFlinger presentation timestamps.
+    private boolean frameCaptureActive = false;
+    private boolean frameCaptureBaselinePending = false;
+    private long lastCapturedPresentationNs = 0;
+
     // SF Counter state
     private long lastSfTime = 0;
     private long lastSfFrames = 0;
@@ -123,6 +143,8 @@ public class FpsDetector {
 
     public void reset() {
         pkg = "";
+        lastCapturedPresentationNs = 0;
+        frameCaptureBaselinePending = frameCaptureActive;
 
         blastLayerName = "";
         blastLayerCheckMs = 0;
@@ -141,6 +163,13 @@ public class FpsDetector {
         java.util.Arrays.fill(lastAliveMs, 0);
         java.util.Arrays.fill(misses, 0);
         java.util.Arrays.fill(retryAt, 0);
+    }
+
+    /** Starts collecting unique frame intervals for the next recorded session. */
+    public void beginFrameCapture() {
+        frameCaptureActive = true;
+        frameCaptureBaselinePending = true;
+        lastCapturedPresentationNs = 0;
     }
 
     public Result detect(Shell shell, String packageName) {
@@ -460,6 +489,7 @@ public class FpsDetector {
         if (presents.size() < 2) {
             return NONE;
         }
+        Collections.sort(presents);
 
         long latest = 0;
 
@@ -495,6 +525,7 @@ public class FpsDetector {
         }
 
         int frameIntervals = windowPresents.size() - 1;
+        List<Double> capturedFrameIntervals = collectNewFrameIntervals(presents);
 
         double fps = frameIntervals * 1.0e9 / (last - first);
 
@@ -569,8 +600,50 @@ public class FpsDetector {
                 false,
                 averageFrameTime,
                 standardDeviation,
-                stutterCount
+                stutterCount,
+                capturedFrameIntervals
         );
+    }
+
+    /**
+     * SurfaceFlinger returns a rolling timestamp buffer. Only consume intervals
+     * after the last timestamp seen so overlapping polling windows never
+     * contribute the same frame twice. The first read after session start is
+     * used only to establish a baseline, excluding frames from before recording.
+     */
+    private List<Double> collectNewFrameIntervals(List<Long> presents) {
+        if (!frameCaptureActive || presents.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        long latest = presents.get(presents.size() - 1);
+        if (frameCaptureBaselinePending || lastCapturedPresentationNs == 0) {
+            lastCapturedPresentationNs = latest;
+            frameCaptureBaselinePending = false;
+            return Collections.emptyList();
+        }
+
+        int previousIndex = Collections.binarySearch(
+                presents, lastCapturedPresentationNs);
+        if (previousIndex < 0) {
+            // The layer changed or the rolling buffer no longer contains our
+            // cursor. Re-baseline rather than inventing a long frame interval.
+            lastCapturedPresentationNs = latest;
+            return Collections.emptyList();
+        }
+
+        List<Double> intervals = new ArrayList<>();
+        for (int i = previousIndex + 1; i < presents.size(); i++) {
+            long deltaNs = presents.get(i) - presents.get(i - 1);
+            double intervalMs = deltaNs / 1_000_000.0;
+            if (deltaNs > 0 && Double.isFinite(intervalMs)
+                    && intervalMs > 0 && intervalMs <= 10_000) {
+                intervals.add(intervalMs);
+            }
+        }
+
+        lastCapturedPresentationNs = latest;
+        return intervals;
     }
 
     private String findLayer(
