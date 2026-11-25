@@ -17,7 +17,7 @@ public class FpsDetectorTest {
         AtomicLong clock = new AtomicLong(1000);
         AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
         FpsDetector detector = new FpsDetector(clock::get);
-        detector.beginFrameCapture();
+        detector.beginFrameCapture(latest.get() - 500_000_000L);
 
         FpsDetector.Shell shell = command -> {
             if (command.contains("SurfaceFlinger --list")) {
@@ -37,7 +37,8 @@ public class FpsDetectorTest {
 
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertTrue(baseline.valid());
-        assertTrue(baseline.frameIntervalsMs.isEmpty());
+        assertTrue(baseline.frameIntervalsMs.size() > 0);
+        assertTrue(baseline.frameIntervalsMs.size() <= 50);
 
         latest.addAndGet(500_000_000L);
         clock.addAndGet(500);
