@@ -519,7 +519,8 @@ public class FloatingFpsService extends Service {
         overlay.setClipChildren(false);
         overlay.setClipToPadding(false);
 
-        final boolean compactFps = showRam && showTemperature;
+        // Strip mode always keeps the larger FPS number and its label.
+        final boolean compactFps = false;
 
         overlayAccentColor = overlayPrefs.getInt(
                 "overlay_accent_color", Color.rgb(55, 210, 130));
