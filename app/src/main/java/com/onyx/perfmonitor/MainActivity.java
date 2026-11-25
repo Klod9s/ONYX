@@ -761,7 +761,7 @@ new MonitorPageBuilder(this).build(page);
         super.onPause();
 
         isAppForeground = false;
-        if (!running) handoffOverlaySampling();
+        if (!running || isOverlaySession()) handoffOverlaySampling();
     }
 
     @Override
