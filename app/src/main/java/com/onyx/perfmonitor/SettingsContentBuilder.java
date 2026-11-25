@@ -96,10 +96,10 @@ final class SettingsContentBuilder {
         LinearLayout appColorRow = new LinearLayout(activity);
         appColorRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        String[] appColorNames = {"ONYX", "OCEAN", "VIOLET", "CRIMSON", "CUSTOM"};
+        String[] appColorNames = {"OCEAN", "EMERALD", "VIOLET", "CRIMSON", "CUSTOM"};
         int[] appColors = {
-                Color.rgb(101, 214, 165),
                 Color.rgb(69, 168, 245),
+                Color.rgb(101, 214, 165),
                 Color.rgb(167, 139, 250),
                 Color.rgb(241, 107, 117),
                 0   // custom
@@ -245,7 +245,7 @@ final class SettingsContentBuilder {
 
         activity.add(overlayAppearanceCard, activity.section("OVERLAY ACCENT COLOR"), 0, 8);
         activity.addOverlayColorRow(overlayAppearanceCard, "overlay_accent_color",
-                Color.rgb(55, 210, 130), "Custom Accent Color", 8);
+                Color.rgb(69, 168, 245), "Custom Accent Color", 8);
         activity.addOverlayDivider(overlayAppearanceCard);
 
         activity.add(overlayAppearanceCard, activity.section("OVERLAY TEXT COLOR"), 0, 8);
