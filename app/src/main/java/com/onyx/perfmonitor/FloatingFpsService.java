@@ -649,7 +649,6 @@ public class FloatingFpsService extends Service {
                 stats.addView(dot, dp);
             }
             if (showGpu) {
-                if (showCpu || showRam) addStripSeparator(stats);
                 stats.addView(gpuView, new LinearLayout.LayoutParams(
                         slot, ViewGroup.LayoutParams.WRAP_CONTENT));
             }
