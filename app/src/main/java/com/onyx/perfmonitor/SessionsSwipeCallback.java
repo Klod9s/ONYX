@@ -71,7 +71,7 @@ private final int RED = Color.rgb(240, 104, 122);
         }
 
         // LEFT: put the card back in place first, then decide what the swipe means
-        sessionsAdapter.notifyItemChanged(pos);
+        activity.sessionsAdapter.notifyItemChanged(pos);
         activity.sessionsList.performHapticFeedback(
                 android.view.HapticFeedbackConstants.CONFIRM);
 
@@ -134,7 +134,7 @@ private final int RED = Color.rgb(240, 104, 122);
                 letter = "B";
                 label = "Compare as B";
             } else {
-                color = AppColors.accent(MainActivity.this);
+                color = AppColors.accent(activity);
                 letter = "A";
                 label = "Pin as A";
             }
