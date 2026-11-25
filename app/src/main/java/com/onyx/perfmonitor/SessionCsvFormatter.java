@@ -51,6 +51,10 @@ final class SessionCsvFormatter {
         );
     }
 
+    static void appendSample(StringBuilder csv, Sample sample, android.content.Context context) {
+        appendSample(csv, SessionDataPreferences.forSession(sample, context));
+    }
+
     static void appendSample(StringBuilder csv, Sample sample) {
         StringBuilder row = new StringBuilder();
 
