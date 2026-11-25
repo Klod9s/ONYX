@@ -48,7 +48,7 @@ final class SessionSummaryFormatter {
         int startBattery = samples.get(0).battery;
         int endBattery = samples.get(samples.size() - 1).battery;
         return String.format(Locale.US,
-                "Run time: %.1f minutes\\n" +
+                "Run time: %.1f minutes\n" +
                         "Battery level: %d%% → %d%% (%d%% change)",
                 duration / 60000.0,
                 startBattery,
