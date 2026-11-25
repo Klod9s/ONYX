@@ -153,14 +153,14 @@ public class MainActivity extends Activity {
     private android.widget.FrameLayout pageContainer;
     private ScrollView monitorPage, settingsPage, aboutPage;
     private View sessionsPage;
-    private RecyclerView sessionsList;
-    private SessionsAdapter sessionsAdapter;
-    private TextView sessionsEmpty;
-    private TextView sessionsCount;
-    private String pinnedFile = null;          // not saved anywhere, on purpose
-    private LinearLayout pinBanner;
-    private TextView pinBannerText, pinBannerCancel;
-    private android.graphics.drawable.GradientDrawable pinBannerBg;
+    RecyclerView sessionsList;
+    SessionsAdapter sessionsAdapter;
+    TextView sessionsEmpty;
+    TextView sessionsCount;
+    String pinnedFile = null;          // not saved anywhere, on purpose
+    LinearLayout pinBanner;
+    TextView pinBannerText, pinBannerCancel;
+    android.graphics.drawable.GradientDrawable pinBannerBg;
     private LinearLayout bottomNavigation;
     private int selectedTab = 0;
     private TextView[] navLabels = new TextView[4];
@@ -240,10 +240,10 @@ public class MainActivity extends Activity {
     private boolean compareMode = false;
     private final java.util.ArrayList<String> selectedForCompare =
             new java.util.ArrayList<>();
-    private LinearLayout sessionsActions;
+    LinearLayout sessionsActions;
 
     LinearLayout overlaySettingsCard;
-    private TextView sessionsCancel;
+    TextView sessionsCancel;
     private Button floatingCompareButton;
     private final TextView[] cpuViews = new TextView[8];
 
@@ -1102,118 +1102,7 @@ public class MainActivity extends Activity {
 
 
     private View buildSessionsPage() {
-        LinearLayout page = new LinearLayout(this);
-        page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(Color.rgb(13, 18, 26));
-        page.setPadding(dp(18), dp(8), dp(18), 0);
-
-        LinearLayout sessionsHeader = tabHeader(R.drawable.ic_nav_sessions, "SESSIONS");
-
-        // count pill, same style as the status pill on Monitor
-        LinearLayout countPill = new LinearLayout(this);
-        countPill.setGravity(Gravity.CENTER_VERTICAL);
-        countPill.setPadding(dp(12), dp(7), dp(12), dp(7));
-
-        android.graphics.drawable.GradientDrawable countBg =
-                new android.graphics.drawable.GradientDrawable();
-        countBg.setColor(Color.rgb(25, 33, 45));
-        countBg.setCornerRadius(dp(50));
-        countBg.setStroke(dp(1), Color.rgb(43, 52, 65));
-        countPill.setBackground(countBg);
-
-        sessionsCount = text("0 SAVED", 10, true, Color.rgb(205, 214, 225));
-        sessionsCount.setLetterSpacing(0.08f);
-        sessionsCount.setSingleLine(true);
-        countPill.addView(sessionsCount);
-
-        LinearLayout.LayoutParams countParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        countParams.rightMargin = dp(4);
-        sessionsHeader.addView(countPill, countParams);
-
-        sessionsActions = new LinearLayout(this);
-        sessionsActions.setOrientation(LinearLayout.HORIZONTAL);
-        sessionsActions.addView(headerIcon(R.drawable.ic_import, "Import CSV",
-                v -> importSession()), new LinearLayout.LayoutParams(dp(44), dp(44)));
-        sessionsActions.addView(headerIcon(R.drawable.ic_more_vert, "More options",
-                v -> showTopMenu(v)), new LinearLayout.LayoutParams(dp(44), dp(44)));
-        sessionsHeader.addView(sessionsActions);
-
-        sessionsCancel = text("CANCEL", 13, true, getAppAccentColor());
-        sessionsCancel.setPadding(dp(12), dp(10), dp(4), dp(10));
-
-        add(page, sessionsHeader, 0, 12);
-        page.setClipToPadding(false);
-
-        pinBanner = new LinearLayout(this);
-        pinBanner.setOrientation(LinearLayout.HORIZONTAL);
-        pinBanner.setGravity(Gravity.CENTER_VERTICAL);
-        pinBanner.setPadding(dp(12), 0, dp(4), 0);
-        pinBanner.setVisibility(View.GONE);
-
-        pinBannerBg = new android.graphics.drawable.GradientDrawable();
-        pinBannerBg.setCornerRadius(dp(10));
-        pinBanner.setBackground(pinBannerBg);
-
-        pinBannerText = text("Pinned as A · swipe or tap another to compare",
-                13, false, getAppAccentColor());
-        pinBanner.addView(pinBannerText, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        pinBannerCancel = text("Cancel", 13, true, Color.WHITE);
-        pinBannerCancel.setPadding(dp(12), dp(10), dp(12), dp(10));
-        pinBannerCancel.setOnClickListener(v -> {
-            pinnedFile = null;
-            updatePinUi(true);
-        });
-        pinBanner.addView(pinBannerCancel);
-
-        LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(40));
-        bannerParams.bottomMargin = dp(12);
-        page.addView(pinBanner, bannerParams);
-
-        // Empty-state card
-        sessionsEmpty = text(
-                "No saved sessions yet.\nStart a session on the Monitor tab and it will show up here.",
-                13, false, Color.rgb(145, 160, 180));
-        sessionsEmpty.setLineSpacing(dp(3), 1f);
-        sessionsEmpty.setPadding(dp(14), dp(16), dp(14), dp(16));
-        sessionsEmpty.setBackground(cardBg(14));
-        sessionsEmpty.setElevation(dp(3));
-        add(page, sessionsEmpty, 0, 8);
-
-        // The list
-        sessionsAdapter = new SessionsAdapter(this, new SessionsAdapter.Host() {
-            @Override public boolean isPinned(String name) {
-                return name.equals(pinnedFile);
-            }
-            @Override public void onCardTap(String name) { onSessionTapped(name); }
-            @Override public void onMenu(View anchor, String name) {
-                showSessionMenu(anchor, name);
-            }
-        });
-
-        sessionsList = new RecyclerView(this);
-        sessionsList.setLayoutManager(new LinearLayoutManager(this));
-        sessionsList.setAdapter(sessionsAdapter);
-        sessionsList.setClipToPadding(false);
-        sessionsList.setPadding(dp(8), dp(8), dp(8), dp(90));
-        sessionsList.setOverScrollMode(View.OVER_SCROLL_NEVER);
-
-        if (sessionsList.getItemAnimator() instanceof SimpleItemAnimator) {
-            ((SimpleItemAnimator) sessionsList.getItemAnimator())
-                    .setSupportsChangeAnimations(false);
-        }
-        new ItemTouchHelper(new SwipeCallback()).attachToRecyclerView(sessionsList);
-
-        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        listParams.setMargins(-dp(8), -dp(8), -dp(8), 0);
-        page.addView(sessionsList, listParams);
-
-        return page;
+        return new SessionsPageBuilder(this).build();
     }
 
 
@@ -1456,6 +1345,10 @@ public class MainActivity extends Activity {
         return frame;
     }
 
+
+    ItemTouchHelper.Callback createSessionsSwipeCallback() {
+        return new SwipeCallback();
+    }
 
     private class SwipeCallback extends ItemTouchHelper.Callback {
 
@@ -2488,7 +2381,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void importSession() {
+    void importSession() {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType("*/*");
@@ -2554,7 +2447,7 @@ public class MainActivity extends Activity {
         queueDelete(java.util.Collections.singletonList(fileName), false);
     }
 
-    private void showSessionMenu(View anchor, String fileName) {
+    void showSessionMenu(View anchor, String fileName) {
         LinearLayout menu = new LinearLayout(this);
         menu.setOrientation(LinearLayout.VERTICAL);
         menu.setPadding(dp(6), dp(6), dp(6), dp(6));
@@ -2591,7 +2484,7 @@ public class MainActivity extends Activity {
         popup.showAsDropDown(anchor, 0, 0, Gravity.END);
     }
 
-    private void onSessionTapped(String name) {
+    void onSessionTapped(String name) {
         if (pinnedFile == null) {
             Intent intent = new Intent(this, SessionAnalysisActivity.class);
             intent.putExtra("session_filename", name);
@@ -2624,7 +2517,7 @@ public class MainActivity extends Activity {
     }
 
     /** Shows or hides the banner. rebind = redraw the cards (glow / badge). */
-    private void updatePinUi(boolean rebind) {
+    void updatePinUi(boolean rebind) {
         if (pinBanner == null) return;
 
         int accent = getAppAccentColor();
@@ -2640,7 +2533,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private android.widget.ImageButton headerIcon(int res, String description,
+    android.widget.ImageButton headerIcon(int res, String description,
                                                   View.OnClickListener click) {
         android.widget.ImageButton b = new android.widget.ImageButton(this);
         b.setImageResource(res);
@@ -2654,7 +2547,7 @@ public class MainActivity extends Activity {
     }
 
 
-    private void showTopMenu(View anchor) {
+    void showTopMenu(View anchor) {
         LinearLayout menu = new LinearLayout(this);
         menu.setOrientation(LinearLayout.VERTICAL);
         menu.setPadding(dp(6), dp(6), dp(6), dp(6));
