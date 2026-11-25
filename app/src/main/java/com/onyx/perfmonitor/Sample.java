@@ -20,6 +20,7 @@ final class Sample {
     double voltage;
     double power;
     double temperatureC;
+    double ramUsagePercent = -1;
 
     int battery;
     double secondsPerPercent = -1;
