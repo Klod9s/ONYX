@@ -21,14 +21,14 @@ public class FpsDetectorTest {
 
         FpsDetector.Shell shell = command -> {
             if (command.contains("SurfaceFlinger --list")) {
-                return "SurfaceView com.example.game\\n";
+                return "SurfaceView com.example.game\n";
             }
             if (command.contains("SurfaceFlinger --latency")) {
                 long end = latest.get();
-                StringBuilder dump = new StringBuilder("10000000\\n");
+                StringBuilder dump = new StringBuilder("10000000\n");
                 for (int i = 99; i >= 0; i--) {
                     long timestamp = end - i * 10_000_000L;
-                    dump.append("0 ").append(timestamp).append(" 0\\n");
+                    dump.append("0 ").append(timestamp).append(" 0\n");
                 }
                 return dump.toString();
             }
