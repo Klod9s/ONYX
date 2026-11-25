@@ -233,7 +233,8 @@ public class MainActivity extends Activity {
             setStatus("SHIZUKU · DISCONNECTED", true);
         });
     };
-    TextView temperature, packageName, summary;
+    TextView temperature, summary;
+    private TextView packageName;
     private TextView powerState;
     TextView cpuTile, gpuTile;
     private String pendingExportFile;
@@ -1853,7 +1854,7 @@ new MonitorPageBuilder(this).build(page);
         }
     }
 
-    void startSession() {
+    private void startSession() {
         if (running) return;
 
         samples.clear();
@@ -1886,7 +1887,7 @@ new MonitorPageBuilder(this).build(page);
 
     }
 
-    void stopSession() {
+    private void stopSession() {
         if (!running) return;
 
         running = false;
