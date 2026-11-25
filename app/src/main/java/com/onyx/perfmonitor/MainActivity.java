@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
     OnyxLogoView brand;
 
     // BOTTOM NAVIGATION
-    private android.widget.FrameLayout pageContainer;
+    android.widget.FrameLayout pageContainer;
     private ScrollView monitorPage, settingsPage, aboutPage;
     private View sessionsPage;
     RecyclerView sessionsList;
@@ -275,6 +275,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         shizukuController = new ShizukuController(this);
+        sessionDeleteController = new SessionDeleteController(this);
         overlayMetricsStore = new OverlayMetricsStore(this);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         shizukuController.registerListeners();
@@ -889,8 +890,9 @@ new MonitorPageBuilder(this).build(page);
         final File folder = getFilesDir();
         if (folder == null) return;
 
-        // snapshot on the main thread — pendingDeletes is only mutated there
-        final java.util.HashSet<String> hidden = new java.util.HashSet<>(pendingDeletes);
+        // Snapshot on the main thread; pending deletes are only mutated there.
+        final java.util.HashSet<String> hidden =
+                new java.util.HashSet<>(sessionDeleteController.getPendingDeletes());
         final int generation = ++historyGeneration;
 
         fileWorker.execute(() -> {
@@ -954,26 +956,10 @@ new MonitorPageBuilder(this).build(page);
     // ---------- Pending deletes (undo) ----------
 
     private static final long UNDO_MS = 5500;
-    private final java.util.LinkedHashSet<String> pendingDeletes =
-            new java.util.LinkedHashSet<>();
-    private boolean historyFileDeleteRequested = false;
-    private LinearLayout undoBar;
-    private TextView undoText;
-    private TextView undoAction;
-    private final Runnable finalizeRunnable = this::finalizePendingDeletes;
+    private SessionDeleteController sessionDeleteController;
 
-    /** Hides the sessions right away; files are only deleted when the undo window ends. */
     private void queueDelete(java.util.Collection<String> names, boolean alsoHistoryFile) {
-        if (names.isEmpty()) return;
-
-        pendingDeletes.addAll(names);
-        if (alsoHistoryFile) historyFileDeleteRequested = true;
-        if (pinnedFile != null && names.contains(pinnedFile)) {
-            pinnedFile = null;
-            updatePinUi(false);
-        }
-        loadHistory();
-        showUndoBar();
+        sessionDeleteController.queueDelete(names, alsoHistoryFile);
     }
 
     void deleteSessionWithUndo(String fileName) {
@@ -1156,80 +1142,11 @@ new MonitorPageBuilder(this).build(page);
 
     java.util.List<String> visibleSessionNames() {
         return SessionFileManager.listVisibleSessionNames(
-                getFilesDir(), pendingDeletes);
+                getFilesDir(), sessionDeleteController.getPendingDeletes());
     }
 
-    private void showUndoBar() {
-        if (undoBar == null) {
-            undoBar = new LinearLayout(this);
-            undoBar.setOrientation(LinearLayout.HORIZONTAL);
-            undoBar.setGravity(Gravity.CENTER_VERTICAL);
-            undoBar.setPadding(dp(14), 0, dp(4), 0);
-            undoBar.setElevation(dp(8));
-
-            android.graphics.drawable.GradientDrawable bg =
-                    new android.graphics.drawable.GradientDrawable();
-            bg.setColor(Color.rgb(42, 52, 68));
-            bg.setCornerRadius(dp(10));
-            bg.setStroke(dp(1), Color.rgb(52, 66, 90));
-            undoBar.setBackground(bg);
-
-            undoText = text("", 14, false, Color.WHITE);
-            undoBar.addView(undoText, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-            undoAction = text("Undo", 14, true, getAppAccentColor());
-            undoAction.setPadding(dp(14), dp(12), dp(14), dp(12));
-            undoAction.setOnClickListener(v -> undoDeletes());
-            undoBar.addView(undoAction);
-        }
-
-        int n = pendingDeletes.size();
-        undoText.setText(n == 1 ? "Session deleted" : n + " sessions deleted");
-        undoAction.setTextColor(getAppAccentColor());
-
-        if (undoBar.getParent() == null) {
-            android.widget.FrameLayout.LayoutParams lp =
-                    new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                            dp(48));
-            lp.gravity = Gravity.BOTTOM;
-            lp.setMargins(dp(12), 0, dp(12), dp(16));
-            pageContainer.addView(undoBar, lp);
-        }
-
-        // every new delete restarts the countdown
-        handler.removeCallbacks(finalizeRunnable);
-        handler.postDelayed(finalizeRunnable, UNDO_MS);
-    }
-
-    private void hideUndoBar() {
-        if (undoBar != null && undoBar.getParent() != null) {
-            pageContainer.removeView(undoBar);
-        }
-    }
-
-    private void undoDeletes() {
-        handler.removeCallbacks(finalizeRunnable);
-        pendingDeletes.clear();
-        historyFileDeleteRequested = false;
-        hideUndoBar();
-        // The history reload runs on a worker; scroll only after the restored
-        // items have been submitted to the adapter on the main thread.
-        loadHistory(true);
-    }
-
-    /** Really deletes everything that is pending. Safe to call any time. */
-    private void finalizePendingDeletes() {
-        handler.removeCallbacks(finalizeRunnable);
-        SessionFileManager.finalizePendingDeletes(
-                getFilesDir(),
-                getSharedPreferences("session_meta", MODE_PRIVATE),
-                pendingDeletes,
-                historyFileDeleteRequested);
-        pendingDeletes.clear();
-        historyFileDeleteRequested = false;
-        hideUndoBar();
+    void finalizePendingDeletes() {
+        sessionDeleteController.finalizePendingDeletes();
     }
 
     private void clearSessionHistory() {
