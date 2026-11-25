@@ -1,5 +1,6 @@
 package com.onyx.perfmonitor;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -732,10 +733,45 @@ public class AnalysisContentBuilder {
 
         TextView heading = sectionHeading(title);
         heading.setPadding(0, 0, 0, dp(6));
-        card.addView(heading);
+        boolean showThermalPeriods = "FPS OVER TIME".equals(title);
+        if (showThermalPeriods) {
+            LinearLayout headingRow = new LinearLayout(context);
+            headingRow.setOrientation(LinearLayout.HORIZONTAL);
+            headingRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            LinearLayout.LayoutParams headingParams =
+                    new LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            headingRow.addView(heading, headingParams);
+
+            TextView infoIcon = new TextView(context);
+            infoIcon.setText("i");
+            infoIcon.setTextSize(11);
+            infoIcon.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            infoIcon.setTextColor(muted);
+            infoIcon.setGravity(Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable infoBackground =
+                    new android.graphics.drawable.GradientDrawable();
+            infoBackground.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            infoBackground.setColor(Color.TRANSPARENT);
+            infoBackground.setStroke(dp(1), muted);
+            infoIcon.setBackground(infoBackground);
+            infoIcon.setLayoutParams(new LinearLayout.LayoutParams(dp(17), dp(17)));
+            infoIcon.setContentDescription("Thermal throttling information");
+            infoIcon.setClickable(true);
+            infoIcon.setFocusable(true);
+            infoIcon.setOnClickListener(v -> new AlertDialog.Builder(context)
+                    .setTitle("Thermal throttling")
+                    .setMessage("Thermal throttling data may not be available on all devices. Availability depends on the device's hardware and Android implementation.")
+                    .setPositiveButton("OK", null)
+                    .show());
+            headingRow.addView(infoIcon);
+            card.addView(headingRow);
+        } else {
+            card.addView(heading);
+        }
 
         // GRAPH
-        boolean showThermalPeriods = "FPS OVER TIME".equals(title);
         ChartView chart = new ChartView(context, series, times, getAppAccentColor(),
                 "CPU CORE LOAD".equals(title),
                 showThermalPeriods ? d.thermalStatus : null);
@@ -791,12 +827,6 @@ public class AnalysisContentBuilder {
 
             card.addView(thermalLegend);
 
-            TextView thermalInfo = new TextView(context);
-            thermalInfo.setText("FYI: Thermal throttling data may not be available on all devices.");
-            thermalInfo.setTextSize(9);
-            thermalInfo.setTextColor(muted);
-            thermalInfo.setPadding(dp(3), dp(2), 0, dp(4));
-            card.addView(thermalInfo);
         }
 
         // CPU CORE CARDS INSIDE CHART CARD
