@@ -3292,14 +3292,8 @@ public class MainActivity extends Activity {
     }
 
     private java.util.List<String> visibleSessionNames() {
-        java.util.List<String> names = new ArrayList<>();
-        File[] files = getFilesDir().listFiles((dir, n) ->
-                n.startsWith("session_") && n.endsWith(".csv")
-                        && !pendingDeletes.contains(n));
-        if (files != null) {
-            for (File f : files) names.add(f.getName());
-        }
-        return names;
+        return SessionFileManager.listVisibleSessionNames(
+                getFilesDir(), pendingDeletes);
     }
 
     private void showUndoBar() {
@@ -3365,23 +3359,11 @@ public class MainActivity extends Activity {
     /** Really deletes everything that is pending. Safe to call any time. */
     private void finalizePendingDeletes() {
         handler.removeCallbacks(finalizeRunnable);
-        if (!pendingDeletes.isEmpty()) {
-            SharedPreferences.Editor metaEditor =
-                    getSharedPreferences("session_meta", MODE_PRIVATE).edit();
-
-            for (String name : pendingDeletes) {
-                new File(getFilesDir(), name).delete();
-                metaEditor.remove(name + ".original")
-                        .remove(name + ".imported_at");
-            }
-
-            // Apply all metadata removals together instead of once per session.
-            metaEditor.apply();
-        }
-        if (historyFileDeleteRequested) {
-            File historyFile = new File(getFilesDir(), "session_history.txt");
-            if (historyFile.exists()) historyFile.delete();
-        }
+        SessionFileManager.finalizePendingDeletes(
+                getFilesDir(),
+                getSharedPreferences("session_meta", MODE_PRIVATE),
+                pendingDeletes,
+                historyFileDeleteRequested);
         pendingDeletes.clear();
         historyFileDeleteRequested = false;
         hideUndoBar();
