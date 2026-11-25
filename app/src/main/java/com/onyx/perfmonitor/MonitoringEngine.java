@@ -530,6 +530,15 @@ private Sample readShizukuSample(boolean recording) {
                                 " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                                 " echo \"$K $V\"; " +
                                 "done; " +
+                                "echo __COOLING_BLOCK__; " +
+                                "for C in /sys/class/thermal/cooling_device*; do " +
+                                " [ -d \"$C\" ] || continue; " +
+                                " T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
+                                " case \"$T\" in *cpu*|*gpu*|*cpufreq*|*devfreq*) ;; *) continue;; esac; " +
+                                " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; " +
+                                " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
+                                " echo \"$T $S $M\"; " +
+                                "done; " +
                                 "echo __MALI_BLOCK__; " +
                                 "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                                 "echo __END__;";
