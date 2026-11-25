@@ -21,7 +21,7 @@ final class SessionController {
             }
         }
     
-        private void startSession() {
+        void startSession() {
             if (activity.running) return;
     
             activity.samples.clear();
@@ -54,7 +54,7 @@ final class SessionController {
     
         }
     
-        private void stopSession() {
+        void stopSession() {
             if (!activity.running) return;
     
             activity.running = false;
