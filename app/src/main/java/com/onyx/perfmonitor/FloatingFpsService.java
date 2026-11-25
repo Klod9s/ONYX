@@ -519,13 +519,15 @@ public class FloatingFpsService extends Service {
         overlay.setClipChildren(false);
         overlay.setClipToPadding(false);
 
+        final boolean compactFps = showRam && showTemperature;
+
         overlayAccentColor = overlayPrefs.getInt(
                 "overlay_accent_color", Color.rgb(55, 210, 130));
 
         // views (always created, the updater touches all of them)
         fpsView = createMetricView("--");
         fpsView.setIncludeFontPadding(false);
-        setOverlayTextSize(fpsView, showRam ? 14 : 17);
+        setOverlayTextSize(fpsView, compactFps ? 14 : 17);
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
@@ -585,7 +587,7 @@ public class FloatingFpsService extends Service {
                 fpsRow.setClipChildren(false);
                 fpsRow.addView(fpsView, new LinearLayout.LayoutParams(
                         fpsNumW, ViewGroup.LayoutParams.WRAP_CONTENT));
-                if (!showRam) {
+                if (!compactFps) {
                     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                             ViewGroup.LayoutParams.WRAP_CONTENT,
                             ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -717,13 +719,14 @@ public class FloatingFpsService extends Service {
         overlay.setClipToPadding(false);
 
         final boolean showCpuGpu = showCpu || showGpu;
+        final boolean compactFps = showRam && showTemperature;
 
         // ---------- views (always created; the updater touches all of them) ----------
         overlayAccentColor = overlayPrefs.getInt(
                 "overlay_accent_color", Color.rgb(55, 210, 130));
 
         fpsView = createMetricView("--");
-        setOverlayTextSize(fpsView, showRam ? 16 : 22);
+        setOverlayTextSize(fpsView, compactFps ? 16 : 22);
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
@@ -753,9 +756,9 @@ public class FloatingFpsService extends Service {
         // ---------- widths, measured from the real font (worst-case text) ----------
         int fpsNumW = (int) Math.ceil(fpsView.getPaint().measureText("000"));
         int fpsLabelW = (int) Math.ceil(fpsLabel.getPaint().measureText("FPS"));
-        int fpsRowW = showRam ? fpsNumW : fpsNumW + dpScaled(3) + fpsLabelW;
-        // The RAM layout uses a smaller, unlabeled FPS value.
-        fpsView.setTranslationX(showRam ? 0f : (fpsLabelW + dpScaled(3)) / 2f);
+        int fpsRowW = compactFps ? fpsNumW : fpsNumW + dpScaled(3) + fpsLabelW;
+        // Keep FPS compact only when it shares the left stack with RAM and temperature.
+        fpsView.setTranslationX(compactFps ? 0f : (fpsLabelW + dpScaled(3)) / 2f);
 
         int tempTextW = (int) Math.ceil(
                 temperatureView.getPaint().measureText("88.8°C")) + dpScaled(2);
@@ -780,7 +783,7 @@ public class FloatingFpsService extends Service {
                 : slot;
 
         // ---------- heights ----------
-        int fpsH = dpScaled(showRam ? 24 : 38);
+        int fpsH = dpScaled(compactFps ? 24 : 38);
         int graphH = dpScaled(36);
         int tempH = dpScaled(16);
         int ramH = dpScaled(16);
@@ -817,7 +820,7 @@ public class FloatingFpsService extends Service {
         fpsRow.setGravity(Gravity.CENTER);
         fpsRow.setClipChildren(false);
         fpsRow.setClipToPadding(false);
-        if (!showRam) {
+        if (!compactFps) {
             fpsRow.addView(fpsView, new LinearLayout.LayoutParams(
                     fpsNumW, ViewGroup.LayoutParams.WRAP_CONTENT));
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
@@ -846,9 +849,10 @@ public class FloatingFpsService extends Service {
                     + (showTemperature ? 1 : 0);
             if (showFps) {
                 remaining--;
+                View fpsContent = compactFps ? fpsView : fpsRow;
                 leftColumn.addView(remaining > 0
-                        ? cellWithBottomLine(fpsView, fpsH, Gravity.CENTER)
-                        : cell(fpsView, fpsH));
+                        ? cellWithBottomLine(fpsContent, fpsH, Gravity.CENTER)
+                        : cell(fpsContent, fpsH));
             }
             remaining--;
             leftColumn.addView(remaining > 0
