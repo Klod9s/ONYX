@@ -2902,20 +2902,7 @@ public class MainActivity extends Activity {
 
 
     private String makeSummary() {
-        if (samples.isEmpty()) return "No valid readings collected.";
-
-        int startBattery = samples.get(0).battery;
-        int endBattery = samples.get(samples.size() - 1).battery;
-
-        long duration = samples.get(samples.size() - 1).timeMs;
-
-        return String.format(Locale.US,
-                "Run time: %.1f minutes\n" +
-                        "Battery level: %d%% → %d%% (%d%% change)",
-                duration / 60000.0,
-                startBattery,
-                endBattery,
-                endBattery - startBattery);
+        return SessionSummaryFormatter.build(samples);
     }
 
 
