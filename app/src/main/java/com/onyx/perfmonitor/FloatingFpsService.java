@@ -41,6 +41,15 @@ import java.util.concurrent.Executors;
 public class FloatingFpsService extends Service {
     public static final String ACTION_TOGGLE =
             "com.onyx.perfmonitor.TOGGLE_SESSION";
+    public static final String ACTION_START_RECORDING =
+            "com.onyx.perfmonitor.START_RECORDING";
+    public static final String ACTION_STOP_RECORDING =
+            "com.onyx.perfmonitor.STOP_RECORDING";
+    public static final String ACTION_RECORDING_STATE_CHANGED =
+            "com.onyx.perfmonitor.RECORDING_STATE_CHANGED";
+    public static final String SESSION_OWNER_APP = "app";
+    public static final String SESSION_OWNER_OVERLAY = "overlay";
+    public static final String SESSION_OWNER_NONE = "none";
     public static final String ACTION_ENGINE_HANDOFF =
             "com.onyx.perfmonitor.ENGINE_HANDOFF";
     public static final String ACTION_ENGINE_STOP =
@@ -1264,17 +1273,50 @@ public class FloatingFpsService extends Service {
             stopBackgroundSampling();
         } else if (ACTION_TOGGLE.equals(action)) {
             toggleBackgroundRecording();
+        } else if (ACTION_START_RECORDING.equals(action)) {
+            setBackgroundRecording(true);
+        } else if (ACTION_STOP_RECORDING.equals(action)) {
+            setBackgroundRecording(false);
         }
         return START_STICKY;
     }
 
     private void toggleBackgroundRecording() {
-        boolean start = !backgroundRecordingRequested;
+        boolean currentlyRecording =
+                sessionPrefs.getBoolean("recording", false);
+        String owner = sessionPrefs.getString(
+                "owner", SESSION_OWNER_NONE);
+
+        // An app-owned session must be controlled by MainActivity.
+        if (currentlyRecording && SESSION_OWNER_APP.equals(owner)) {
+            Intent intent = new Intent(ACTION_TOGGLE);
+            intent.setPackage(getPackageName());
+            sendBroadcast(intent);
+            return;
+        }
+
+        setBackgroundRecording(!currentlyRecording);
+    }
+
+    private void setBackgroundRecording(boolean start) {
+        boolean currentlyRecording =
+                sessionPrefs.getBoolean("recording", false);
+        String owner = sessionPrefs.getString(
+                "owner", SESSION_OWNER_NONE);
+
+        if (start && currentlyRecording) return;
+        if (!start && (!currentlyRecording
+                || !SESSION_OWNER_OVERLAY.equals(owner))) return;
+
         backgroundRecordingRequested = start;
 
-        // Update the border immediately; serialize recorder/frame-capture changes
+        // Publish the shared state immediately. Recorder work is serialized
         // behind any sample already running on samplingExecutor.
-        sessionPrefs.edit().putBoolean("recording", start).apply();
+        sessionPrefs.edit()
+                .putBoolean("recording", start)
+                .putString("owner", start
+                        ? SESSION_OWNER_OVERLAY : SESSION_OWNER_NONE)
+                .apply();
 
         try {
             samplingExecutor.execute(() -> {
@@ -1283,10 +1325,18 @@ public class FloatingFpsService extends Service {
                 if (start) {
                     monitoringEngine.beginFrameCapture();
                     if (sessionRecorder != null) sessionRecorder.start();
+                    if (sessionRecorder == null || !sessionRecorder.isRecording()) {
+                        sessionPrefs.edit()
+                                .putBoolean("recording", false)
+                                .putString("owner", SESSION_OWNER_NONE)
+                                .apply();
+                    }
                 } else {
                     monitoringEngine.endFrameCapture();
                     if (sessionRecorder != null) sessionRecorder.finish();
                 }
+
+                sendRecordingStateChanged();
             });
         } catch (java.util.concurrent.RejectedExecutionException ignored) {
             // The service is shutting down; no further recording work can run.
@@ -1294,6 +1344,12 @@ public class FloatingFpsService extends Service {
 
         handler.removeCallbacks(updater);
         if (attached) handler.post(updater);
+    }
+
+    private void sendRecordingStateChanged() {
+        Intent intent = new Intent(ACTION_RECORDING_STATE_CHANGED);
+        intent.setPackage(getPackageName());
+        sendBroadcast(intent);
     }
 
     private void startBackgroundSampling() {
