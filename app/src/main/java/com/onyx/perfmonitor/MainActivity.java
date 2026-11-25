@@ -755,194 +755,15 @@ new MonitorPageBuilder(this).build(page);
         card.addView(d, p);
     }
 
-    // Same rainbow circle as the app appearance CUSTOM button
-    private android.graphics.drawable.Drawable createRainbowDrawable(
-            java.util.function.BooleanSupplier customSelected) {
+    private final OverlayColorRowBuilder overlayColorRowBuilder =
+            new OverlayColorRowBuilder(this);
 
-        android.graphics.drawable.Drawable d =
-                new android.graphics.drawable.Drawable() {
-                    private final android.graphics.Paint paint =
-                            new android.graphics.Paint(
-                                    android.graphics.Paint.ANTI_ALIAS_FLAG);
-                    private final int[] colors = {
-                            Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN,
-                            Color.BLUE, Color.MAGENTA, Color.RED
-                    };
-
-                    @Override
-                    public void draw(android.graphics.Canvas canvas) {
-                        android.graphics.Rect bounds = getBounds();
-                        float stroke = dp(4);
-
-                        paint.setStyle(android.graphics.Paint.Style.STROKE);
-                        paint.setStrokeWidth(stroke);
-                        paint.setShader(new android.graphics.SweepGradient(
-                                bounds.exactCenterX(), bounds.exactCenterY(),
-                                colors, null));
-
-                        float inset = stroke / 2f;
-                        canvas.drawOval(bounds.left + inset, bounds.top + inset,
-                                bounds.right - inset, bounds.bottom - inset, paint);
-
-                        if (customSelected.getAsBoolean()) {
-                            paint.setShader(null);
-                            paint.setStyle(android.graphics.Paint.Style.FILL);
-                            paint.setColor(Color.WHITE);
-                            paint.setTextSize(dp(12));
-                            paint.setTextAlign(android.graphics.Paint.Align.CENTER);
-                            canvas.drawText("✓", bounds.exactCenterX(),
-                                    bounds.exactCenterY() + dp(4), paint);
-                        }
-                    }
-
-                    @Override public int getIntrinsicWidth() { return dp(20); }
-                    @Override public int getIntrinsicHeight() { return dp(20); }
-                    @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
-                    @Override public void setColorFilter(
-                            android.graphics.ColorFilter filter) {
-                        paint.setColorFilter(filter);
-                    }
-                    @Override public int getOpacity() {
-                        return android.graphics.PixelFormat.TRANSLUCENT;
-                    }
-                };
-
-        d.setBounds(0, 0, dp(20), dp(20));
-        return d;
-    }
-
-    // One row: [ONYX pill] [CUSTOM button]
     void addOverlayColorRow(LinearLayout card, String prefKey,
-                                    int onyxColor, String dialogTitle,
-                                    int bottomMargin) {
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        // ---- ONYX pill ----
-        LinearLayout onyx = new LinearLayout(this);
-        onyx.setOrientation(LinearLayout.HORIZONTAL);
-        onyx.setGravity(Gravity.CENTER);
-        onyx.setPadding(dp(9), dp(5), dp(9), dp(5));
-
-        android.graphics.drawable.GradientDrawable onyxBg =
-                new android.graphics.drawable.GradientDrawable();
-        onyxBg.setColor(Color.rgb(30, 38, 49));
-        onyxBg.setCornerRadius(dp(50));
-        onyx.setBackground(onyxBg);
-
-        android.widget.FrameLayout swatch = createSwatchWithCheck(onyxColor);
-        TextView check = (TextView) swatch.getChildAt(1);
-        onyx.addView(swatch, new LinearLayout.LayoutParams(dp(22), dp(22)));
-
-        TextView name = text("ONYX", 9, true, Color.WHITE);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        nameParams.setMargins(dp(5), 0, 0, 0);
-        onyx.addView(name, nameParams);
-
-        onyx.setOnClickListener(v -> {
-            getPrefs().edit().putInt(prefKey, onyxColor).apply();
-            refreshOverlayColorRows();
-        });
-
-        LinearLayout.LayoutParams onyxParams = new LinearLayout.LayoutParams(
-                0, dp(36), 1f);
-        onyxParams.setMargins(0, 0, dp(4), 0);
-        row.addView(onyx, onyxParams);
-
-        // ---- CUSTOM pill ----
-        LinearLayout custom = new LinearLayout(this);
-        custom.setOrientation(LinearLayout.HORIZONTAL);
-        custom.setGravity(Gravity.CENTER);
-        custom.setPadding(dp(9), dp(5), dp(9), dp(5));
-
-        android.graphics.drawable.GradientDrawable customBg =
-                new android.graphics.drawable.GradientDrawable();
-        customBg.setColor(Color.rgb(30, 38, 49));
-        customBg.setCornerRadius(dp(50));
-        custom.setBackground(customBg);
-
-        android.graphics.drawable.Drawable rainbow = createRainbowDrawable(
-                () -> getPrefs().getInt(prefKey, onyxColor) != onyxColor);
-        android.widget.ImageView rainbowView = new android.widget.ImageView(this);
-        rainbowView.setImageDrawable(rainbow);
-        custom.addView(rainbowView, new LinearLayout.LayoutParams(dp(20), dp(20)));
-
-        TextView customName = text("CUSTOM", 9, true, Color.WHITE);
-        LinearLayout.LayoutParams customNameParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        customNameParams.setMargins(dp(6), 0, 0, 0);
-        custom.addView(customName, customNameParams);
-
-        custom.setOnClickListener(v -> showCustomColorPicker(
-                dialogTitle,
-                getPrefs().getInt(prefKey, onyxColor),
-                color -> {
-                    getPrefs().edit().putInt(prefKey, color).apply();
-                    refreshOverlayColorRows();
-                }));
-
-        LinearLayout.LayoutParams customParams = new LinearLayout.LayoutParams(
-                0, dp(36), 1f);
-        customParams.setMargins(dp(4), 0, 0, 0);
-        row.addView(custom, customParams);
-
-        // ---- selection state ----
-        Runnable refresh = () -> {
-            boolean customSelected =
-                    getPrefs().getInt(prefKey, onyxColor) != onyxColor;
-            int accent = getAppAccentColor();
-            int idle = Color.rgb(55, 65, 80);
-
-            onyxBg.setStroke(dp(1), customSelected ? idle : accent);
-            check.setVisibility(customSelected ? View.GONE : View.VISIBLE);
-            customBg.setStroke(dp(1), customSelected ? accent : idle);
-
-            onyx.invalidate();
-            custom.invalidate();
-            rainbow.invalidateSelf();
-        };
-        overlayColorRefreshers.add(refresh);
-        refresh.run();
-
-        add(card, row, 0, bottomMargin);
+                            int onyxColor, String dialogTitle,
+                            int bottomMargin) {
+        overlayColorRowBuilder.add(
+                card, prefKey, onyxColor, dialogTitle, bottomMargin);
     }
-
-    private android.widget.FrameLayout createSwatchWithCheck(int color) {
-        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
-
-        View circle = new View(this);
-        android.graphics.drawable.GradientDrawable circleBg =
-                new android.graphics.drawable.GradientDrawable();
-        circleBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        circleBg.setColor(color);
-        circle.setBackground(circleBg);
-
-        frame.addView(circle, new android.widget.FrameLayout.LayoutParams(
-                dp(22), dp(22)));
-
-        // Index 1 is the checkmark; callers grab it with getChildAt(1)
-        TextView check = new TextView(this);
-        check.setText("✓");
-        check.setTextSize(12);
-        check.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        check.setIncludeFontPadding(false);
-        check.setGravity(Gravity.CENTER);
-        check.setTextColor(
-                androidx.core.graphics.ColorUtils.calculateLuminance(color) > 0.6
-                        ? Color.BLACK : Color.WHITE);
-        check.setVisibility(View.GONE);
-
-        frame.addView(check, new android.widget.FrameLayout.LayoutParams(
-                dp(22), dp(22)));
-
-        return frame;
-    }
-
 
     ItemTouchHelper.Callback createSessionsSwipeCallback() {
         return new SessionsSwipeCallback(this);
@@ -1208,7 +1029,7 @@ new MonitorPageBuilder(this).build(page);
         add(card, group, 0, 2);
     }
 
-    private void showCustomColorPicker(String title, int currentColor,
+    void showCustomColorPicker(String title, int currentColor,
                                        java.util.function.IntConsumer onApply) {
         new CustomColorPickerDialog(this).show(title, currentColor, onApply);
     }
