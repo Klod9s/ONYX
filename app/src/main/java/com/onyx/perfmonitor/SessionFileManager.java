@@ -141,6 +141,27 @@ final class SessionFileManager {
     }
 
 
+    static void copySessionToUri(
+            android.content.ContentResolver resolver,
+            android.net.Uri uri,
+            File filesDir,
+            String filename) throws java.io.IOException {
+        File source = new File(filesDir, filename);
+        try (java.io.FileInputStream input =
+                     new java.io.FileInputStream(source);
+             java.io.OutputStream output = resolver.openOutputStream(uri)) {
+            if (output == null) {
+                throw new java.io.IOException("Could not open destination.");
+            }
+
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = input.read(buffer)) != -1) {
+                output.write(buffer, 0, length);
+            }
+        }
+    }
+
     static int writeSessionsZip(
             android.content.ContentResolver resolver,
             android.net.Uri uri,
