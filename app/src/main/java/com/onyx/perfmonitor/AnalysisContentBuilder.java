@@ -657,7 +657,8 @@ public class AnalysisContentBuilder {
         card.addView(heading);
 
         // GRAPH
-        ChartView chart = new ChartView(context, series, times, getAppAccentColor());
+        ChartView chart = new ChartView(context, series, times, getAppAccentColor(),
+                "CPU CORE LOAD".equals(title));
 
         android.graphics.drawable.GradientDrawable chartBg =
                 new android.graphics.drawable.GradientDrawable();
@@ -991,6 +992,7 @@ public class AnalysisContentBuilder {
         private final List<List<Double>> series;
         private final List<Double> times;
         private final int accent;
+        private final boolean wholeNumberYAxis;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         private final int[] colors = {
@@ -1012,11 +1014,13 @@ public class AnalysisContentBuilder {
         ChartView(Context context,
                   List<List<Double>> series,
                   List<Double> times,
-                  int accent) {
+                  int accent,
+                  boolean wholeNumberYAxis) {
             super(context);
             this.series = series;
             this.times = times;
             this.accent = accent;
+            this.wholeNumberYAxis = wholeNumberYAxis;
         }
 
         private String formatTime(double seconds) {
@@ -1099,7 +1103,8 @@ public class AnalysisContentBuilder {
                 float y = chartTop + (chartBottom - chartTop) * i / 4f;
 
                 canvas.drawText(
-                        String.format(Locale.US, "%.1f", value),
+                        String.format(Locale.US,
+                                wholeNumberYAxis ? "%.0f" : "%.1f", value),
                         5f, y + 3f, paint);
             }
 
