@@ -344,7 +344,7 @@ private Sample readSample(boolean recording) {
                         boolean percentValid = percent >= 0 && percent <= 100;
 
                         sample.currentMa = currentValid
-                                ? batteryCurrent.toMilliamps(rawCurrent, unplugged) : -1;
+                                ? batteryCurrent.toMilliampsFromSysfs(rawCurrent, unplugged) : -1;
                         sample.voltage = voltageValid ? rawVoltage / 1000000.0 : -1;
                         sample.power = currentValid && voltageValid
                                 ? sample.currentMa * sample.voltage / 1000.0 : -1;
@@ -538,7 +538,7 @@ private Sample readShizukuSample(boolean recording) {
                                     long rawCurrent = Long.parseLong(batteryValues[0]);
                                     if (rawCurrent != 0 || sample.currentMa < 0) {
                                         boolean unplugged = !sample.charging;
-                                        sample.currentMa = batteryCurrent.toMilliamps(rawCurrent, unplugged);
+                                        sample.currentMa = batteryCurrent.toMilliampsFromSysfs(rawCurrent, unplugged);
                                     }
                                 }
                                 if (!batteryValues[1].equals("-")) {
