@@ -47,6 +47,7 @@ public class SessionData {
     public final List<Double> averageFrameTime = new ArrayList<>();
     public final List<Double> frameTimeStdDev = new ArrayList<>();
     public final List<Double> stutterCount = new ArrayList<>();
+    public final List<Double> frameIntervalsMs = new ArrayList<>();
 
     private boolean foundReadingsMarker = false;
 
@@ -189,6 +190,24 @@ public class SessionData {
         averageFrameTime.add(number(columns, 27));
         frameTimeStdDev.add(number(columns, 28));
         stutterCount.add(number(columns, 29));
+        if (columns.size() > 31) {
+            addFrameIntervals(columns.get(31));
+        }
+    }
+
+    private void addFrameIntervals(String encoded) {
+        if (encoded == null || encoded.isEmpty()) return;
+
+        for (String part : encoded.split(";")) {
+            try {
+                double interval = Double.parseDouble(part.trim());
+                if (Double.isFinite(interval) && interval > 0 && interval <= 10_000) {
+                    frameIntervalsMs.add(interval);
+                }
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed interval values in imported or edited CSVs.
+            }
+        }
     }
 
     private static String secondColumn(String line) {
