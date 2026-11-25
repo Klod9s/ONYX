@@ -56,6 +56,90 @@ final class SessionFileManager {
         return items;
     }
 
+
+    static ImportResult importSession(
+            android.content.ContentResolver resolver,
+            android.net.Uri uri,
+            File filesDir,
+            SharedPreferences metadata) {
+        File dest = null;
+        try {
+            String original = "unknown.csv";
+            try (android.database.Cursor cursor = resolver.query(
+                    uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(
+                            android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (index >= 0 && !cursor.isNull(index)) {
+                        original = cursor.getString(index);
+                    }
+                }
+            }
+
+            String stamp = new java.text.SimpleDateFormat(
+                    "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
+                    .format(new java.util.Date());
+            dest = new File(filesDir, "session_imported_" + stamp + ".csv");
+
+            try (java.io.InputStream input = resolver.openInputStream(uri);
+                 java.io.FileOutputStream output =
+                         new java.io.FileOutputStream(dest)) {
+                if (input == null) {
+                    throw new java.io.IOException("Could not open file.");
+                }
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, count);
+                }
+            }
+
+            if (SessionData.load(dest) == null) {
+                dest.delete();
+                return new ImportResult(
+                        false, "Not a valid ONYX session CSV");
+            }
+
+            metadata.edit()
+                    .putString(dest.getName() + ".original", original)
+                    .putLong(dest.getName() + ".imported_at",
+                            System.currentTimeMillis())
+                    .apply();
+
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})")
+                    .matcher(original);
+            if (matcher.find()) {
+                try {
+                    java.util.Date when = new java.text.SimpleDateFormat(
+                            "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
+                            .parse(matcher.group(1));
+                    if (when != null) {
+                        dest.setLastModified(when.getTime());
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            return new ImportResult(true, "Session imported");
+        } catch (Exception e) {
+            if (dest != null) {
+                dest.delete();
+            }
+            return new ImportResult(false, "Import failed: " + e.getMessage());
+        }
+    }
+
+    static final class ImportResult {
+        final boolean success;
+        final String message;
+
+        ImportResult(boolean success, String message) {
+            this.success = success;
+            this.message = message;
+        }
+    }
+
     static void finalizePendingDeletes(
             File filesDir,
             SharedPreferences metadata,
