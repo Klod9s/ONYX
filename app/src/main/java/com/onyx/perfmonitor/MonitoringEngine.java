@@ -41,6 +41,7 @@ final class MonitoringEngine {
     private long lastRootCheckMs = 0;
     private String cachedMonitoringMode = "";
     private long lastModeCheckMs = 0;
+    private String lastSamplingMode = "";
 
     MonitoringEngine(Context context) {
         this.context = context.getApplicationContext();
@@ -81,6 +82,14 @@ final class MonitoringEngine {
 
     Sample sample(boolean recording) {
         String mode = detectMonitoringMode();
+
+        // CPU counters and FPS frame baselines are source-dependent. Do not
+        // calculate across a transition between ROOT, SHIZUKU, and ANDROID.
+        if (!mode.equals(lastSamplingMode)) {
+            resetBaselines();
+            lastSamplingMode = mode;
+        }
+
         if ("ROOT".equals(mode)) return readSample(recording);
         if ("SHIZUKU".equals(mode)) return readShizukuSample(recording);
         return readAndroidSample(recording);
