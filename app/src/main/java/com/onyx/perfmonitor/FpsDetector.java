@@ -144,10 +144,14 @@ public class FpsDetector {
     private long lastTimeStatsTimeMs = 0;
 
     public void reset() {
+        boolean sessionBaselineNotYetEstablished =
+                frameCaptureActive && frameCaptureBaselinePending;
         pkg = "";
         lastCapturedPresentationNs = 0;
         frameCaptureBaselinePending = frameCaptureActive;
-        if (frameCaptureActive) frameCaptureStartNs = Long.MAX_VALUE;
+        if (frameCaptureActive && !sessionBaselineNotYetEstablished) {
+            frameCaptureStartNs = Long.MAX_VALUE;
+        }
 
         blastLayerName = "";
         blastLayerCheckMs = 0;
