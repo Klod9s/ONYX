@@ -86,49 +86,24 @@ private final int RED = Color.rgb(240, 104, 122);
     }
 
     @Override
-    public void clearView(RecyclerView rv, RecyclerView.ViewHolder vh) {
-        super.clearView(rv, vh);
-
-        // Rebind the row after the gesture to restore its normal border/glow,
-        // pinned state and elevation.
-        int position = vh.getBindingAdapterPosition();
-        if (position != RecyclerView.NO_POSITION) {
-            activity.sessionsAdapter.notifyItemChanged(position);
-        }
-    }
-
-    @Override
     public void onChildDraw(Canvas c, RecyclerView rv, RecyclerView.ViewHolder vh,
                             float dX, float dY, int actionState, boolean active) {
         View item = vh.itemView;
-
-        // The card's elevation shadow can remain visible around the revealed
-        // action strip, making it look like an unwanted dark edge. Remove it
-        // while the row is being dragged, then restore its normal elevation
-        // once the swipe settles.
-        if (dX != 0f) {
-            item.setElevation(0f);
-            item.setTranslationZ(0f);
-
-            // Hide the card's own outline/glow while it slides away. Otherwise
-            // its border remains visible along the moving edge over the action.
-            if (vh instanceof SessionsAdapter.Holder) {
-                SessionsAdapter.Holder holder = (SessionsAdapter.Holder) vh;
-                holder.bg.setStroke(0, Color.TRANSPARENT);
-                holder.card.setBackground(holder.bg);
-            }
-        }
 
         if (dX > 0) {
             // ---- swipe right: red delete strip ----
             fill.setColor(Color.rgb(58, 27, 34));
             labelPaint.setColor(RED);
 
+            // Paint the full action background underneath the moving card.
+            // The card itself masks the covered part, avoiding exposed rounded
+            // card corners at the swipe boundary.
+            c.drawRoundRect(item.getLeft(), item.getTop(),
+                    item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
+
             c.save();
             c.clipRect(item.getLeft(), item.getTop(),
                     item.getLeft() + dX, item.getBottom());
-            c.drawRoundRect(item.getLeft(), item.getTop(),
-                    item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
 
             android.graphics.drawable.Drawable icon =
                     activity.getDrawable(R.drawable.ic_delete_outline_x).mutate();
@@ -170,15 +145,17 @@ private final int RED = Color.rgb(240, 104, 122);
 
             // dark base so the strip is clearly visible, then the colour on top
             fill.setColor(Color.rgb(25, 33, 45));
-            c.save();
-            c.clipRect(item.getRight() + dX, item.getTop(),
-                    item.getRight(), item.getBottom());
+            // As with delete, draw the complete background behind the card.
             c.drawRoundRect(item.getLeft(), item.getTop(),
                     item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
             fill.setColor(Color.argb(90,
                     Color.red(color), Color.green(color), Color.blue(color)));
             c.drawRoundRect(item.getLeft(), item.getTop(),
                     item.getRight(), item.getBottom(), activity.dp(14), activity.dp(14), fill);
+
+            c.save();
+            c.clipRect(item.getRight() + dX, item.getTop(),
+                    item.getRight(), item.getBottom());
 
             labelPaint.setColor(color);
             float cy = (item.getTop() + item.getBottom()) / 2f;
