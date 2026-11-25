@@ -51,6 +51,7 @@ public class SessionData {
     public final List<Double> ramUsage = new ArrayList<>();
     public final List<Double> cpuTemperature = new ArrayList<>();
     public final List<Double> gpuTemperature = new ArrayList<>();
+    public final List<Double> thermalStatus = new ArrayList<>();
 
     private boolean foundReadingsMarker = false;
 
@@ -199,6 +200,7 @@ public class SessionData {
         ramUsage.add(number(columns, 32));
         cpuTemperature.add(number(columns, 33));
         gpuTemperature.add(number(columns, 34));
+        thermalStatus.add(number(columns, 35));
     }
 
     private void addFrameIntervals(String encoded) {
