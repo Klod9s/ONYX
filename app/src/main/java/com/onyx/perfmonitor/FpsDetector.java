@@ -172,6 +172,12 @@ public class FpsDetector {
         lastCapturedPresentationNs = 0;
     }
 
+    public void endFrameCapture() {
+        frameCaptureActive = false;
+        frameCaptureBaselinePending = false;
+        lastCapturedPresentationNs = 0;
+    }
+
     public Result detect(Shell shell, String packageName) {
 
         boolean havePackage = packageName != null
