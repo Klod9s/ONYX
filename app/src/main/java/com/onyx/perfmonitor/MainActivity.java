@@ -3315,28 +3315,12 @@ public class MainActivity extends Activity {
                 && data != null && data.getData() != null) {
 
             try {
-                File source = new File(
+                SessionFileManager.copySessionToUri(
+                        getContentResolver(),
+                        data.getData(),
                         getFilesDir(),
                         pendingExportFile
                 );
-
-                try (
-                        java.io.FileInputStream input =
-                                new java.io.FileInputStream(source);
-                        java.io.OutputStream output =
-                                getContentResolver().openOutputStream(data.getData())
-                ) {
-                    if (output == null) {
-                        throw new java.io.IOException("Could not open destination.");
-                    }
-
-                    byte[] buffer = new byte[8192];
-                    int length;
-
-                    while ((length = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, length);
-                    }
-                }
 
                 android.widget.Toast.makeText(
                         this, "Session exported successfully!",
