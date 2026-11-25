@@ -1032,6 +1032,14 @@ new MonitorPageBuilder(this).build(page);
         sessionController.toggle();
     }
 
+    private void startSession() {
+        sessionController.startSession();
+    }
+
+    private void stopSession() {
+        sessionController.stopSession();
+    }
+
     private String buildCsv(String result) {
         return SessionCsvFormatter.buildSessionCsv(
                 csv, result, cachedMonitoringMode);
