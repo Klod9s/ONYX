@@ -175,7 +175,7 @@ public class FloatingFpsService extends Service {
     };
     private SharedPreferences overlayPrefs;
     private SharedPreferences sessionPrefs;
-    private int overlayAccentColor = Color.rgb(55, 210, 130);
+    private int overlayAccentColor = Color.rgb(69, 168, 245);
     private int overlayTextColor = Color.WHITE;
     private int overlayBackgroundColor = Color.rgb(20, 25, 32);
 
