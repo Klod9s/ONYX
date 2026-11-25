@@ -25,7 +25,7 @@ final class MonitorSampleRenderer {
     static void render(Sample s, TextView fps, TextView cpuTile,
             TextView gpuTile, TextView power, TextView powerState,
             TextView current, TextView voltage, TextView battery,
-            TextView temperature) {
+            TextView temperature, int appAccentColor) {
 
         setTextIfChanged(fps, s.fps < 0
                 ? "—"
@@ -63,7 +63,7 @@ final class MonitorSampleRenderer {
 
         setTextIfChanged(powerState,
                 s.charging ? "CHARGING" : "DISCHARGING");
-        GlassStyle.styleStateBadge(powerState, s.charging);
+        PowerStateBadgeStyle.apply(powerState, s.charging, appAccentColor);
 
         setTextIfChanged(current,
                 s.currentMa == -1
