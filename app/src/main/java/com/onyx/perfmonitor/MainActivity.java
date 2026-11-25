@@ -132,7 +132,7 @@ public class MainActivity extends Activity {
 
     private static final String PREFS = "overlay_settings";
 
-    private Button overlayButton;
+    Button overlayButton;
     android.graphics.drawable.GradientDrawable customColorButtonBg;
     TextView customColorCheck;
     final ArrayList<Runnable> aboutRefreshers = new ArrayList<>();
@@ -143,10 +143,10 @@ public class MainActivity extends Activity {
     static final String URL_XDA = "https://xdaforums.com/m/klod9s.13504375/";
 
 
-    private View statusDot;
+    View statusDot;
     private View headerLine;
-    private android.graphics.drawable.GradientDrawable statusDotBg;
-    private TextView status, fps, power, current, voltage, battery;
+    android.graphics.drawable.GradientDrawable statusDotBg;
+    TextView status, fps, power, current, voltage, battery;
     private OnyxLogoView brand;
 
     // BOTTOM NAVIGATION
@@ -233,9 +233,9 @@ public class MainActivity extends Activity {
             setStatus("SHIZUKU · DISCONNECTED", true);
         });
     };
-    private TextView temperature, packageName, summary;
+    TextView temperature, packageName, summary;
     private TextView powerState;
-    private TextView cpuTile, gpuTile;
+    TextView cpuTile, gpuTile;
     private String pendingExportFile;
     private boolean compareMode = false;
     private final java.util.ArrayList<String> selectedForCompare =
@@ -247,8 +247,9 @@ public class MainActivity extends Activity {
     private Button floatingCompareButton;
     private final TextView[] cpuViews = new TextView[8];
 
-    private CheckBox showFps, showTemperature;
-    private Button startButton, stopButton;
+    CheckBox showFps, showTemperature;
+    Button startButton;
+    private Button stopButton;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -455,7 +456,7 @@ public class MainActivity extends Activity {
 
 
 
-    private void startShizukuService() {
+    void startShizukuService() {
         if (!Shizuku.pingBinder()) {
             shizukuBindRequested = false;
             Toast.makeText(this,
@@ -642,360 +643,7 @@ public class MainActivity extends Activity {
         page.setClipChildren(false);
         page.setClipToPadding(false);
 
-// HEADER
-
-        LinearLayout statusPill = new LinearLayout(this);
-        statusPill.setOrientation(LinearLayout.HORIZONTAL);
-        statusPill.setGravity(Gravity.CENTER_VERTICAL);
-        statusPill.setPadding(dp(12), dp(7), dp(12), dp(7));
-
-        android.graphics.drawable.GradientDrawable pillBg =
-                new android.graphics.drawable.GradientDrawable();
-        pillBg.setColor(Color.rgb(25, 33, 45));
-        pillBg.setCornerRadius(dp(50));
-        pillBg.setStroke(dp(1), Color.rgb(43, 52, 65));
-        statusPill.setBackground(pillBg);
-
-        statusDot = new View(this);
-        statusDotBg = new android.graphics.drawable.GradientDrawable();
-        statusDotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        statusDotBg.setColor(getAppAccentColor());
-        statusDot.setBackground(statusDotBg);
-        LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dp(7), dp(7));
-        dotParams.rightMargin = dp(8);
-        statusPill.addView(statusDot, dotParams);
-
-        status = text("CHECKING…", 10, true, Color.rgb(205, 214, 225));
-        status.setLetterSpacing(0.08f);
-        status.setSingleLine(true);
-        statusPill.addView(status);
-
-        LinearLayout monitorHeader = tabHeader(R.drawable.ic_nav_monitor, "MONITOR");
-        monitorHeader.addView(statusPill);
-        add(page, monitorHeader, 0, 12);
-
-        Button shizukuButton = new Button(this);
-        shizukuButton.setText("CONNECT SHIZUKU");
-        shizukuButton.setTextSize(12);
-        shizukuButton.setAllCaps(false);
-        shizukuButton.setTextColor(Color.WHITE);
-
-        android.graphics.drawable.GradientDrawable shizukuBackground =
-                new android.graphics.drawable.GradientDrawable();
-        shizukuBackground.setColor(Color.rgb(39, 53, 69));
-        shizukuBackground.setCornerRadius(dp(12));
-        shizukuBackground.setStroke(dp(1), Color.rgb(65, 85, 105));
-
-        shizukuButton.setBackground(shizukuBackground);
-        shizukuButton.setOnClickListener(v -> startShizukuService());
-
-// SESSION CONTROLS
-        startButton = new Button(this);
-        startButton.setText("START SESSION");
-        startButton.setTextSize(13);
-        startButton.setAllCaps(false);
-        startButton.setTextColor(Color.WHITE);
-
-        android.graphics.drawable.GradientDrawable sessionButtonBackground =
-                new android.graphics.drawable.GradientDrawable();
-        sessionButtonBackground.setCornerRadius(dp(12));
-        int appAccentColor = getAppAccentColor();
-
-        sessionButtonBackground.setColor(appAccentColor);
-        sessionButtonBackground.setStroke(
-                dp(1),
-                Color.argb(
-                        180,
-                        Color.red(appAccentColor),
-                        Color.green(appAccentColor),
-                        Color.blue(appAccentColor)
-                )
-        );
-
-
-        startButton.setBackground(sessionButtonBackground);
-        startButton.setElevation(dp(3));
-        startButton.setOnClickListener(v -> {
-            if (running) {
-                stopSession();
-            } else {
-                startSession();
-            }
-        });
-
-
-        // FLOATING OVERLAY
-        overlayButton = new Button(this);
-        overlayButton.setTextSize(12);
-        overlayButton.setAllCaps(false);
-        overlayButton.setTextColor(Color.WHITE);
-        android.graphics.drawable.GradientDrawable overlayButtonBackground =
-                new android.graphics.drawable.GradientDrawable();
-
-        overlayButtonBackground.setColor(Color.rgb(39, 53, 69));
-        overlayButtonBackground.setCornerRadius(dp(12));
-        overlayButtonBackground.setStroke(dp(1), Color.rgb(65, 85, 105));
-
-        overlayButton.setBackground(overlayButtonBackground);
-        overlayButton.setElevation(dp(3));
-        overlayButton.setOnClickListener(v -> toggleOverlay());
-        compactButton(startButton);
-        compactButton(shizukuButton);
-        compactButton(overlayButton);
-
-// Start Session: full width, on top
-        LinearLayout.LayoutParams startParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
-        startParams.bottomMargin = dp(8);
-        page.addView(startButton, startParams);
-
-// Connect Shizuku + overlay: side by side
-        LinearLayout buttonRow = new LinearLayout(this);
-        buttonRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        LinearLayout.LayoutParams leftParams =
-                new LinearLayout.LayoutParams(0, dp(46), 1f);
-        leftParams.rightMargin = dp(4);
-        buttonRow.addView(shizukuButton, leftParams);
-
-        LinearLayout.LayoutParams rightParams =
-                new LinearLayout.LayoutParams(0, dp(46), 1f);
-        rightParams.leftMargin = dp(4);
-        buttonRow.addView(overlayButton, rightParams);
-
-        add(page, buttonRow, 0, 18);
-
-
-        // OVERLAY SETTINGS (this card is shown in the Settings tab)
-        LinearLayout overlaySettings = new LinearLayout(this);
-        overlaySettings.setOrientation(LinearLayout.VERTICAL);
-        overlaySettings.setBackground(cardBg(16));
-        overlaySettings.setPadding(dp(16), dp(16), dp(16), dp(12));
-        overlaySettings.setElevation(dp(4));
-
-        add(overlaySettings, section("FLOATING OVERLAY SETTINGS"), 0, 8);
-
-        showFps = new CheckBox(this);
-        showFps.setText("Show FPS counter");
-        styleCheckBox(showFps);
-        showFps.setChecked(getPrefs().getBoolean("show_fps", true));
-        showFps.setOnCheckedChangeListener((button, checked) ->
-                getPrefs().edit().putBoolean("show_fps", checked).apply());
-        add(overlaySettings, showFps, 0, 2);
-
-        showTemperature = new CheckBox(this);
-        showTemperature.setText("Show temperature");
-        styleCheckBox(showTemperature);
-        showTemperature.setChecked(
-                getPrefs().getBoolean("show_temperature", true));
-        showTemperature.setOnCheckedChangeListener((button, checked) ->
-                getPrefs().edit()
-                        .putBoolean("show_temperature", checked)
-                        .apply());
-        add(overlaySettings, showTemperature, 0, 2);
-
-        CheckBox showFrameTimeGraph = new CheckBox(this);
-        showFrameTimeGraph.setText("Show frame-time graph");
-        styleCheckBox(showFrameTimeGraph);
-        showFrameTimeGraph.setChecked(
-                getPrefs().getBoolean("show_frame_time_graph", true));
-        showFrameTimeGraph.setOnCheckedChangeListener((button, checked) ->
-                getPrefs().edit()
-                        .putBoolean("show_frame_time_graph", checked)
-                        .apply());
-
-        add(overlaySettings, showFrameTimeGraph, 0, 2);
-
-        CheckBox showCpu = new CheckBox(this);
-        showCpu.setText("Show CPU load");
-        styleCheckBox(showCpu);
-        showCpu.setChecked(getPrefs().getBoolean("show_cpu", true));
-        showCpu.setOnCheckedChangeListener((button, checked) ->
-                getPrefs().edit().putBoolean("show_cpu", checked).apply());
-        add(overlaySettings, showCpu, 0, 2);
-
-        CheckBox showGpu = new CheckBox(this);
-        showGpu.setText("Show GPU load");
-        styleCheckBox(showGpu);
-        showGpu.setChecked(getPrefs().getBoolean("show_gpu", true));
-        showGpu.setOnCheckedChangeListener((button, checked) ->
-                getPrefs().edit().putBoolean("show_gpu", checked).apply());
-        add(overlaySettings, showGpu, 0, 2);
-
-        addStylePicker(overlaySettings);
-
-        android.widget.TextView opacityLabel = new android.widget.TextView(this);
-        opacityLabel.setTextColor(Color.WHITE);
-        opacityLabel.setTextSize(13);
-
-        android.widget.SeekBar opacitySlider =
-                new android.widget.SeekBar(this);
-
-        opacitySlider.setMax(100);
-
-        opacitySlider.setProgressTintList(
-                android.content.res.ColorStateList.valueOf(appAccentColor));
-        opacitySlider.setThumbTintList(
-                android.content.res.ColorStateList.valueOf(appAccentColor));
-        appAccentSeekBars.add(opacitySlider);
-
-        int savedOpacity = getPrefs().getInt("overlay_opacity", 85);
-        opacitySlider.setProgress(savedOpacity);
-
-        opacityLabel.setText("Overlay opacity: " + savedOpacity + "%");
-
-        opacitySlider.setOnSeekBarChangeListener(
-                new android.widget.SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(
-                            android.widget.SeekBar seekBar,
-                            int progress,
-                            boolean fromUser) {
-
-                        opacityLabel.setText(
-                                "Overlay opacity: " + progress + "%");
-
-                        if (fromUser) {
-                            getPrefs().edit()
-                                    .putInt("overlay_opacity", progress)
-                                    .apply();
-                        }
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(
-                            android.widget.SeekBar seekBar) {
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(
-                            android.widget.SeekBar seekBar) {
-                    }
-                });
-
-        add(overlaySettings, opacityLabel, 0, 2);
-        add(overlaySettings, opacitySlider, 0, 2);
-
-        overlaySettingsCard = overlaySettings;
-
-        TextView scaleLabel = new TextView(this);
-        scaleLabel.setTextColor(android.graphics.Color.WHITE);
-
-        android.widget.SeekBar scaleSlider =
-                new android.widget.SeekBar(this);
-
-        scaleSlider.setMax(12);
-        scaleSlider.setProgressTintList(
-                android.content.res.ColorStateList.valueOf(appAccentColor));
-        scaleSlider.setThumbTintList(
-                android.content.res.ColorStateList.valueOf(appAccentColor));
-        appAccentSeekBars.add(scaleSlider);
-
-        int savedScale = getPrefs().getInt("overlay_scale", 100);
-        scaleSlider.setProgress((savedScale - 70) / 5);
-
-        scaleLabel.setText("Overlay scale: " + savedScale + "%");
-
-        scaleSlider.setOnSeekBarChangeListener(
-                new android.widget.SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(
-                            android.widget.SeekBar seekBar,
-                            int progress,
-                            boolean fromUser) {
-
-                        int scale = 70 + (progress * 5);
-
-                        scaleLabel.setText("Overlay scale: " + scale + "%");
-
-                        if (fromUser) {
-                            getPrefs().edit()
-                                    .putInt("overlay_scale", scale)
-                                    .apply();
-                        }
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(
-                            android.widget.SeekBar seekBar) {
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(
-                            android.widget.SeekBar seekBar) {
-                    }
-                });
-
-        add(overlaySettings, scaleLabel, 0, 2);
-        add(overlaySettings, scaleSlider, 0, 2);
-
-        // LIVE READINGS
-        add(page, section("LIVE READINGS"), 0, 8);
-
-        LinearLayout gridRow1 = new LinearLayout(this);
-        gridRow1.setOrientation(LinearLayout.HORIZONTAL);
-        fps = tile(gridRow1, "FPS", false);
-        cpuTile = tile(gridRow1, "CPU", true);
-        add(page, gridRow1, 0, 8);
-
-        LinearLayout gridRow2 = new LinearLayout(this);
-        gridRow2.setOrientation(LinearLayout.HORIZONTAL);
-        gpuTile = tile(gridRow2, "GPU", false);
-        temperature = tile(gridRow2, "TEMP", true);
-        add(page, gridRow2, 0, 8);
-
-        LinearLayout gridRow3 = new LinearLayout(this);
-        gridRow3.setOrientation(LinearLayout.HORIZONTAL);
-        power = tile(gridRow3, "POWER", false);
-        current = tile(gridRow3, "BATTERY CURRENT", true);
-        powerState = addSubLine(power);
-
-// make both cards in this row the same height
-        for (int i = 0; i < gridRow3.getChildCount(); i++) {
-            gridRow3.getChildAt(i).getLayoutParams().height =
-                    ViewGroup.LayoutParams.MATCH_PARENT;
-        }
-        add(page, gridRow3, 0, 8);
-
-        LinearLayout gridRow4 = new LinearLayout(this);
-        gridRow4.setOrientation(LinearLayout.HORIZONTAL);
-        voltage = tile(gridRow4, "BATTERY VOLTAGE", false);
-        battery = tile(gridRow4, "BATTERY LEVEL", true);
-        add(page, gridRow4, 0, 18);
-
-        // SESSION SUMMARY
-        add(page, section("SESSION SUMMARY"), 0, 8);
-
-        LinearLayout summaryCard = new LinearLayout(this);
-        summaryCard.setOrientation(LinearLayout.VERTICAL);
-        summaryCard.setPadding(dp(14), dp(14), dp(14), dp(14));
-        android.graphics.drawable.GradientDrawable summaryBackground =
-                new android.graphics.drawable.GradientDrawable();
-
-        summaryBackground.setColor(Color.rgb(25, 33, 45));
-        summaryBackground.setCornerRadius(dp(14));
-        summaryBackground.setStroke(dp(1), Color.rgb(55, 70, 88));
-
-        summaryCard.setBackground(cardBg(14));
-        summaryCard.setElevation(dp(3));
-
-        summary = text("No session yet.", 14, false,
-                Color.rgb(210, 220, 232));
-        summary.setLineSpacing(dp(4), 1f);
-        summaryCard.addView(summary);
-
-        add(page, summaryCard, 0, 22);
-
-        // FOOTNOTE
-        TextView note = text(
-                "Display FPS is read from the display controller. " +
-                        "CPU loads are system-wide. Battery power is battery-side " +
-                        "power; unplug the phone for discharge measurements. " +
-                        "Root access or Shizuku is required.",
-                11, false, Color.rgb(115, 130, 148));
-
-        note.setLineSpacing(dp(3), 1f);
-        add(page, note, 0, 12);
+new MonitorPageBuilder(this).build(page);
         // CREATE OTHER PAGES
         sessionsPage = buildSessionsPage();
         settingsPage = createPlaceholderPage("SETTINGS");
@@ -1523,7 +1171,7 @@ public class MainActivity extends Activity {
 
 
     // Adds a small second line under a tile's value
-    private TextView addSubLine(TextView valueView) {
+    TextView addSubLine(TextView valueView) {
         LinearLayout card = (LinearLayout) valueView.getParent();
         TextView sub = text("—", 11, true, Color.rgb(155, 174, 194));
         sub.setSingleLine(true);
@@ -2086,7 +1734,7 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    private void toggleOverlay() {
+    void toggleOverlay() {
         boolean enabled = isOverlayServiceRunning();
 
         if (enabled) {
@@ -2126,7 +1774,7 @@ public class MainActivity extends Activity {
     }
 
     // Small card for the 2x2 grid; each one takes half the row
-    private TextView tile(LinearLayout row, String label, boolean last) {
+    TextView tile(LinearLayout row, String label, boolean last) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(14), dp(8), dp(14), dp(10));
@@ -2163,7 +1811,7 @@ public class MainActivity extends Activity {
         return heading;
     }
 
-    private void compactButton(Button b) {
+    void compactButton(Button b) {
         b.setMinHeight(0);
         b.setMinimumHeight(0);
         b.setPadding(dp(6), 0, dp(6), 0);
@@ -2197,7 +1845,15 @@ public class MainActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private void startSession() {
+    void toggleSessionFromMonitor() {
+        if (running) {
+            stopSession();
+        } else {
+            startSession();
+        }
+    }
+
+    void startSession() {
         if (running) return;
 
         samples.clear();
@@ -2230,7 +1886,7 @@ public class MainActivity extends Activity {
 
     }
 
-    private void stopSession() {
+    void stopSession() {
         if (!running) return;
 
         running = false;
