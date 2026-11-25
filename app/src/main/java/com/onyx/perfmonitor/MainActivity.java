@@ -176,7 +176,7 @@ public class MainActivity extends Activity {
     private final ArrayList<Button> appAccentButtons =
             new ArrayList<>();
 
-    private final ArrayList<android.widget.SeekBar> appAccentSeekBars =
+    final ArrayList<android.widget.SeekBar> appAccentSeekBars =
             new ArrayList<>();
     private android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
