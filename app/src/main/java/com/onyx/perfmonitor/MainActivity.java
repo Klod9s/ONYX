@@ -90,6 +90,7 @@ public class MainActivity extends Activity {
 
     View statusDot;
     private View headerLine;
+    private View navDivider;
     android.graphics.drawable.GradientDrawable statusDotBg;
     TextView status, fps, power, current, voltage, battery;
     OnyxLogoView brand;
@@ -377,8 +378,8 @@ public class MainActivity extends Activity {
                 0,
                 1f));
 
-        View navDivider = new View(this);
-        navDivider.setBackgroundColor(Color.rgb(43, 52, 65));
+        navDivider = new View(this);
+        updateHeaderLine();
 
         root.addView(navDivider, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -448,18 +449,27 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void updateHeaderLine() {
-        if (headerLine == null) return;
-
         int a = getAppAccentColor();
         int r = Color.red(a), g = Color.green(a), b = Color.blue(a);
 
-        // transparent at both ends, accent in the middle
-        headerLine.setBackground(new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{
-                        Color.argb(0, r, g, b),
-                        Color.argb(210, r, g, b),
-                        Color.argb(0, r, g, b)}));
+        // Reuse the same soft accent fade above and below the content.
+        android.graphics.drawable.GradientDrawable divider =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[]{
+                                Color.argb(0, r, g, b),
+                                Color.argb(210, r, g, b),
+                                Color.argb(0, r, g, b)});
+
+        if (headerLine != null) headerLine.setBackground(divider);
+        if (navDivider != null) {
+            navDivider.setBackground(new android.graphics.drawable.GradientDrawable(
+                    android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                    new int[]{
+                            Color.argb(0, r, g, b),
+                            Color.argb(210, r, g, b),
+                            Color.argb(0, r, g, b)}));
+        }
     }
 
 
