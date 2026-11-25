@@ -71,8 +71,8 @@ public class MainActivity extends Activity {
 
     // TODO: put your real links here
     static final String URL_COFFEE = "https://buymeacoffee.com/klod9s";
-    static final String URL_GITHUB = "https://github.com/Klod9s";
-    static final String URL_XDA = "https://xdaforums.com/m/klod9s.13504375/";
+    static final String URL_GITHUB = "https://github.com/Klod9s/ONYX";
+    static final String URL_XDA = "https://xdaforums.com/t/app-root-shizuku-onyx-real-time-fps-frame-pacing-power-monitor.4810169/";
 
 
     View statusDot;
