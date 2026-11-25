@@ -40,6 +40,7 @@ public class OnyxLogoView extends View {
 
     private float shineT = 1f;   // 0..1 animation clock, 1 = idle
     private boolean shining = false;
+    private boolean animationsEnabled = true;
     private boolean hasShineStarted = false;
     private long shineStartNs;
     private static final long SHINE_PERIOD_MS = 5200;
@@ -119,8 +120,18 @@ public class OnyxLogoView extends View {
         invalidate();
     }
 
+    public void setAnimationsEnabled(boolean enabled) {
+        if (animationsEnabled == enabled) return;
+        animationsEnabled = enabled;
+        if (!enabled) {
+            stopShine();
+        } else {
+            invalidate();
+        }
+    }
+
     public void startShine() {
-        if (shining) return;
+        if (!animationsEnabled || shining) return;
         shining = true;
 
         // Resume from the last animation phase instead of restarting at
@@ -179,16 +190,18 @@ public class OnyxLogoView extends View {
         // Keep the last animated brightness while paused. Switching to a
         // full glow when shining becomes false causes a visible flash during
         // Activity transitions.
-        float pulse = hasShineStarted
-                ? 0.5f - 0.5f * (float) Math.cos(shineT * 2.0 * Math.PI)
-                : 1f;
-        float level = 0.01f + 0.99f * pulse;    // 1%..100%
+        float pulse = animationsEnabled
+                ? (hasShineStarted
+                    ? 0.5f - 0.5f * (float) Math.cos(shineT * 2.0 * Math.PI)
+                    : 1f)
+                : 0.55f;
+        float level = 0.01f + 0.99f * pulse;    // animated pulse or steady glow
         glowPaint.setAlpha(Math.round(255 * level));
         canvas.drawBitmap(glow, src, dst, glowPaint);
         glowPaint.setAlpha(255);
 
         // shine band, clipped to the letter shapes by SRC_ATOP
-        if (shining) {
+        if (animationsEnabled && shining) {
             float t = shineT / 0.5f;
             if (t < 1f) {
                 float bw = w * 0.40f;
