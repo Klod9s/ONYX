@@ -1057,6 +1057,27 @@ public class FloatingFpsService extends Service {
         return bg;
     }
 
+    private final Runnable reattachOverlayRunnable = () -> {
+        if (serviceDestroyed || !attached || overlayRoot == null
+                || windowManager == null
+                || !overlayPrefs.getBoolean("overlay_enabled", false)) {
+            return;
+        }
+
+        try {
+            windowManager.removeViewImmediate(overlayRoot);
+            attached = false;
+            windowManager.addView(overlayRoot, overlayParams);
+            attached = true;
+            handler.removeCallbacks(updater);
+            handler.post(updater);
+        } catch (Exception e) {
+            // Keep the service alive; a later foreground handoff can retry.
+            android.util.Log.w("FloatingFpsService",
+                    "Unable to reattach overlay after app handoff", e);
+        }
+    };
+
     private void attachOverlay() {
         if (Build.VERSION.SDK_INT >= 23
                 && !android.provider.Settings.canDrawOverlays(this)) {
@@ -1398,6 +1419,11 @@ public class FloatingFpsService extends Service {
                 || (intent == null && overlayPrefs.getBoolean(
                         "overlay_enabled", false))) {
             startBackgroundSampling();
+            // A fullscreen game may take the foreground while the existing
+            // application-overlay window is still below its surface. Re-add
+            // the same window after the Activity has completed its handoff.
+            handler.removeCallbacks(reattachOverlayRunnable);
+            handler.postDelayed(reattachOverlayRunnable, 350);
         } else if (ACTION_ENGINE_STOP.equals(action)) {
             stopBackgroundSampling();
         } else if (ACTION_TOGGLE.equals(action)) {
