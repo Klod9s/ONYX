@@ -75,6 +75,9 @@ final class CpuUsageTracker {
                 previousTotal[i] = currentTotal[i];
                 previousIdle[i] = currentIdle[i];
                 previousFound[i] = true;
+            } else {
+                // Do not calculate across a gap when a core is offline or unreadable.
+                previousFound[i] = false;
             }
         }
 
