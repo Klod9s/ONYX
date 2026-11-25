@@ -14,46 +14,52 @@ final class ShizukuController {
     private final MainActivity activity;
     private final Shizuku.UserServiceArgs serviceArgs;
 
-    private final Shizuku.OnRequestPermissionResultListener permissionListener =
-            (requestCode, grantResult) -> {
-                if (requestCode != REQUEST_CODE) return;
-
-                if (grantResult == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(activity,
-                            "Shizuku permission granted!",
-                            Toast.LENGTH_SHORT).show();
-                    startService();
-                } else {
-                    Toast.makeText(activity,
-                            "Shizuku permission denied.",
-                            Toast.LENGTH_SHORT).show();
-                }
-            };
+    private final Shizuku.OnRequestPermissionResultListener permissionListener;
 
     private final ServiceConnection serviceConnection =
             new ServiceConnection();
 
-    private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
-        activity.cachedMonitoringMode = "";
-        if (activity.monitoringEngine != null) {
-            activity.monitoringEngine.resetMonitoringModeCheck();
-        }
+    private final Shizuku.OnBinderReceivedListener binderReceivedListener;
 
-        activity.runOnUiThread(() -> {
-            activity.shizukuBindRequested = false;
-            startService();
-        });
-    };
-
-    private final Shizuku.OnBinderDeadListener binderDeadListener = () -> {
-        setService(null);
-        activity.shizukuBindRequested = false;
-        activity.runOnUiThread(() ->
-                activity.setStatus("SHIZUKU · DISCONNECTED", true));
-    };
+    private final Shizuku.OnBinderDeadListener binderDeadListener;
 
     ShizukuController(MainActivity activity) {
         this.activity = activity;
+
+        permissionListener = (requestCode, grantResult) -> {
+            if (requestCode != REQUEST_CODE) return;
+
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this.activity,
+                        "Shizuku permission granted!",
+                        Toast.LENGTH_SHORT).show();
+                startService();
+            } else {
+                Toast.makeText(this.activity,
+                        "Shizuku permission denied.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        };
+
+        binderReceivedListener = () -> {
+            this.activity.cachedMonitoringMode = "";
+            if (this.activity.monitoringEngine != null) {
+                this.activity.monitoringEngine.resetMonitoringModeCheck();
+            }
+
+            this.activity.runOnUiThread(() -> {
+                this.activity.shizukuBindRequested = false;
+                startService();
+            });
+        };
+
+        binderDeadListener = () -> {
+            setService(null);
+            this.activity.shizukuBindRequested = false;
+            this.activity.runOnUiThread(() ->
+                    this.activity.setStatus("SHIZUKU · DISCONNECTED", true));
+        };
+
         serviceArgs = new Shizuku.UserServiceArgs(
                 new ComponentName(
                         activity.getPackageName(),
