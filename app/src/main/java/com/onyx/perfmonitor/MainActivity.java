@@ -2940,27 +2940,8 @@ public class MainActivity extends Activity {
         final int generation = ++historyGeneration;
 
         fileWorker.execute(() -> {
-            File[] files = folder.listFiles((dir, name) ->
-                    name.startsWith("session_") && name.endsWith(".csv")
-                            && !hidden.contains(name));
-
-            java.util.List<SessionItem> items = new ArrayList<>();
-            if (files != null) {
-                java.util.Arrays.sort(files,
-                        (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-                for (File file : files) {
-                    SessionData meta = SessionData.readMeta(this, file);
-                    long when = meta != null
-                            ? meta.sessionDate().getTime() : file.lastModified();
-                    items.add(new SessionItem(
-                            file.getName(),
-                            file.lastModified(),
-                            when,
-                            meta != null ? meta.deviceLabel() : "Unknown device",
-                            meta != null && meta.imported,
-                            meta != null ? meta.originalName : ""));
-                }
-            }
+            java.util.List<SessionItem> items =
+                    SessionFileManager.loadHistoryItems(this, folder, hidden);
 
             runOnUiThread(() -> {
                 if (generation != historyGeneration) return;
