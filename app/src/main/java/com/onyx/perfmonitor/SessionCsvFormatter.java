@@ -46,7 +46,7 @@ final class SessionCsvFormatter {
                         "CPU 6 Frequency (MHz),CPU 7 Frequency (MHz)," +
                         "GPU Frequency (MHz),GPU Load (%)," +
                         "Average Frame Time (ms),Frame Time Std Dev (ms)," +
-                        "Stutter Count,FPS Source\n"
+                        "Stutter Count,FPS Source,Frame Intervals (ms)\n"
         );
     }
 
@@ -117,6 +117,13 @@ final class SessionCsvFormatter {
         if (sample.fpsSource != null && !sample.fpsSource.isEmpty()) {
             row.append(sample.fpsSource);
         }
+
+        row.append(',').append('"');
+        for (int i = 0; i < sample.frameIntervalsMs.size(); i++) {
+            if (i > 0) row.append(';');
+            row.append(String.format(Locale.US, \"%.3f\", sample.frameIntervalsMs.get(i)));
+        }
+        row.append('"');
 
         csv.append(row).append('\n');
     }
