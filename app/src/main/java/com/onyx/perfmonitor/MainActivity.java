@@ -844,6 +844,10 @@ new MonitorPageBuilder(this).build(page);
         powerState = view;
     }
 
+    void refreshPowerStateBadge() {
+        PowerStateBadgeStyle.refresh(powerState, getAppAccentColor());
+    }
+
     private final SessionController sessionController =
             new SessionController(this);
 
@@ -867,7 +871,7 @@ new MonitorPageBuilder(this).build(page);
     void render(Sample s) {
         MonitorSampleRenderer.render(
                 s, fps, cpuTile, gpuTile, power, powerState,
-                current, voltage, battery, temperature);
+                current, voltage, battery, temperature, getAppAccentColor());
     }
 
 
