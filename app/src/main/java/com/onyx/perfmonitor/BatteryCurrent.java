@@ -37,10 +37,22 @@ public final class BatteryCurrent {
         inverted = prefs.getBoolean(KEY_INVERTED, false);
     }
 
-    /** raw = BATTERY_PROPERTY_CURRENT_NOW or sysfs current_now. Returns mA. */
+    /** raw = BATTERY_PROPERTY_CURRENT_NOW. Returns mA. */
     public synchronized double toMilliamps(long raw, boolean unplugged) {
         double ma = rawInMilliamps ? (double) raw : raw / 1000.0;
+        return normalizeSign(ma, unplugged);
+    }
 
+    /** Linux power_supply current_now is reported in microamps, including on Honor. */
+    public synchronized double toMilliampsFromSysfs(long rawMicroamps, boolean unplugged) {
+        return normalizeSign(sysfsMicroampsToMilliamps(rawMicroamps), unplugged);
+    }
+
+    static double sysfsMicroampsToMilliamps(long rawMicroamps) {
+        return rawMicroamps / 1000.0;
+    }
+
+    private double normalizeSign(double ma, boolean unplugged) {
         // Sign: unplugged means the battery is really discharging.
         // Positive reading while unplugged = this phone reports it backwards.
         if (unplugged && Math.abs(ma) >= MIN_LEARN_MA) {
