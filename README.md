@@ -1,6 +1,6 @@
 # ONYX Performance Monitor
 
-ONYX is an Android performance monitor for real-time FPS, frame pacing, hardware telemetry, battery power, and session analysis. It includes a configurable floating overlay and supports privileged data access through **Shizuku** or **root**.
+ONYX is a free, open-source Android performance monitor with **no ads and no user tracking/analytics**. It provides real-time FPS, frame pacing, hardware telemetry, battery power, and session analysis through a configurable floating overlay, supporting privileged data access via **Shizuku** or **root**.
 
 ## Features
 
