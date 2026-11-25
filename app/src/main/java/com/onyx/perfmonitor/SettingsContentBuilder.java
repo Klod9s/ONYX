@@ -191,7 +191,26 @@ final class SettingsContentBuilder {
             appColorRow.addView(tile, tp);
         }
 
-        activity.add(appAppearanceCard, appColorRow, 0, 0);
+        activity.add(appAppearanceCard, appColorRow, 0, 12);
+
+        android.widget.CheckBox allowAnimations = new android.widget.CheckBox(activity);
+        allowAnimations.setText("Allow animations");
+        allowAnimations.setTextColor(Color.WHITE);
+        allowAnimations.setTextSize(13);
+        allowAnimations.setGravity(Gravity.CENTER_VERTICAL);
+        allowAnimations.setPadding(0, activity.dp(4), 0, activity.dp(4));
+        allowAnimations.setButtonTintList(android.content.res.ColorStateList.valueOf(
+                activity.getAppAccentColor()));
+        activity.appAccentCheckBoxes.add(allowAnimations);
+        allowAnimations.setChecked(activity.getSharedPreferences(
+                "app_settings", android.content.Context.MODE_PRIVATE)
+                .getBoolean("allow_animations", true));
+        allowAnimations.setOnCheckedChangeListener((button, enabled) -> {
+            activity.getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE)
+                    .edit().putBoolean("allow_animations", enabled).apply();
+            activity.setAnimationsEnabled(enabled);
+        });
+        activity.add(appAppearanceCard, allowAnimations, 0, 0);
 
         activity.add(content, appAppearanceCard, 0, 14);
 
