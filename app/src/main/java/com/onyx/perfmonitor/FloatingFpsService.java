@@ -978,7 +978,7 @@ public class FloatingFpsService extends Service {
             overlayContent.addView(rightColumn);
         }
 
-        currentLayoutMode = showGraph ? 1 : (showCpuGpu ? 2 : 3);
+        currentLayoutMode = showGraph ? 1 : ((showCpuGpu || showRam) ? 2 : 3);
 
         overlay.addView(overlayContent);
         overlay.setPadding(dpScaled(7), dpScaled(6), dpScaled(7), dpScaled(6));
