@@ -13,13 +13,67 @@ final class SessionController {
         this.activity = activity;
     }
 
-        void toggle() {
-            if (activity.running) {
-                stopSession();
-            } else {
-                startSession();
-            }
+    void toggle() {
+        if (activity.isOverlaySession()) {
+            android.content.Intent stop = new android.content.Intent(
+                    activity, FloatingFpsService.class);
+            stop.setAction(FloatingFpsService.ACTION_STOP_RECORDING);
+            activity.startService(stop);
+        } else if (activity.running) {
+            stopSession();
+        } else {
+            startSession();
         }
+    }
+
+    void restoreOverlaySession() {
+        activity.running = true;
+        activity.overlaySessionUi = true;
+        activity.sessionId++;
+        updateRecordingButton(true);
+        activity.summary.setText("Session in progress… (floating overlay)");
+        activity.refreshStatusPill();
+    }
+
+    void syncOverlaySessionState() {
+        if (activity.isOverlaySession()) {
+            if (!activity.overlaySessionUi) {
+                restoreOverlaySession();
+            }
+            return;
+        }
+
+        if (!activity.overlaySessionUi) return;
+
+        activity.running = false;
+        activity.overlaySessionUi = false;
+        activity.sessionId++;
+        activity.samples.clear();
+        activity.csv.setLength(0);
+        updateRecordingButton(false);
+        activity.summary.setText("Session saved from floating overlay.");
+        activity.refreshStatusPill();
+        activity.loadHistory();
+    }
+
+    private void updateRecordingButton(boolean recording) {
+        activity.startButton.setText(recording
+                ? "STOP SESSION" : "START SESSION");
+
+        int color = recording
+                ? Color.rgb(170, 55, 65) : activity.getAppAccentColor();
+        int stroke = recording
+                ? Color.rgb(205, 85, 95)
+                : Color.argb(180, Color.red(color),
+                        Color.green(color), Color.blue(color));
+
+        android.graphics.drawable.GradientDrawable bg =
+                new android.graphics.drawable.GradientDrawable();
+        bg.setColor(color);
+        bg.setCornerRadius(activity.dp(12));
+        bg.setStroke(activity.dp(1), stroke);
+        activity.startButton.setBackground(bg);
+    }
     
         void startSession() {
             if (activity.running) return;
@@ -34,21 +88,15 @@ final class SessionController {
             activity.monitoringEngine.beginFrameCapture();
             activity.sessionId++;
             activity.running = true;
-    
+            activity.overlaySessionUi = false;
+
             activity.getSharedPreferences("session_state", android.content.Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean("recording", true)
+                    .putString("owner", FloatingFpsService.SESSION_OWNER_APP)
                     .apply();
-    
-            activity.startButton.setText("STOP SESSION");
-    
-    
-            android.graphics.drawable.GradientDrawable bg =
-                    new android.graphics.drawable.GradientDrawable();
-            bg.setColor(Color.rgb(170, 55, 65));
-            bg.setCornerRadius(activity.dp(12));
-            bg.setStroke(activity.dp(1), Color.rgb(205, 85, 95));
-            activity.startButton.setBackground(bg);
+
+            updateRecordingButton(true);
     
             activity.summary.setText("Session in progress…");
             activity.refreshStatusPill();
@@ -63,22 +111,11 @@ final class SessionController {
             activity.getSharedPreferences("session_state", android.content.Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean("recording", false)
+                    .putString("owner", FloatingFpsService.SESSION_OWNER_NONE)
                     .apply();
             activity.sessionId++;
     
-            activity.startButton.setText("START SESSION");
-    
-            int accentColor = activity.getAppAccentColor();
-            android.graphics.drawable.GradientDrawable bg =
-                    new android.graphics.drawable.GradientDrawable();
-            bg.setColor(accentColor);
-            bg.setCornerRadius(activity.dp(12));
-            bg.setStroke(activity.dp(1), Color.argb(
-                    180,
-                    Color.red(accentColor),
-                    Color.green(accentColor),
-                    Color.blue(accentColor)));
-            activity.startButton.setBackground(bg);
+            updateRecordingButton(false);
     
             String result = activity.makeSummary();
     
