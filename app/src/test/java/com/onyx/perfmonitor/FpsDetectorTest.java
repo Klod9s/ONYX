@@ -25,9 +25,9 @@ public class FpsDetectorTest {
             }
             if (command.contains("SurfaceFlinger --latency")) {
                 long end = latest.get();
-                StringBuilder dump = new StringBuilder("16666666\\n");
-                for (int i = 59; i >= 0; i--) {
-                    long timestamp = end - i * 16_666_667L;
+                StringBuilder dump = new StringBuilder("10000000\\n");
+                for (int i = 99; i >= 0; i--) {
+                    long timestamp = end - i * 10_000_000L;
                     dump.append("0 ").append(timestamp).append(" 0\\n");
                 }
                 return dump.toString();
@@ -50,7 +50,7 @@ public class FpsDetectorTest {
         FpsDetector.Result third = detector.detect(shell, "com.example.game");
         assertTrue(third.valid());
         assertTrue(third.frameIntervalsMs.size() > 0);
-        assertTrue(third.frameIntervalsMs.size() <= 31);
+        assertTrue(third.frameIntervalsMs.size() <= 51);
     }
 
     @Test
