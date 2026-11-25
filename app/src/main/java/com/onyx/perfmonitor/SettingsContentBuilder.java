@@ -437,5 +437,16 @@ final class SettingsContentBuilder {
         parent.addView(option, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+        if (SessionDataPreferences.GPU_FREQUENCY.equals(key)) {
+            TextView note = activity.text(
+                    "GPU frequency may be unavailable on some devices. "
+                            + "Certain devices require ROOT access to read it. "
+                            + "If unavailable, the GPU frequency chart will not appear.",
+                    11, false, Color.rgb(145, 158, 175));
+            note.setPadding(activity.dp(32), 0, activity.dp(8), activity.dp(6));
+            parent.addView(note, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
     }
 }
