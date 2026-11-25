@@ -977,23 +977,41 @@ public class AnalysisContentBuilder {
             }
         }
 
-        // FOOTER
-        View divider = new View(context);
-        divider.setBackgroundColor(Color.rgb(65, 82, 101));
-        card.addView(divider, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)));
-
-        TextView legend = new TextView(context);
-        String legendText = unit;
+        // CPU cluster legend: align its three equal sections with the
+        // two-column core cards above. Other charts have no footer.
         if (title.equals("CPU CORE LOAD")
                 || title.equals("CPU CORE FREQUENCY")) {
-            legendText += "   🟥 Performance   🟩 Normal   🟦 Efficiency";
+
+            View divider = new View(context);
+            divider.setBackgroundColor(Color.rgb(65, 82, 101));
+            card.addView(divider, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(1)));
+
+            LinearLayout legendRow = new LinearLayout(context);
+            legendRow.setOrientation(LinearLayout.HORIZONTAL);
+            legendRow.setGravity(Gravity.CENTER_VERTICAL);
+            legendRow.setPadding(dp(3), dp(9), dp(3), 0);
+
+            String[] legendLabels = {
+                    "🟥 Performance",
+                    "🟩 Normal",
+                    "🟦 Efficiency"
+            };
+
+            for (String label : legendLabels) {
+                TextView legend = new TextView(context);
+                legend.setText(label);
+                legend.setTextSize(10);
+                legend.setTextColor(muted);
+                legend.setGravity(Gravity.CENTER);
+                legend.setSingleLine(true);
+
+                legendRow.addView(legend, new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            }
+
+            card.addView(legendRow);
         }
-        legend.setText(legendText);
-        legend.setTextSize(10);
-        legend.setTextColor(muted);
-        legend.setPadding(0, dp(9), 0, 0);
-        card.addView(legend);
 
         LinearLayout.LayoutParams cardParams =
                 new LinearLayout.LayoutParams(
