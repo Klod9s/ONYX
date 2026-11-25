@@ -190,10 +190,29 @@ public class AnalysisContentBuilder {
         // Show only metric groups that contain saved readings. This keeps disabled
         // collection categories out of both Analysis and Comparison.
         boolean hasFps = hasAny(d.fps);
-        boolean hasFramePacing = hasFps || hasAny(d.averageFrameTime)
-                || hasAny(d.frameTimeStdDev) || hasAny(d.stutterCount)
-                || !d.frameIntervalsMs.isEmpty();
-        if (hasFramePacing) addFramePacingSummary(layout);
+        FramePacingSummaryCalculator.Result capturedFrameSummary =
+                FramePacingSummaryCalculator.calculate(d.frameIntervalsMs);
+        boolean hasAverageFrameTime = capturedFrameSummary.valid()
+                || hasAny(d.averageFrameTime);
+        boolean hasFrameTimeVariation = capturedFrameSummary.valid()
+                || hasAny(d.frameTimeStdDev);
+        boolean hasStutterData = capturedFrameSummary.valid()
+                || hasAny(d.stutterCount);
+        boolean hasFpsStability = hasFps;
+        boolean hasOnePercentLow = FramePercentileCalculator.averageLowFps(
+                d.frameIntervalsMs, 0.01) >= 0;
+        boolean hasPointOnePercentLow = FramePercentileCalculator.averageLowFps(
+                d.frameIntervalsMs, 0.001) >= 0;
+
+        // The summary contains six metrics. Hide the entire card when none
+        // of those metrics has any collected data.
+        boolean hasFramePacingSummary = hasAverageFrameTime
+                || hasFrameTimeVariation
+                || hasStutterData
+                || hasFpsStability
+                || hasOnePercentLow
+                || hasPointOnePercentLow;
+        if (hasFramePacingSummary) addFramePacingSummary(layout);
 
         if (hasFps) addChart(layout, "FPS OVER TIME", d.fps, "FPS");
         if (hasAny(d.ramUsage)) addChart(layout, "RAM USAGE", d.ramUsage, "%");
