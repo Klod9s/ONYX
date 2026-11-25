@@ -10,7 +10,6 @@ final class CardStyleManager {
     private final MainActivity activity;
     private final ArrayList<GradientDrawable> cardBackgrounds = new ArrayList<>();
     private final ArrayList<GlassStyle.GlassDrawable> glassBackgrounds = new ArrayList<>();
-    private final ArrayList<GradientDrawable> accentDots = new ArrayList<>();
 
     CardStyleManager(MainActivity activity) {
         this.activity = activity;
@@ -46,15 +45,6 @@ final class CardStyleManager {
         return d;
     }
 
-    /** Small indicator dot that follows the app accent. */
-    GradientDrawable createAccentDot() {
-        GradientDrawable dot = new GradientDrawable();
-        dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(activity.getAppAccentColor());
-        accentDots.add(dot);
-        return dot;
-    }
-
     void refreshStrokes() {
         int strokeWidth = activity.dp(1);
         int color = cardStrokeColor();
@@ -64,9 +54,6 @@ final class CardStyleManager {
         int accent = activity.getAppAccentColor();
         for (GlassStyle.GlassDrawable glass : glassBackgrounds) {
             glass.setAccent(accent);
-        }
-        for (GradientDrawable dot : accentDots) {
-            dot.setColor(accent);
         }
     }
 }

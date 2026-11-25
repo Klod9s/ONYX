@@ -553,15 +553,6 @@ new MonitorPageBuilder(this).build(page);
 
 
 
-    // Adds a small second line under a tile's value
-    TextView addSubLine(TextView valueView) {
-        LinearLayout card = (LinearLayout) valueView.getParent();
-        TextView sub = text("—", 11, true, Color.rgb(155, 174, 194));
-        sub.setSingleLine(true);
-        card.addView(sub);
-        return sub;
-    }
-
     void updateAppColorSelection() {
         int currentColor = getAppAccentColor();
 
@@ -712,10 +703,6 @@ new MonitorPageBuilder(this).build(page);
         return cardStyleManager.createFlatBackground(radiusDp);
     }
 
-    android.graphics.drawable.GradientDrawable accentDot() {
-        return cardStyleManager.createAccentDot();
-    }
-
     void refreshCardStrokes() {
         cardStyleManager.refreshStrokes();
     }
@@ -797,33 +784,6 @@ new MonitorPageBuilder(this).build(page);
     void toggleOverlay() {
         overlayController.toggle();
     }
-
-    // Small card for the 2x2 grid; each one takes half the row
-    TextView tile(LinearLayout row, String label, boolean last) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14), dp(8), dp(14), dp(10));
-        card.setBackground(cardBg(14));
-        card.setElevation(dp(3));
-
-        TextView title = text(label, 11, true, Color.rgb(155, 174, 194));
-        title.setSingleLine(true);
-
-        TextView valueView = text("—", 22, true, Color.WHITE);
-        valueView.setPadding(0, dp(1), 0, 0);
-        valueView.setMaxLines(1);
-
-        card.addView(title);
-        card.addView(valueView);
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        if (!last) lp.rightMargin = dp(7);
-        row.addView(card, lp);
-
-        return valueView;
-    }
-
 
     TextView section(String value) {
         TextView heading = text(value, 13, true, getAppAccentColor());

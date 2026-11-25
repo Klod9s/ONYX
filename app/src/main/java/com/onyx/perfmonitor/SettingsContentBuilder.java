@@ -329,6 +329,7 @@ final class SettingsContentBuilder {
         option.setPadding(0, activity.dp(3), 0, activity.dp(3));
         option.setButtonTintList(
                 android.content.res.ColorStateList.valueOf(activity.getAppAccentColor()));
+        activity.appAccentCheckBoxes.add(option); // recolours live when the accent changes
         option.setChecked(SessionDataPreferences.metricEnabledForSettings(
                 activity, key, legacyCategory));
         option.setOnCheckedChangeListener((button, checked) ->

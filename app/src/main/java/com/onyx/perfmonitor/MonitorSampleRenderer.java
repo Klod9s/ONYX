@@ -16,14 +16,10 @@ final class MonitorSampleRenderer {
     }
 
     /** The tile builder stores a GlassStyle.TileTag in the value view's tag. */
-    private static void setTile(TextView value, int dotColor, float level) {
+    private static void setLevel(TextView value, float level) {
         if (value == null || !(value.getTag() instanceof GlassStyle.TileTag)) return;
-        GlassStyle.TileTag t = (GlassStyle.TileTag) value.getTag();
-        if (t.dot != null && dotColor != 0) t.dot.setColor(dotColor);
-        if (t.matrix != null) {
-            if (dotColor != 0) t.matrix.setColor(dotColor);
-            t.matrix.setLevel(level);
-        }
+        GlassStyle.DotMatrixView m = ((GlassStyle.TileTag) value.getTag()).matrix;
+        if (m != null) m.setLevel(level);
     }
 
     static void render(Sample s, TextView fps, TextView cpuTile,
@@ -41,6 +37,7 @@ final class MonitorSampleRenderer {
             if (g != null) {
                 if (s.averageFrameTimeMs > 0) g.addFrameTime((float) s.averageFrameTimeMs);
                 else if (s.fps > 0) g.addFrameTime((float) (1000.0 / s.fps));
+                else g.noData();
             }
         }
 
@@ -52,12 +49,12 @@ final class MonitorSampleRenderer {
         setTextIfChanged(cpuTile, cpuCount > 0
                 ? String.format(Locale.US, "%.0f%%", cpuSum / cpuCount)
                 : "—");
-        setTile(cpuTile, 0, cpuCount > 0 ? (float) (cpuSum / cpuCount / 100.0) : 0f);
+        setLevel(cpuTile, cpuCount > 0 ? (float) (cpuSum / cpuCount / 100.0) : 0f);
 
         setTextIfChanged(gpuTile, s.gpuLoadPercent < 0
                 ? "—"
                 : String.format(Locale.US, "%.0f%%", s.gpuLoadPercent));
-        setTile(gpuTile, 0, s.gpuLoadPercent < 0 ? 0f : (float) (s.gpuLoadPercent / 100.0));
+        setLevel(gpuTile, s.gpuLoadPercent < 0 ? 0f : (float) (s.gpuLoadPercent / 100.0));
 
         setTextIfChanged(power,
                 s.power == -1
@@ -66,29 +63,25 @@ final class MonitorSampleRenderer {
 
         setTextIfChanged(powerState,
                 s.charging ? "CHARGING" : "DISCHARGING");
-        GlassStyle.styleStateBadge(powerState, power, s.charging);
+        GlassStyle.styleStateBadge(powerState, s.charging);
 
         setTextIfChanged(current,
                 s.currentMa == -1
                         ? "—"
                         : String.format(Locale.US, "%.0f mA", s.currentMa));
-        setTile(current, 0, s.currentMa == -1 ? 0f : (float) (Math.abs(s.currentMa) / 2500.0));
+        setLevel(current, s.currentMa == -1 ? 0f : (float) (Math.abs(s.currentMa) / 2500.0));
 
         setTextIfChanged(voltage,
                 s.voltage < 0
                         ? "—"
                         : String.format(Locale.US, "%.3f V", s.voltage));
-        setTile(voltage, 0, s.voltage < 0 ? 0f : (float) ((s.voltage - 3.3) / 1.1));
+        setLevel(voltage, s.voltage < 0 ? 0f : (float) ((s.voltage - 3.3) / 1.1));
 
         setTextIfChanged(battery, s.battery + "%");
-        setTile(battery, s.battery >= 30 ? GlassStyle.GOOD
-                : s.battery >= 15 ? GlassStyle.WARN : GlassStyle.BAD, s.battery / 100f);
+        setLevel(battery, s.battery / 100f);
 
         setTextIfChanged(temperature,
                 String.format(Locale.US, "%.1f°C", s.temperatureC));
-        int heat = s.temperatureC >= 45 ? GlassStyle.BAD
-                : s.temperatureC >= 40 ? GlassStyle.WARN : GlassStyle.GOOD;
-        if (temperature != null) temperature.setTextColor(heat);
-        setTile(temperature, heat, (float) ((s.temperatureC - 20.0) / 30.0));
+        setLevel(temperature, (float) ((s.temperatureC - 20.0) / 30.0));
     }
 }

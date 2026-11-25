@@ -1,6 +1,5 @@
 package com.onyx.perfmonitor;
 
-import android.graphics.Color;
 
 /**
  * Owns the start/stop lifecycle for a monitoring session.

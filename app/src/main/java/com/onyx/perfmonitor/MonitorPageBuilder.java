@@ -283,30 +283,30 @@ final class MonitorPageBuilder {
         
                 LinearLayout gridRow1 = new LinearLayout(activity);
                 gridRow1.setOrientation(LinearLayout.HORIZONTAL);
-                activity.fps = glassTile(gridRow1, R.drawable.ic_metric_fps, "FPS", false, false, false);
-                activity.power = glassTile(gridRow1, R.drawable.ic_metric_bolt, "POWER", true, false, false);
+                activity.fps = glassTile(gridRow1, R.drawable.ic_metric_fps, "FPS", false, false);
+                activity.power = glassTile(gridRow1, R.drawable.ic_metric_bolt, "POWER", true, false);
                 activity.setPowerStateView(addStateBadge(activity.power));
                 activity.add(page, gridRow1, 0, 8);
                 equalHeight(gridRow1);
 
                 LinearLayout gridRow2 = new LinearLayout(activity);
                 gridRow2.setOrientation(LinearLayout.HORIZONTAL);
-                activity.cpuTile = glassTile(gridRow2, R.drawable.ic_metric_cpu, "CPU", false, true, false);
-                activity.gpuTile = glassTile(gridRow2, R.drawable.ic_metric_gpu, "GPU", true, true, false);
+                activity.cpuTile = glassTile(gridRow2, R.drawable.ic_metric_cpu, "CPU", false, true);
+                activity.gpuTile = glassTile(gridRow2, R.drawable.ic_metric_gpu, "GPU", true, true);
                 activity.add(page, gridRow2, 0, 8);
                 equalHeight(gridRow2);
 
                 LinearLayout gridRow3 = new LinearLayout(activity);
                 gridRow3.setOrientation(LinearLayout.HORIZONTAL);
-                activity.current = glassTile(gridRow3, R.drawable.ic_metric_bolt, "CURRENT", false, true, false);
-                activity.temperature = glassTile(gridRow3, R.drawable.ic_metric_temp, "TEMP", true, true, true);
+                activity.current = glassTile(gridRow3, R.drawable.ic_metric_bolt, "CURRENT", false, true);
+                activity.temperature = glassTile(gridRow3, R.drawable.ic_metric_temp, "TEMP", true, true);
                 activity.add(page, gridRow3, 0, 8);
                 equalHeight(gridRow3);
 
                 LinearLayout gridRow4 = new LinearLayout(activity);
                 gridRow4.setOrientation(LinearLayout.HORIZONTAL);
-                activity.voltage = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY VOLTAGE", false, true, false);
-                activity.battery = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY LEVEL", true, true, true);
+                activity.voltage = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY VOLTAGE", false, true);
+                activity.battery = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY LEVEL", true, true);
                 activity.add(page, gridRow4, 0, 18);
                 equalHeight(gridRow4);
 
@@ -345,15 +345,13 @@ final class MonitorPageBuilder {
     }
 
     /**
-     * One glass metric card: icon + label on top (with an indicator dot on the right),
-     * big value underneath. Returns the value view.
+     * One glass metric card: icon + label on top, big value underneath.
+     * Returns the value view.
      *
-     * @param accentValue colour the value with the app accent (otherwise white)
-     * @param dynamicDot  dot colour is set by the renderer (temp / battery level);
-     *                    otherwise the dot follows the app accent
+     * @param hasGrid show the accent-coloured dot grid in the bottom-right corner
      */
     private TextView glassTile(LinearLayout row, int iconRes, String label, boolean last,
-                               boolean showDot, boolean dynamicDot) {
+                               boolean hasGrid) {
         // wrapper lets the dot grid sit in the bottom-right corner over the content
         android.widget.FrameLayout wrap = new android.widget.FrameLayout(activity);
         wrap.setBackground(activity.glassBg(16));
@@ -387,9 +385,8 @@ final class MonitorPageBuilder {
         valueView.setPadding(0, activity.dp(4), 0, 0);
 
         GlassStyle.TileTag tag = new GlassStyle.TileTag();
-        if (showDot) { // tiles with a dot grid (bottom-right)
-            GlassStyle.DotMatrixView matrix = new GlassStyle.DotMatrixView(
-                    activity, !dynamicDot, GlassStyle.GOOD);
+        if (hasGrid) {
+            GlassStyle.DotMatrixView matrix = new GlassStyle.DotMatrixView(activity);
             android.widget.FrameLayout.LayoutParams mp =
                     new android.widget.FrameLayout.LayoutParams(activity.dp(26), activity.dp(40));
             mp.gravity = Gravity.BOTTOM | Gravity.END;
