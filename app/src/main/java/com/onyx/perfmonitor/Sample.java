@@ -34,6 +34,7 @@ final class Sample {
     double secondsPerPercent = -1;
 
     boolean charging;
+    boolean batteryUnplugged;
 
     double[] cpu = new double[8];
     double[] cpuFreqMHz = new double[8];
