@@ -17,6 +17,7 @@ final class SessionDataPreferences {
     static final String RAM = "collect_ram";
 
     static final String FPS_VALUE = "collect_fps_value";
+    static final String FRAME_PACING = "collect_frame_pacing";
     static final String FRAME_AVERAGE = "collect_frame_average";
     static final String FRAME_VARIATION = "collect_frame_variation";
     static final String FRAME_STUTTERS = "collect_frame_stutters";
@@ -60,6 +61,11 @@ final class SessionDataPreferences {
     }
 
     static boolean framePacingEnabled(Context context) {
+        SharedPreferences prefs = get(context);
+        if (prefs.contains(FRAME_PACING)) {
+            return prefs.getBoolean(FRAME_PACING, true);
+        }
+        // Migrate the previous individual controls into one combined setting.
         return metricEnabled(context, FRAME_AVERAGE, FPS)
                 || metricEnabled(context, FRAME_VARIATION, FPS)
                 || metricEnabled(context, FRAME_STUTTERS, FPS)
@@ -86,16 +92,10 @@ final class SessionDataPreferences {
             s.fpsSource = source.fpsSource;
         }
 
-        if (metricEnabled(context, FRAME_AVERAGE, FPS)) {
+        if (framePacingEnabled(context)) {
             s.averageFrameTimeMs = source.averageFrameTimeMs;
-        }
-        if (metricEnabled(context, FRAME_VARIATION, FPS)) {
             s.frameTimeStdDevMs = source.frameTimeStdDevMs;
-        }
-        if (metricEnabled(context, FRAME_STUTTERS, FPS)) {
             s.stutterCount = source.stutterCount;
-        }
-        if (metricEnabled(context, FRAME_INTERVALS, FPS)) {
             s.frameIntervalsMs.addAll(source.frameIntervalsMs);
         }
 
