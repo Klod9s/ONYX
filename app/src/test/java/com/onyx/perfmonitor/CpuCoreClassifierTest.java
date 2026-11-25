@@ -41,6 +41,40 @@ public class CpuCoreClassifierTest {
     }
 
     @Test
+    public void classifiesAvailableCoresWithoutAssigningTypesToMissingCores() {
+        int[] result = CpuCoreClassifier.classify(
+                new long[]{512, -1, 512, 768, 0, 1024, 1024, -1});
+
+        assertArrayEquals(new int[]{
+                CpuCoreClassifier.EFFICIENCY,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.EFFICIENCY,
+                CpuCoreClassifier.NORMAL,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.PERFORMANCE,
+                CpuCoreClassifier.PERFORMANCE,
+                CpuCoreClassifier.UNKNOWN
+        }, result);
+    }
+
+    @Test
+    public void leavesUniformCapacityCoresUnclassified() {
+        int[] result = CpuCoreClassifier.classify(
+                new long[]{768, 768, 768, 768, 768, 768, 768, 768});
+
+        assertArrayEquals(new int[]{
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN,
+                CpuCoreClassifier.UNKNOWN
+        }, result);
+    }
+
+    @Test
     public void leavesUnknownCoresUnclassifiedWhenDataIsUnavailable() {
         int[] result = CpuCoreClassifier.classify(
                 new long[]{-1, -1, -1, -1, -1, -1, -1, -1});
