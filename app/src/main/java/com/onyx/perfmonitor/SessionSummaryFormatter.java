@@ -41,7 +41,7 @@ final class SessionSummaryFormatter {
         if (context != null && !SessionDataPreferences.enabled(
                 context, SessionDataPreferences.BATTERY)) {
             return String.format(Locale.US,
-                    "Run time: %.1f minutes\\nBattery data: not collected",
+                    "Run time: %.1f minutes\nBattery data: not collected",
                     duration / 60000.0);
         }
 
