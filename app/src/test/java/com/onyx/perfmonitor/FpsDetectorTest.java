@@ -13,6 +13,47 @@ import org.junit.Test;
 public class FpsDetectorTest {
 
     @Test
+    public void capturesOnlyNewSurfaceFlingerIntervalsAcrossOverlappingPolls() {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
+        FpsDetector detector = new FpsDetector(clock::get);
+        detector.beginFrameCapture();
+
+        FpsDetector.Shell shell = command -> {
+            if (command.contains("SurfaceFlinger --list")) {
+                return "SurfaceView com.example.game\\n";
+            }
+            if (command.contains("SurfaceFlinger --latency")) {
+                long end = latest.get();
+                StringBuilder dump = new StringBuilder("16666666\\n");
+                for (int i = 59; i >= 0; i--) {
+                    long timestamp = end - i * 16_666_667L;
+                    dump.append("0 ").append(timestamp).append(" 0\\n");
+                }
+                return dump.toString();
+            }
+            return "";
+        };
+
+        FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
+        assertTrue(baseline.valid());
+        assertTrue(baseline.frameIntervalsMs.isEmpty());
+
+        latest.addAndGet(500_000_000L);
+        clock.addAndGet(500);
+        FpsDetector.Result second = detector.detect(shell, "com.example.game");
+        assertTrue(second.valid());
+        assertTrue(second.frameIntervalsMs.size() > 0);
+
+        latest.addAndGet(500_000_000L);
+        clock.addAndGet(500);
+        FpsDetector.Result third = detector.detect(shell, "com.example.game");
+        assertTrue(third.valid());
+        assertTrue(third.frameIntervalsMs.size() > 0);
+        assertTrue(third.frameIntervalsMs.size() <= 31);
+    }
+
+    @Test
     public void rejectsUnknownPackageWithoutRunningShellCommands() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
