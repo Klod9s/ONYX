@@ -733,8 +733,10 @@ public class AnalysisContentBuilder {
         card.addView(heading);
 
         // GRAPH
+        boolean showThermalPeriods = "FPS OVER TIME".equals(title);
         ChartView chart = new ChartView(context, series, times, getAppAccentColor(),
-                "CPU CORE LOAD".equals(title));
+                "CPU CORE LOAD".equals(title),
+                showThermalPeriods ? d.thermalStatus : null);
 
         android.graphics.drawable.GradientDrawable chartBg =
                 new android.graphics.drawable.GradientDrawable();
@@ -748,6 +750,17 @@ public class AnalysisContentBuilder {
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(chartHeightDp));
         chartParams.bottomMargin = dp(8);
         card.addView(chart, chartParams);
+
+        if (showThermalPeriods) {
+            TextView thermalLegend = new TextView(context);
+            thermalLegend.setText("THERMAL STATUS  ·  "
+                    + "🟠 LIGHT  "
+                    + "🔴 MODERATE+");
+            thermalLegend.setTextSize(10);
+            thermalLegend.setTextColor(muted);
+            thermalLegend.setPadding(dp(3), 0, 0, dp(5));
+            card.addView(thermalLegend);
+        }
 
         // CPU CORE CARDS INSIDE CHART CARD
         if (title.equals("CPU CORE LOAD")
@@ -1111,6 +1124,7 @@ public class AnalysisContentBuilder {
         private final List<Double> times;
         private final int accent;
         private final boolean wholeNumberYAxis;
+        private final List<Double> thermalStatus;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         private final float chartLeft = 65f;
@@ -1122,12 +1136,14 @@ public class AnalysisContentBuilder {
                   List<List<Double>> series,
                   List<Double> times,
                   int accent,
-                  boolean wholeNumberYAxis) {
+                  boolean wholeNumberYAxis,
+                  List<Double> thermalStatus) {
             super(context);
             this.series = series;
             this.times = times;
             this.accent = accent;
             this.wholeNumberYAxis = wholeNumberYAxis;
+            this.thermalStatus = thermalStatus;
         }
 
         private String formatTime(double seconds) {
@@ -1191,6 +1207,36 @@ public class AnalysisContentBuilder {
             if (startTime == Double.POSITIVE_INFINITY) return;
 
             double timeRange = endTime - startTime;
+
+            // Shade FPS chart intervals using the recorded Android thermal status.
+            // Each sample's status applies until the next sample timestamp.
+            if (thermalStatus != null && timeRange > 0) {
+                int count = Math.min(Math.min(thermalStatus.size(), times.size()),
+                        series.isEmpty() ? 0 : series.get(0).size());
+                for (int i = 0; i + 1 < count; i++) {
+                    double status = thermalStatus.get(i);
+                    double fromTime = times.get(i);
+                    double toTime = times.get(i + 1);
+                    if (!Double.isFinite(status) || status < 1
+                            || !Double.isFinite(fromTime) || !Double.isFinite(toTime)
+                            || toTime <= fromTime) {
+                        continue;
+                    }
+
+                    float left = chartLeft + (chartRight - chartLeft)
+                            * (float) Math.max(0, Math.min(1,
+                            (fromTime - startTime) / timeRange));
+                    float right = chartLeft + (chartRight - chartLeft)
+                            * (float) Math.max(0, Math.min(1,
+                            (toTime - startTime) / timeRange));
+                    int shade = status >= 2
+                            ? Color.argb(58, 255, 75, 75)
+                            : Color.argb(48, 255, 165, 55);
+                    paint.setColor(shade);
+                    paint.setStyle(Paint.Style.FILL);
+                    canvas.drawRect(left, chartTop, right, chartBottom, paint);
+                }
+            }
 
             paint.setStrokeWidth(1.2f);
             paint.setColor(Color.rgb(65, 78, 94));
