@@ -25,12 +25,19 @@ final class CpuUsageTracker {
 
         if (raw != null) {
             for (String line : raw.split("\\n")) {
-                if (line.length() < 5 || !line.startsWith("cpu")) continue;
-                char coreChar = line.charAt(3);
-                if (coreChar < '0' || coreChar > '7') continue;
-                int id = coreChar - '0';
+                if (!line.startsWith("cpu")) continue;
                 String[] fields = line.trim().split("\\s+");
                 if (fields.length < 5) continue;
+
+                final int id;
+                try {
+                    // Parse the complete suffix so cpu10 cannot be mistaken for cpu1.
+                    id = Integer.parseInt(fields[0].substring(3));
+                } catch (NumberFormatException | IndexOutOfBoundsException ignored) {
+                    continue;
+                }
+                if (id < 0 || id >= 8) continue;
+
                 try {
                     long total = 0;
                     // Linux already includes guest and guest_nice in user and nice.
