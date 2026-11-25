@@ -201,7 +201,8 @@ public class AnalysisContentBuilder {
                 || hasAny(d.frameTimeStdDev);
         boolean hasStutterData = capturedFrameSummary.valid()
                 || hasAny(d.stutterCount);
-        boolean hasFpsStability = hasFps;
+        // FPS stability belongs to the optional frame-pacing summary, not the FPS chart.
+        boolean hasFpsStability = SessionDataPreferences.framePacingEnabled(context) && hasFps;
         boolean hasOnePercentLow = FramePercentileCalculator.averageLowFps(
                 d.frameIntervalsMs, 0.01) >= 0;
         boolean hasPointOnePercentLow = FramePercentileCalculator.averageLowFps(
