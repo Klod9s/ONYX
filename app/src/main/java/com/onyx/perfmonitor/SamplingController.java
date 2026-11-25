@@ -52,7 +52,7 @@ final class SamplingController {
                         schedule();
                         return;
                     }
-                    if (activity.isAppForeground) {
+                    if (activity.isAppForeground && activity.selectedTab == 0) {
                         activity.setStatus(mode
                                 + (activity.running ? " · RECORDING" : " · READY"), false);
                     }
@@ -91,7 +91,7 @@ final class SamplingController {
                             SessionCsvFormatter.appendSample(activity.csv, sessionSample);
                         }
 
-                        if (activity.isAppForeground) {
+                        if (activity.isAppForeground && activity.selectedTab == 0) {
                             activity.render(sample);
                         }
                     }
@@ -107,8 +107,17 @@ final class SamplingController {
     }
 
     private boolean isNeeded() {
-        return activity.isAppForeground
+        return (activity.isAppForeground && activity.selectedTab == 0)
                 || (activity.running && !activity.isOverlaySession());
+    }
+
+    void onMonitorTabChanged() {
+        activity.handler.removeCallbacks(sampler);
+        if (isNeeded()) {
+            wake();
+        } else {
+            activity.monitoringEngine.resetCpuBaseline();
+        }
     }
 
     void schedule() {
