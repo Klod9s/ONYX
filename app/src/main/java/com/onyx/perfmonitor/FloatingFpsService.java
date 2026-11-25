@@ -854,13 +854,14 @@ public class FloatingFpsService extends Service {
                         ? cellWithBottomLine(fpsContent, fpsH, Gravity.CENTER)
                         : cell(fpsContent, fpsH));
             }
-            remaining--;
-            leftColumn.addView(remaining > 0
-                    ? cellWithBottomLine(ramView, ramH, Gravity.CENTER)
-                    : cell(ramView, ramH));
             if (showTemperature) {
-                leftColumn.addView(cell(tempRow, tempH));
+                remaining--;
+                leftColumn.addView(remaining > 0
+                        ? cellWithBottomLine(tempRow, tempH, Gravity.CENTER)
+                        : cell(tempRow, tempH));
             }
+            remaining--;
+            leftColumn.addView(cell(ramView, ramH));
         } else if (leftTwo) {
             leftColumn.addView(cellWithBottomLine(fpsRow, topH, Gravity.CENTER));
             leftColumn.addView(cell(tempRow, botH));
