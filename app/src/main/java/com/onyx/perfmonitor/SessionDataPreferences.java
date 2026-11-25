@@ -54,6 +54,11 @@ final class SessionDataPreferences {
         return prefs.getBoolean(key, prefs.getBoolean(legacyCategory, true));
     }
 
+    static boolean metricEnabledForSettings(
+            Context context, String key, String legacyCategory) {
+        return metricEnabled(context, key, legacyCategory);
+    }
+
     static boolean framePacingEnabled(Context context) {
         return metricEnabled(context, FRAME_AVERAGE, FPS)
                 || metricEnabled(context, FRAME_VARIATION, FPS)
