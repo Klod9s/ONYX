@@ -140,6 +140,43 @@ final class SessionFileManager {
         }
     }
 
+
+    static int writeSessionsZip(
+            android.content.ContentResolver resolver,
+            android.net.Uri uri,
+            File filesDir,
+            Collection<String> names) throws java.io.IOException {
+        java.io.OutputStream output = resolver.openOutputStream(uri);
+        if (output == null) {
+            throw new java.io.IOException("Could not open destination.");
+        }
+
+        int count = 0;
+        try (java.util.zip.ZipOutputStream zip =
+                     new java.util.zip.ZipOutputStream(output)) {
+            byte[] buffer = new byte[8192];
+            for (String name : names) {
+                File file = new File(filesDir, name);
+                if (!file.exists()) {
+                    continue;
+                }
+
+                zip.putNextEntry(new java.util.zip.ZipEntry(name));
+                try (java.io.FileInputStream input =
+                             new java.io.FileInputStream(file)) {
+                    int length;
+                    while ((length = input.read(buffer)) != -1) {
+                        zip.write(buffer, 0, length);
+                    }
+                }
+                zip.closeEntry();
+                count++;
+            }
+        }
+        return count;
+    }
+
+
     static void finalizePendingDeletes(
             File filesDir,
             SharedPreferences metadata,
