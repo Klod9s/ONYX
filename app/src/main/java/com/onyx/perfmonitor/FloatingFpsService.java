@@ -105,7 +105,8 @@ public class FloatingFpsService extends Service {
                                     sample.temperatureC,
                                     sample.averageFrameTimeMs,
                                     sample.cpu,
-                                    sample.gpuLoadPercent);
+                                    sample.gpuLoadPercent,
+                                    sample.ramUsagePercent);
                             // Re-check shared state after sampling; Stop may have been
                             // pressed while this sample was in flight. Never auto-start
                             // the recorder from the sampling loop.
@@ -185,6 +186,7 @@ public class FloatingFpsService extends Service {
     private TextView frameTimeView;
     private TextView cpuView;
     private TextView gpuView;
+    private TextView ramView;
     private FrameTimeGraphView frameTimeGraph;
     private LinearLayout leftColumn;
     private LinearLayout rightColumn;
@@ -251,6 +253,7 @@ public class FloatingFpsService extends Service {
         String frameTime = readings[2];
         String cpu = readings[3];
         String gpu = readings[4];
+        String ram = readings[5];
 
         boolean showFps = overlayPrefs.getBoolean("show_fps", true);
         boolean showTemperature =
@@ -259,18 +262,20 @@ public class FloatingFpsService extends Service {
                 overlayPrefs.getBoolean("show_frame_time_graph", true);
         boolean showCpu = overlayPrefs.getBoolean("show_cpu", true);
         boolean showGpu = overlayPrefs.getBoolean("show_gpu", true);
+        boolean showRam = overlayPrefs.getBoolean("show_ram", false);
         int opacity = overlayPrefs.getInt("overlay_opacity", 85);
         int scalePercent = overlayPrefs.getInt("overlay_scale", 100);
         int style = overlayPrefs.getInt("overlay_style", STYLE_CLASSIC);
 
-        int layoutMode = showGraph ? 1 : (showCpu || showGpu ? 2 : 3);
+        int layoutMode = showGraph ? 1 : (showCpu || showGpu || showRam ? 2 : 3);
 
         int layoutConfig =
                 (showFps ? 1 : 0)
                         | (showTemperature ? 2 : 0)
                         | (showGraph ? 4 : 0)
                         | (showCpu ? 8 : 0)
-                        | (showGpu ? 16 : 0);
+                        | (showGpu ? 16 : 0)
+                        | (showRam ? 32 : 0);
 
         if (scalePercent != currentScale) {
             applyScale(scalePercent);
@@ -291,7 +296,8 @@ public class FloatingFpsService extends Service {
                     showTemperature,
                     showGraph,
                     showCpu,
-                    showGpu);
+                    showGpu,
+                    showRam);
 
             applyScale(scalePercent);
 
@@ -350,6 +356,9 @@ public class FloatingFpsService extends Service {
         if (gpuView != null) {
             gpuView.setVisibility(showGpu ? View.VISIBLE : View.GONE);
         }
+        if (ramView != null) {
+            ramView.setVisibility(showRam ? View.VISIBLE : View.GONE);
+        }
 
         // Text is re-applied after a rebuild, so nothing flashes back to "--"
         if (fpsView != null) fpsView.setText(fps);
@@ -357,6 +366,7 @@ public class FloatingFpsService extends Service {
         if (frameTimeView != null) frameTimeView.setText(frameTime);
         if (cpuView != null) cpuView.setText("CPU " + cpu);
         if (gpuView != null) gpuView.setText("GPU " + gpu);
+        if (ramView != null) ramView.setText("RAM " + ram);
 
         if (addToGraph
                 && frameTimeGraph != null
@@ -490,20 +500,20 @@ public class FloatingFpsService extends Service {
 
     private void buildOverlayLayout(
             boolean showFps, boolean showTemperature, boolean showGraph,
-            boolean showCpu, boolean showGpu) {
+            boolean showCpu, boolean showGpu, boolean showRam) {
 
         currentStyle = overlayPrefs.getInt("overlay_style", STYLE_CLASSIC);
 
         if (currentStyle == STYLE_STRIP) {
-            buildStripLayout(showFps, showTemperature, showGraph, showCpu, showGpu);
+            buildStripLayout(showFps, showTemperature, showGraph, showCpu, showGpu, showRam);
         } else {
-            buildClassicLayout(showFps, showTemperature, showGraph, showCpu, showGpu);
+            buildClassicLayout(showFps, showTemperature, showGraph, showCpu, showGpu, showRam);
         }
     }
 
     private void buildStripLayout(
             boolean showFps, boolean showTemperature, boolean showGraph,
-            boolean showCpu, boolean showGpu) {
+            boolean showCpu, boolean showGpu, boolean showRam) {
 
         overlay.removeAllViews();
         overlay.setClipChildren(false);
@@ -537,10 +547,13 @@ public class FloatingFpsService extends Service {
 
         cpuView = createMetricView("CPU --%");
         gpuView = createMetricView("GPU --%");
+        ramView = createMetricView("RAM --%");
         setOverlayTextSize(cpuView, 8);
         setOverlayTextSize(gpuView, 8);
+        setOverlayTextSize(ramView, 8);
         cpuView.setGravity(Gravity.CENTER);
         gpuView.setGravity(Gravity.CENTER);
+        ramView.setGravity(Gravity.CENTER);
 
         // fixed widths so values don't make the strip jitter
         int fpsNumW = (int) Math.ceil(fpsView.getPaint().measureText("000"));
@@ -548,7 +561,8 @@ public class FloatingFpsService extends Service {
                 temperatureView.getPaint().measureText("88.8°C")) + dpScaled(2);
         int slot = (int) Math.ceil(Math.max(
                 cpuView.getPaint().measureText("CPU 100%"),
-                gpuView.getPaint().measureText("GPU 100%"))) + dpScaled(2);
+                Math.max(gpuView.getPaint().measureText("GPU 100%"),
+                        ramView.getPaint().measureText("RAM 100%")))) + dpScaled(2);
 
         overlayContent = new LinearLayout(this);
         overlayContent.setOrientation(LinearLayout.HORIZONTAL);
@@ -614,7 +628,7 @@ public class FloatingFpsService extends Service {
         }
 
         // section 3: CPU · GPU
-        if (showCpu || showGpu) {
+        if (showCpu || showGpu || showRam) {
             LinearLayout stats = new LinearLayout(this);
             stats.setOrientation(LinearLayout.HORIZONTAL);
             stats.setGravity(Gravity.CENTER_VERTICAL);
@@ -635,13 +649,19 @@ public class FloatingFpsService extends Service {
                 stats.addView(dot, dp);
             }
             if (showGpu) {
+                if (showCpu || showRam) addStripSeparator(stats);
                 stats.addView(gpuView, new LinearLayout.LayoutParams(
+                        slot, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            if (showRam) {
+                if (showCpu || showGpu) addStripSeparator(stats);
+                stats.addView(ramView, new LinearLayout.LayoutParams(
                         slot, ViewGroup.LayoutParams.WRAP_CONTENT));
             }
             addStripSection(stats);
         }
 
-        currentLayoutMode = showGraph ? 1 : ((showCpu || showGpu) ? 2 : 3);
+        currentLayoutMode = showGraph ? 1 : ((showCpu || showGpu || showRam) ? 2 : 3);
 
         overlay.addView(overlayContent);
         overlay.setPadding(dpScaled(8), dpScaled(3), dpScaled(8), dpScaled(3));
@@ -656,6 +676,17 @@ public class FloatingFpsService extends Service {
                 Color.green(overlayBackgroundColor),
                 Color.blue(overlayBackgroundColor)));
         overlay.setBackground(overlayBackground);
+    }
+
+    private void addStripSeparator(LinearLayout stats) {
+        TextView dot = createMetricView("·");
+        dot.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.leftMargin = dpScaled(4);
+        params.rightMargin = dpScaled(4);
+        stats.addView(dot, params);
     }
 
     // Adds a section, with a thin divider before it if it isn't the first
@@ -677,7 +708,8 @@ public class FloatingFpsService extends Service {
             boolean showTemperature,
             boolean showGraph,
             boolean showCpu,
-            boolean showGpu) {
+            boolean showGpu,
+            boolean showRam) {
 
         overlay.removeAllViews();
         overlay.setClipChildren(false);
@@ -690,7 +722,7 @@ public class FloatingFpsService extends Service {
                 "overlay_accent_color", Color.rgb(55, 210, 130));
 
         fpsView = createMetricView("--");
-        setOverlayTextSize(fpsView, 22);
+        setOverlayTextSize(fpsView, showRam ? 16 : 22);
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
@@ -712,20 +744,24 @@ public class FloatingFpsService extends Service {
 
         cpuView = createMetricView("CPU --%");
         gpuView = createMetricView("GPU --%");
+        ramView = createMetricView("RAM --%");
         cpuView.setGravity(Gravity.CENTER);
         gpuView.setGravity(Gravity.CENTER);
+        ramView.setGravity(Gravity.CENTER);
 
         // ---------- widths, measured from the real font (worst-case text) ----------
         int fpsNumW = (int) Math.ceil(fpsView.getPaint().measureText("000"));
         int fpsLabelW = (int) Math.ceil(fpsLabel.getPaint().measureText("FPS"));
-        int fpsRowW = fpsNumW + dpScaled(3) + fpsLabelW;
-        // center the number on the column (same center as the temp row)
-        fpsView.setTranslationX((fpsLabelW + dpScaled(3)) / 2f);
+        int fpsRowW = showRam ? fpsNumW : fpsNumW + dpScaled(3) + fpsLabelW;
+        // The RAM layout uses a smaller, unlabeled FPS value.
+        fpsView.setTranslationX(showRam ? 0f : (fpsLabelW + dpScaled(3)) / 2f);
 
         int tempTextW = (int) Math.ceil(
                 temperatureView.getPaint().measureText("88.8°C")) + dpScaled(2);
         int tempRowW = dpScaled(11) + dpScaled(1) + tempTextW;
 
+        int ramW = (int) Math.ceil(ramView.getPaint().measureText("RAM 100%"))
+                + dpScaled(2);
         int slot = (int) Math.ceil(Math.max(
                 cpuView.getPaint().measureText("CPU 100%"),
                 gpuView.getPaint().measureText("GPU 100%"))) + dpScaled(2);
@@ -735,16 +771,18 @@ public class FloatingFpsService extends Service {
         int cpuGpuRowW = (showCpu ? slot : 0) + (showGpu ? slot : 0)
                 + (showCpu && showGpu ? sepW : 0);
 
-        int leftW = Math.max(showFps ? fpsRowW : 0,
-                showTemperature ? tempRowW : 0);
+        int leftW = Math.max(
+                Math.max(showFps ? fpsRowW : 0, showTemperature ? tempRowW : 0),
+                showRam ? ramW : 0);
         int rightW = showGraph
                 ? Math.max(dpScaled(100), showCpuGpu ? cpuGpuRowW : 0)
                 : slot;
 
         // ---------- heights ----------
-        int fpsH = dpScaled(38);
+        int fpsH = dpScaled(showRam ? 24 : 38);
         int graphH = dpScaled(36);
         int tempH = dpScaled(16);
+        int ramH = dpScaled(16);
         int cpuRowH = dpScaled(16);
 
         int lineH = dpScaled(1);
@@ -763,9 +801,14 @@ public class FloatingFpsService extends Service {
         int leftSingleH = showFps ? fpsH : (showTemperature ? tempH : 0);
         int rightSingleH = showGraph ? graphH : (showCpuGpu ? stackH : 0);
 
-        int contentH = Math.max(topH + botH, Math.max(
-                leftTwo ? 0 : leftSingleH,
-                rightTwo ? 0 : rightSingleH));
+        int leftStackH = (showFps ? fpsH : 0)
+                + (showRam ? ramH : 0)
+                + (showTemperature ? tempH : 0);
+        int contentH = showRam
+                ? Math.max(leftStackH, rightTwo ? topH + botH : rightSingleH)
+                : Math.max(topH + botH, Math.max(
+                        leftTwo ? 0 : leftSingleH,
+                        rightTwo ? 0 : rightSingleH));
 
         // ---------- left column: FPS over temp ----------
         LinearLayout fpsRow = new LinearLayout(this);
@@ -795,7 +838,23 @@ public class FloatingFpsService extends Service {
 
         leftColumn = makeColumn(leftW, contentH);
 
-        if (leftTwo) {
+        if (showRam) {
+            int remaining = (showFps ? 1 : 0) + 1
+                    + (showTemperature ? 1 : 0);
+            if (showFps) {
+                remaining--;
+                leftColumn.addView(remaining > 0
+                        ? cellWithBottomLine(fpsView, fpsH, Gravity.CENTER)
+                        : cell(fpsView, fpsH));
+            }
+            remaining--;
+            leftColumn.addView(remaining > 0
+                    ? cellWithBottomLine(ramView, ramH, Gravity.CENTER)
+                    : cell(ramView, ramH));
+            if (showTemperature) {
+                leftColumn.addView(cell(tempRow, tempH));
+            }
+        } else if (leftTwo) {
             leftColumn.addView(cellWithBottomLine(fpsRow, topH, Gravity.CENTER));
             leftColumn.addView(cell(tempRow, botH));
         } else if (showFps) {
@@ -894,7 +953,7 @@ public class FloatingFpsService extends Service {
         overlayContent.setClipChildren(false);
         overlayContent.setClipToPadding(false);
 
-        boolean hasLeft = showFps || showTemperature;
+        boolean hasLeft = showFps || showTemperature || showRam;
         boolean hasRight = showGraph || showCpuGpu;
 
         if (hasLeft) {
@@ -965,13 +1024,15 @@ public class FloatingFpsService extends Service {
                 overlayPrefs.getBoolean("show_frame_time_graph", true);
         boolean showCpu = overlayPrefs.getBoolean("show_cpu", true);
         boolean showGpu = overlayPrefs.getBoolean("show_gpu", true);
+        boolean showRam = overlayPrefs.getBoolean("show_ram", false);
 
         buildOverlayLayout(
                 showFps,
                 showTemperature,
                 showGraph,
                 showCpu,
-                showGpu);
+                showGpu,
+                showRam);
 
         overlayParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -1081,13 +1142,16 @@ public class FloatingFpsService extends Service {
                 livePrefs.getString("cpu_load", "--%");
         String gpu =
                 livePrefs.getString("gpu_load", "--%");
+        String ram =
+                livePrefs.getString("ram_usage", "--%");
 
         return new String[]{
                 fps,
                 temperature,
                 frameTime,
                 cpu,
-                gpu
+                gpu,
+                ram
         };
     }
 
