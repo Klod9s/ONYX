@@ -190,8 +190,9 @@ public class AnalysisContentBuilder {
         // FRAME PACING SUMMARY
         addFramePacingSummary(layout);
 
-        // FPS CHART
+        // FPS and system memory charts
         addChart(layout, "FPS OVER TIME", d.fps, "FPS");
+        addChart(layout, "RAM USAGE", d.ramUsage, "%");
 
         // CPU chart data
         List<List<Double>> cpuSeries = new ArrayList<>();
