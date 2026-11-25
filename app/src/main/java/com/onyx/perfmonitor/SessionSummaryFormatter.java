@@ -31,6 +31,10 @@ final class SessionSummaryFormatter {
     }
 
     static String build(List<Sample> samples) {
+        return build(samples, null);
+    }
+
+    static String build(List<Sample> samples, android.content.Context context) {
         if (samples.isEmpty()) return "No valid readings collected.";
 
         int startBattery = samples.get(0).battery;
