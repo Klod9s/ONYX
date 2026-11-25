@@ -1079,10 +1079,14 @@ public class FloatingFpsService extends Service {
                     "Unable to reattach overlay after app handoff", e);
             if (!serviceDestroyed
                     && overlayPrefs.getBoolean("overlay_enabled", false)) {
-                handler.postDelayed(reattachOverlayRunnable, 1000);
+                handler.postDelayed(this::retryOverlayReattach, 1000);
             }
         }
     };
+
+    private void retryOverlayReattach() {
+        handler.post(reattachOverlayRunnable);
+    }
 
     private void attachOverlay() {
         if (Build.VERSION.SDK_INT >= 23
