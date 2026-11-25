@@ -30,14 +30,14 @@ public class FramePacingSummaryCalculatorTest {
     public void ignoresInvalidIntervals() {
         List<Double> intervals = Arrays.asList(
                 10.0, Double.NaN, Double.POSITIVE_INFINITY,
-                0.0, -1.0, 20.0, 10_001.0);
+                0.0, -1.0, 10.0, 20.0, 10.0, 10_001.0);
 
         FramePacingSummaryCalculator.Result result =
                 FramePacingSummaryCalculator.calculate(intervals);
 
-        assertEquals(13.3333333333, result.averageFrameTimeMs, 0.0001);
+        assertEquals(12.5, result.averageFrameTimeMs, 0.0001);
         assertEquals(1, result.stutterCount);
-        assertEquals(3, result.validIntervalCount);
+        assertEquals(4, result.validIntervalCount);
     }
 
     @Test
