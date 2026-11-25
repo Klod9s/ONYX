@@ -15,6 +15,7 @@ public final class OverlayMetricsStore {
 
     private final SharedPreferences livePrefs;
     private final String[] lastPublished = new String[6];
+    private int lastThermalStatus = Integer.MIN_VALUE;
 
     public OverlayMetricsStore(Context context) {
         livePrefs = context.getApplicationContext()
@@ -27,7 +28,8 @@ public final class OverlayMetricsStore {
             double averageFrameTimeMs,
             double[] cpu,
             double gpuLoadPercent,
-            double ramUsagePercent
+            double ramUsagePercent,
+            int thermalStatus
     ) {
         double cpuTotal = 0;
         int cpuCount = 0;
@@ -57,8 +59,10 @@ public final class OverlayMetricsStore {
                         : String.format(Locale.US, "%.0f%%", ramUsagePercent)
         };
 
-        if (Arrays.equals(values, lastPublished)) return;
+        if (Arrays.equals(values, lastPublished)
+                && thermalStatus == lastThermalStatus) return;
         System.arraycopy(values, 0, lastPublished, 0, values.length);
+        lastThermalStatus = thermalStatus;
 
         livePrefs.edit()
                 .putString("fps", values[0])
@@ -67,6 +71,7 @@ public final class OverlayMetricsStore {
                 .putString("cpu_load", values[3])
                 .putString("gpu_load", values[4])
                 .putString("ram_usage", values[5])
+                .putInt("thermal_status", thermalStatus)
                 .apply();
     }
 }
