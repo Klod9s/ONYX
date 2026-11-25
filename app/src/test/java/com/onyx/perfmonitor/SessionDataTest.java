@@ -19,6 +19,8 @@ public class SessionDataTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    private int sessionFileCounter = 0;
+
     @Test
     public void loadParsesSessionMetadataAndReadings() throws Exception {
         File file = writeSession(
@@ -170,7 +172,8 @@ public class SessionDataTest {
     }
 
     private File writeSession(String... lines) throws Exception {
-        File file = temporaryFolder.newFile("test_session.csv");
+        File file = temporaryFolder.newFile(
+                "test_session_" + sessionFileCounter++ + ".csv");
         try (FileWriter writer = new FileWriter(file)) {
             writer.write("ONYX SESSION\n");
             for (String line : lines) {
