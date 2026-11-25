@@ -816,13 +816,15 @@ public class FloatingFpsService extends Service {
         fpsRow.setGravity(Gravity.CENTER);
         fpsRow.setClipChildren(false);
         fpsRow.setClipToPadding(false);
-        fpsRow.addView(fpsView, new LinearLayout.LayoutParams(
-                fpsNumW, ViewGroup.LayoutParams.WRAP_CONTENT));
-        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        labelParams.leftMargin = dpScaled(3);
-        fpsRow.addView(fpsLabel, labelParams);
+        if (!showRam) {
+            fpsRow.addView(fpsView, new LinearLayout.LayoutParams(
+                    fpsNumW, ViewGroup.LayoutParams.WRAP_CONTENT));
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            labelParams.leftMargin = dpScaled(3);
+            fpsRow.addView(fpsLabel, labelParams);
+        }
 
         LinearLayout tempRow = new LinearLayout(this);
         tempRow.setOrientation(LinearLayout.HORIZONTAL);
