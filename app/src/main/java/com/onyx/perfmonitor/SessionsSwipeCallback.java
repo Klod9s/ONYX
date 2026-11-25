@@ -86,6 +86,18 @@ private final int RED = Color.rgb(240, 104, 122);
     }
 
     @Override
+    public void clearView(RecyclerView rv, RecyclerView.ViewHolder vh) {
+        super.clearView(rv, vh);
+
+        // Rebind the row after the gesture to restore its normal border/glow,
+        // pinned state and elevation.
+        int position = vh.getBindingAdapterPosition();
+        if (position != RecyclerView.NO_POSITION) {
+            activity.sessionsAdapter.notifyItemChanged(position);
+        }
+    }
+
+    @Override
     public void onChildDraw(Canvas c, RecyclerView rv, RecyclerView.ViewHolder vh,
                             float dX, float dY, int actionState, boolean active) {
         View item = vh.itemView;
@@ -96,10 +108,15 @@ private final int RED = Color.rgb(240, 104, 122);
         // once the swipe settles.
         if (dX != 0f) {
             item.setElevation(0f);
-        } else {
-            boolean pinned = vh instanceof SessionsAdapter.Holder
-                    && ((SessionsAdapter.Holder) vh).fileName.equals(activity.pinnedFile);
-            item.setElevation(pinned ? 0f : activity.dp(3));
+            item.setTranslationZ(0f);
+
+            // Hide the card's own outline/glow while it slides away. Otherwise
+            // its border remains visible along the moving edge over the action.
+            if (vh instanceof SessionsAdapter.Holder) {
+                SessionsAdapter.Holder holder = (SessionsAdapter.Holder) vh;
+                holder.bg.setStroke(0, Color.TRANSPARENT);
+                holder.card.setBackground(holder.bg);
+            }
         }
 
         if (dX > 0) {
