@@ -892,7 +892,7 @@ new MonitorPageBuilder(this).build(page);
 
 
     String makeSummary() {
-        return SessionSummaryFormatter.build(samples);
+        return SessionSummaryFormatter.build(samples, this);
     }
 
 
