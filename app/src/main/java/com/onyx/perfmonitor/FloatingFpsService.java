@@ -296,7 +296,7 @@ public class FloatingFpsService extends Service {
                 || layoutMode != currentLayoutMode
                 || layoutConfig != currentLayoutConfig
                 || overlayPrefs.getInt("overlay_accent_color",
-                Color.rgb(55, 210, 130)) != overlayAccentColor
+                Color.rgb(69, 168, 245)) != overlayAccentColor
                 || overlayPrefs.getInt("overlay_text_color",
                 Color.WHITE) != overlayTextColor
                 || overlayPrefs.getInt("overlay_background_color",
@@ -554,7 +554,7 @@ public class FloatingFpsService extends Service {
         final boolean compactFps = false;
 
         overlayAccentColor = overlayPrefs.getInt(
-                "overlay_accent_color", Color.rgb(55, 210, 130));
+                "overlay_accent_color", Color.rgb(69, 168, 245));
 
         // views (always created, the updater touches all of them)
         fpsView = createMetricView("--");
@@ -755,7 +755,7 @@ public class FloatingFpsService extends Service {
 
         // ---------- views (always created; the updater touches all of them) ----------
         overlayAccentColor = overlayPrefs.getInt(
-                "overlay_accent_color", Color.rgb(55, 210, 130));
+                "overlay_accent_color", Color.rgb(69, 168, 245));
 
         fpsView = createMetricView("--");
         setOverlayTextSize(fpsView, compactFps ? 16 : 22);
