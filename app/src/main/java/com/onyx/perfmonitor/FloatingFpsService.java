@@ -1058,15 +1058,17 @@ public class FloatingFpsService extends Service {
     }
 
     private final Runnable reattachOverlayRunnable = () -> {
-        if (serviceDestroyed || !attached || overlayRoot == null
+        if (serviceDestroyed || overlayRoot == null
                 || windowManager == null
                 || !overlayPrefs.getBoolean("overlay_enabled", false)) {
             return;
         }
 
         try {
-            windowManager.removeViewImmediate(overlayRoot);
-            attached = false;
+            if (attached) {
+                windowManager.removeViewImmediate(overlayRoot);
+                attached = false;
+            }
             windowManager.addView(overlayRoot, overlayParams);
             attached = true;
             handler.removeCallbacks(updater);
@@ -1075,6 +1077,10 @@ public class FloatingFpsService extends Service {
             // Keep the service alive; a later foreground handoff can retry.
             android.util.Log.w("FloatingFpsService",
                     "Unable to reattach overlay after app handoff", e);
+            if (!serviceDestroyed
+                    && overlayPrefs.getBoolean("overlay_enabled", false)) {
+                handler.postDelayed(reattachOverlayRunnable, 1000);
+            }
         }
     };
 
