@@ -16,6 +16,10 @@ public final class OverlayMetricsStore {
     private final SharedPreferences livePrefs;
     private final String[] lastPublished = new String[6];
     private int lastThermalStatus = Integer.MIN_VALUE;
+    private int lastCpuCoolingState = Integer.MIN_VALUE;
+    private int lastCpuCoolingMaxState = Integer.MIN_VALUE;
+    private int lastGpuCoolingState = Integer.MIN_VALUE;
+    private int lastGpuCoolingMaxState = Integer.MIN_VALUE;
 
     public OverlayMetricsStore(Context context) {
         livePrefs = context.getApplicationContext()
@@ -29,7 +33,11 @@ public final class OverlayMetricsStore {
             double[] cpu,
             double gpuLoadPercent,
             double ramUsagePercent,
-            int thermalStatus
+            int thermalStatus,
+            int cpuCoolingState,
+            int cpuCoolingMaxState,
+            int gpuCoolingState,
+            int gpuCoolingMaxState
     ) {
         double cpuTotal = 0;
         int cpuCount = 0;
@@ -60,9 +68,17 @@ public final class OverlayMetricsStore {
         };
 
         if (Arrays.equals(values, lastPublished)
-                && thermalStatus == lastThermalStatus) return;
+                && thermalStatus == lastThermalStatus
+                && cpuCoolingState == lastCpuCoolingState
+                && cpuCoolingMaxState == lastCpuCoolingMaxState
+                && gpuCoolingState == lastGpuCoolingState
+                && gpuCoolingMaxState == lastGpuCoolingMaxState) return;
         System.arraycopy(values, 0, lastPublished, 0, values.length);
         lastThermalStatus = thermalStatus;
+        lastCpuCoolingState = cpuCoolingState;
+        lastCpuCoolingMaxState = cpuCoolingMaxState;
+        lastGpuCoolingState = gpuCoolingState;
+        lastGpuCoolingMaxState = gpuCoolingMaxState;
 
         livePrefs.edit()
                 .putString("fps", values[0])
@@ -72,6 +88,10 @@ public final class OverlayMetricsStore {
                 .putString("gpu_load", values[4])
                 .putString("ram_usage", values[5])
                 .putInt("thermal_status", thermalStatus)
+                .putInt("cpu_cooling_state", cpuCoolingState)
+                .putInt("cpu_cooling_max_state", cpuCoolingMaxState)
+                .putInt("gpu_cooling_state", gpuCoolingState)
+                .putInt("gpu_cooling_max_state", gpuCoolingMaxState)
                 .apply();
     }
 }
