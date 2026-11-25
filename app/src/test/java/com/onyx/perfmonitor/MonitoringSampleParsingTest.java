@@ -181,4 +181,16 @@ public class MonitoringSampleParsingTest {
         assertEquals(-850.0, BatteryCurrent.sysfsMicroampsToMilliamps(-850000L), 0.0001);
         assertEquals(0.0, BatteryCurrent.sysfsMicroampsToMilliamps(0L), 0.0001);
     }
+    @Test
+    public void calculatesBatteryPowerOnlyFromValidFiniteCurrentAndVoltage() {
+        assertEquals(4.8, MonitoringEngine.calculatePowerWatts(1200, 4.0, true), 0.0001);
+        assertEquals(-3.4, MonitoringEngine.calculatePowerWatts(-850, 4.0, true), 0.0001);
+        assertEquals(0.0, MonitoringEngine.calculatePowerWatts(0, 4.0, true), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.calculatePowerWatts(-1, 4.0, false), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.calculatePowerWatts(1000, -1, true), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.calculatePowerWatts(Double.NaN, 4.0, true), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.calculatePowerWatts(
+                1000, Double.POSITIVE_INFINITY, true), 0.0001);
+    }
+
 }
