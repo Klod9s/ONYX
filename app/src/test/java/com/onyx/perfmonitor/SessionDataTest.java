@@ -79,6 +79,29 @@ public class SessionDataTest {
     }
 
     @Test
+    public void loadParsesRamUsageAndKeepsLegacySessionsUnavailable() throws Exception {
+        File current = writeSession(
+                "Device,Test device",
+                rowWithRam("00:00:01", "60", "67.5")
+        );
+
+        SessionData currentData = SessionData.load(current);
+
+        assertNotNull(currentData);
+        assertEquals(67.5, currentData.ramUsage.get(0), 0.0001);
+
+        File legacy = writeSession(
+                "Device,Test device",
+                row("00:00:01", "60")
+        );
+
+        SessionData legacyData = SessionData.load(legacy);
+
+        assertNotNull(legacyData);
+        assertEquals(-1.0, legacyData.ramUsage.get(0), 0.0001);
+    }
+
+    @Test
     public void invalidAndNonFiniteNumbersBecomeUnavailable() throws Exception {
         File file = writeSession(
                 "Device,Test device",
@@ -166,6 +189,15 @@ public class SessionDataTest {
             }
         }
         return file;
+    }
+
+    private String rowWithRam(String time, String fps, String ram) {
+        String[] columns = new String[33];
+        Arrays.fill(columns, "");
+        columns[0] = time;
+        columns[2] = fps;
+        columns[32] = ram;
+        return String.join(",", columns);
     }
 
     private String row(String time, String fps, String... extraValues) {
