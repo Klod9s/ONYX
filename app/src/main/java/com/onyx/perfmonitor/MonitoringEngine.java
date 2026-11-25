@@ -174,8 +174,15 @@ private Sample readSample(boolean recording) {
                         "echo __CPU__; cat /proc/stat; " +
                         "echo __CPU_FREQ__; " +
                         "for i in 0 1 2 3 4 5 6 7; do " +
-                        "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; " +
-                        "if [ -r \"$F\" ]; then cat \"$F\"; else echo -1; fi; " +
+                        "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
+                        "[ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                        "case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                        "if [ -z \"$V\" ] || [ \"$V\" -le 0 ] 2>/dev/null; then " +
+                        " F=/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq; V=; " +
+                        " [ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                        " case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                        "fi; " +
+                        "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
                         "done; " +
 
                         // --- STRICT UNIVERSAL GPU DETECTION ---
@@ -440,8 +447,15 @@ private Sample readShizukuSample(boolean recording) {
                                 "echo __PROC_STAT__; cat /proc/stat; " +
                                 "echo __CPU_FREQ__; " +
                                 "for i in 0 1 2 3 4 5 6 7; do " +
-                                "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; " +
-                                "if [ -r \"$F\" ]; then cat \"$F\"; else echo -1; fi; " +
+                                "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
+                                "[ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                                "case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                                "if [ -z \"$V\" ] || [ \"$V\" -le 0 ] 2>/dev/null; then " +
+                                " F=/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq; V=; " +
+                                " [ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                                " case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                                "fi; " +
+                                "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
                                 "done; " +
                                 "CACHED_FREQ='" + validateSysfsPath(cachedGpuFreqPath) + "'; " +
                                 "CACHED_LOAD='" + validateSysfsPath(cachedGpuLoadPath) + "'; " +
