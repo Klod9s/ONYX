@@ -1265,9 +1265,11 @@ public class FloatingFpsService extends Service {
 
     private void toggleBackgroundRecording() {
         if (sessionPrefs.getBoolean("recording", false)) {
+            monitoringEngine.endFrameCapture();
             sessionPrefs.edit().putBoolean("recording", false).apply();
             if (sessionRecorder != null) sessionRecorder.finish();
         } else {
+            monitoringEngine.beginFrameCapture();
             if (sessionRecorder != null) sessionRecorder.start();
             sessionPrefs.edit().putBoolean("recording", true).apply();
         }
