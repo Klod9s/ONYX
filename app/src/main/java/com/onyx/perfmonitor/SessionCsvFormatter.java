@@ -121,7 +121,7 @@ final class SessionCsvFormatter {
         row.append(',').append('"');
         for (int i = 0; i < sample.frameIntervalsMs.size(); i++) {
             if (i > 0) row.append(';');
-            row.append(String.format(Locale.US, \"%.3f\", sample.frameIntervalsMs.get(i)));
+            row.append(String.format(Locale.US, "%.3f", sample.frameIntervalsMs.get(i)));
         }
         row.append('"');
 
