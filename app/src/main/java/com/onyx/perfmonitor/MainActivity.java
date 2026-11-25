@@ -569,8 +569,8 @@ new MonitorPageBuilder(this).build(page);
         int currentColor = getAppAccentColor();
 
         int[] presetColors = {
-                Color.rgb(101, 214, 165),
                 Color.rgb(69, 168, 245),
+                Color.rgb(101, 214, 165),
                 Color.rgb(167, 139, 250),
                 Color.rgb(241, 107, 117)
         };
