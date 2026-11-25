@@ -364,17 +364,7 @@ private Sample readSample(boolean recording) {
 
             // Independent Frequency parsing using explicit markers
             String cpuFreqRaw = between(output, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
-            if (!cpuFreqRaw.isEmpty()) {
-                String[] cpuFreqValues = cpuFreqRaw.split("\\s+");
-                for (int i = 0; i < 8 && i < cpuFreqValues.length; i++) {
-                    try {
-                        double khz = Double.parseDouble(cpuFreqValues[i]);
-                        sample.cpuFreqMHz[i] = khz > 0 ? khz / 1000.0 : -1;
-                    } catch (Exception ignored) {
-                        sample.cpuFreqMHz[i] = -1;
-                    }
-                }
-            }
+            parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
             // GPU Freq Block (FIXED: uses 'output', not 'freqOutput')
             String gpuFreqBlock = between(output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
@@ -562,17 +552,7 @@ private Sample readShizukuSample(boolean recording) {
                     }
                     // Parse CPU Freq
                     String cpuFreqRaw = between(freqOutput, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
-                    if (!cpuFreqRaw.isEmpty()) {
-                        String[] cpuFreqValues = cpuFreqRaw.split("\\s+");
-                        for (int i = 0; i < 8 && i < cpuFreqValues.length; i++) {
-                            try {
-                                double khz = Double.parseDouble(cpuFreqValues[i]);
-                                sample.cpuFreqMHz[i] = khz > 0 ? khz / 1000.0 : -1;
-                            } catch (Exception ignored) {
-                                sample.cpuFreqMHz[i] = -1;
-                            }
-                        }
-                    }
+                    parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
                     // Parse GPU Freq
                     String gpuFreqBlock = between(freqOutput, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
@@ -770,6 +750,29 @@ private double[] parseCpu(String raw) {
         }
         sample.cpuTemperatureC = maxCpu;
         sample.gpuTemperatureC = maxGpu;
+    }
+
+    /**
+     * Parses per-core scaling_cur_freq values. Linux cpufreq sysfs reports kHz;
+     * the app stores MHz. Missing, malformed, non-finite, and non-positive
+     * readings remain unavailable (-1), without shifting later core indices.
+     */
+    static void parseCpuFrequencies(String raw, double[] destination) {
+        if (destination == null) return;
+        java.util.Arrays.fill(destination, -1);
+        if (raw == null || raw.trim().isEmpty()) return;
+
+        String[] values = raw.trim().split("\\s+");
+        for (int i = 0; i < destination.length && i < values.length; i++) {
+            try {
+                double khz = Double.parseDouble(values[i]);
+                if (Double.isFinite(khz) && khz > 0) {
+                    destination[i] = khz / 1000.0;
+                }
+            } catch (NumberFormatException ignored) {
+                // Keep this core unavailable; preserve later core indices.
+            }
+        }
     }
 
     static double parseGpuFrequencyMHz(String raw) {
