@@ -27,6 +27,35 @@ final class SessionFileManager {
         return names;
     }
 
+
+    static List<SessionItem> loadHistoryItems(
+            android.content.Context context,
+            File folder,
+            Collection<String> hiddenNames) {
+        File[] files = folder.listFiles((dir, name) ->
+                name.startsWith("session_") && name.endsWith(".csv")
+                        && !hiddenNames.contains(name));
+
+        List<SessionItem> items = new ArrayList<>();
+        if (files != null) {
+            java.util.Arrays.sort(files,
+                    (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+            for (File file : files) {
+                SessionData meta = SessionData.readMeta(context, file);
+                long when = meta != null
+                        ? meta.sessionDate().getTime() : file.lastModified();
+                items.add(new SessionItem(
+                        file.getName(),
+                        file.lastModified(),
+                        when,
+                        meta != null ? meta.deviceLabel() : "Unknown device",
+                        meta != null && meta.imported,
+                        meta != null ? meta.originalName : ""));
+            }
+        }
+        return items;
+    }
+
     static void finalizePendingDeletes(
             File filesDir,
             SharedPreferences metadata,
