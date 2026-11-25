@@ -65,8 +65,10 @@ public class SessionDataTest {
         assertEquals(data.times.size(), data.temperature.size());
         assertEquals(data.times.size(), data.gpuFreq.size());
         assertEquals(data.times.size(), data.averageFrameTime.size());
+        assertEquals(data.times.size(), data.ramUsage.size());
 
         assertEquals(60.0, data.fps.get(0), 0.0001);
+        assertEquals(-1.0, data.ramUsage.get(0), 0.0001);
         assertEquals(-1.0, data.fps.get(1), 0.0001);
         assertEquals(-1.0, data.current.get(0), 0.0001);
         assertEquals(-1.0, data.gpuFreq.get(0), 0.0001);
