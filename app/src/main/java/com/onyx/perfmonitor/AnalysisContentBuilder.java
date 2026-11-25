@@ -3,6 +3,7 @@ package com.onyx.perfmonitor;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.view.Gravity;
@@ -1380,6 +1381,33 @@ public class AnalysisContentBuilder {
                 paint.setStrokeWidth(3f);
                 paint.setStyle(Paint.Style.STROKE);
                 canvas.drawPath(path, paint);
+            }
+
+            // Mark the exact start and end of each elevated thermal period.
+            // Draw these over the FPS plot with a subtle dashed stroke.
+            if (thermalStatus != null && timeRange > 0) {
+                List<ThermalPeriod> periods = getThermalPeriods();
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(1));
+                paint.setStrokeCap(Paint.Cap.BUTT);
+                paint.setPathEffect(new DashPathEffect(
+                        new float[]{dp(4), dp(3)}, 0));
+                for (ThermalPeriod period : periods) {
+                    int boundaryColor = period.severity >= 2
+                            ? Color.rgb(245, 91, 91) : Color.rgb(255, 174, 66);
+                    paint.setColor(Color.argb(175,
+                            Color.red(boundaryColor),
+                            Color.green(boundaryColor),
+                            Color.blue(boundaryColor)));
+
+                    float startX = chartLeft + (chartRight - chartLeft)
+                            * (float) ((period.start - startTime) / timeRange);
+                    float endX = chartLeft + (chartRight - chartLeft)
+                            * (float) ((period.end - startTime) / timeRange);
+                    canvas.drawLine(startX, chartTop, startX, chartBottom, paint);
+                    canvas.drawLine(endX, chartTop, endX, chartBottom, paint);
+                }
+                paint.setPathEffect(null);
             }
 
             // Compact thermal timeline; event details are shown only on tap.
