@@ -25,6 +25,7 @@ final class MonitoringEngine {
     private final FpsDetector fpsDetector = new FpsDetector();
     private volatile boolean frameCaptureRequested;
     private volatile boolean frameCaptureActive;
+    private volatile boolean frameCaptureStopRequested;
     private long startMs = System.currentTimeMillis();
     private String lastPackage = "Unknown";
     private final CpuUsageTracker cpuUsageTracker = new CpuUsageTracker();
@@ -67,6 +68,7 @@ final class MonitoringEngine {
     }
 
     void beginFrameCapture() {
+        frameCaptureStopRequested = false;
         frameCaptureRequested = true;
         frameCaptureActive = true;
     }
@@ -74,6 +76,7 @@ final class MonitoringEngine {
     void endFrameCapture() {
         frameCaptureActive = false;
         frameCaptureRequested = false;
+        frameCaptureStopRequested = true;
     }
 
     void resetMonitoringModeCheck() {
@@ -93,6 +96,10 @@ final class MonitoringEngine {
     }
 
     Sample sample(boolean recording) {
+        if (frameCaptureStopRequested) {
+            fpsDetector.endFrameCapture();
+            frameCaptureStopRequested = false;
+        }
         if (frameCaptureRequested) {
             fpsDetector.beginFrameCapture();
             frameCaptureRequested = false;
