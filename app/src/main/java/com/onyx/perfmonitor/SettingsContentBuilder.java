@@ -251,26 +251,52 @@ final class SettingsContentBuilder {
 
         activity.add(dataCollectionCard, activity.section("DATA COLLECTION"), 0, 8);
         TextView dataCollectionNote = activity.text(
-                "Choose which metrics are saved to session files and shown in Session Analysis and Session Comparison. "
+                "Choose exactly which metrics are saved to session files and shown in Session Analysis and Session Comparison. "
                         + "Disabled metrics are not stored. Existing sessions are unchanged.",
                 12, false, Color.rgb(145, 158, 175));
-        activity.add(dataCollectionCard, dataCollectionNote, 0, 8);
+        activity.add(dataCollectionCard, dataCollectionNote, 0, 12);
 
-        addDataCollectionOption(dataCollectionCard,
-                "FPS & FRAME PACING", "FPS, average frame time, variation, stutters, and frame intervals.",
-                SessionDataPreferences.FPS);
-        addDataCollectionOption(dataCollectionCard,
-                "BATTERY & POWER", "Battery level, current, voltage, power, drain rate, and battery temperature.",
-                SessionDataPreferences.BATTERY);
-        addDataCollectionOption(dataCollectionCard,
-                "CPU", "Per-core usage, per-core frequency, and CPU temperature.",
-                SessionDataPreferences.CPU);
-        addDataCollectionOption(dataCollectionCard,
-                "GPU", "GPU load, frequency, and GPU temperature.",
-                SessionDataPreferences.GPU);
-        addDataCollectionOption(dataCollectionCard,
-                "RAM", "System RAM usage percentage.",
-                SessionDataPreferences.RAM);
+        addDataCollectionCategory(dataCollectionCard, "FPS & FRAME PACING",
+                new String[][]{
+                        {"FPS", SessionDataPreferences.FPS_VALUE},
+                        {"Average frame time", SessionDataPreferences.FRAME_AVERAGE},
+                        {"Frame time variation", SessionDataPreferences.FRAME_VARIATION},
+                        {"Stutters", SessionDataPreferences.FRAME_STUTTERS},
+                        {"Frame intervals", SessionDataPreferences.FRAME_INTERVALS}
+                }, SessionDataPreferences.FPS);
+        addDataCollectionSpacer(dataCollectionCard);
+
+        addDataCollectionCategory(dataCollectionCard, "BATTERY & POWER",
+                new String[][]{
+                        {"Level", SessionDataPreferences.BATTERY_LEVEL},
+                        {"Current", SessionDataPreferences.BATTERY_CURRENT},
+                        {"Voltage", SessionDataPreferences.BATTERY_VOLTAGE},
+                        {"Power", SessionDataPreferences.BATTERY_POWER},
+                        {"Drain rate", SessionDataPreferences.BATTERY_DRAIN},
+                        {"Temperature", SessionDataPreferences.BATTERY_TEMP}
+                }, SessionDataPreferences.BATTERY);
+        addDataCollectionSpacer(dataCollectionCard);
+
+        addDataCollectionCategory(dataCollectionCard, "CPU",
+                new String[][]{
+                        {"Usage", SessionDataPreferences.CPU_USAGE},
+                        {"Temperature", SessionDataPreferences.CPU_TEMP},
+                        {"Frequency", SessionDataPreferences.CPU_FREQUENCY}
+                }, SessionDataPreferences.CPU);
+        addDataCollectionSpacer(dataCollectionCard);
+
+        addDataCollectionCategory(dataCollectionCard, "GPU",
+                new String[][]{
+                        {"Usage", SessionDataPreferences.GPU_USAGE},
+                        {"Temperature", SessionDataPreferences.GPU_TEMP},
+                        {"Frequency", SessionDataPreferences.GPU_FREQUENCY}
+                }, SessionDataPreferences.GPU);
+        addDataCollectionSpacer(dataCollectionCard);
+
+        addDataCollectionCategory(dataCollectionCard, "RAM",
+                new String[][]{
+                        {"Usage", SessionDataPreferences.RAM_USAGE}
+                }, SessionDataPreferences.RAM);
 
         activity.add(content, dataCollectionCard, 0, 14);
 
@@ -279,17 +305,32 @@ final class SettingsContentBuilder {
         activity.add(content, backgroundCard, 0, 14);
     }
 
+    private void addDataCollectionCategory(
+            LinearLayout parent, String category, String[][] options, String legacyCategory) {
+        activity.add(parent, activity.section(category), 0, 6);
+        for (String[] option : options) {
+            addDataCollectionOption(parent, option[0], option[1], legacyCategory);
+        }
+    }
+
+    private void addDataCollectionSpacer(LinearLayout parent) {
+        View spacer = new View(activity);
+        parent.addView(spacer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, activity.dp(10)));
+    }
+
     private void addDataCollectionOption(
-            LinearLayout parent, String title, String description, String key) {
+            LinearLayout parent, String title, String key, String legacyCategory) {
         android.widget.CheckBox option = new android.widget.CheckBox(activity);
-        option.setText(title + "  ·  " + description);
+        option.setText(title);
         option.setTextColor(Color.WHITE);
         option.setTextSize(12);
         option.setGravity(Gravity.CENTER_VERTICAL);
-        option.setPadding(0, activity.dp(5), 0, activity.dp(5));
+        option.setPadding(0, activity.dp(3), 0, activity.dp(3));
         option.setButtonTintList(
                 android.content.res.ColorStateList.valueOf(activity.getAppAccentColor()));
-        option.setChecked(SessionDataPreferences.enabled(activity, key));
+        option.setChecked(SessionDataPreferences.metricEnabledForSettings(
+                activity, key, legacyCategory));
         option.setOnCheckedChangeListener((button, checked) ->
                 SessionDataPreferences.get(activity).edit().putBoolean(key, checked).apply());
         parent.addView(option, new LinearLayout.LayoutParams(
