@@ -94,7 +94,8 @@ final class OverlaySessionRecorder {
 
         File rows = new File(context.getFilesDir(), ROWS_FILE);
         try (FileOutputStream out = new FileOutputStream(rows, true)) {
-            out.write(makeRow(sample).getBytes(StandardCharsets.UTF_8));
+            Sample sessionSample = SessionDataPreferences.forSession(sample, context);
+            out.write(makeRow(sessionSample).getBytes(StandardCharsets.UTF_8));
         } catch (Exception ignored) {
         }
     }
