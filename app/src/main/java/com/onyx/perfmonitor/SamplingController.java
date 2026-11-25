@@ -104,7 +104,8 @@ final class SamplingController {
     }
 
     private boolean isNeeded() {
-        return activity.isAppForeground || activity.running;
+        return activity.isAppForeground
+                || (activity.running && !activity.isOverlaySession());
     }
 
     void schedule() {
