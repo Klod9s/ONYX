@@ -1,8 +1,6 @@
 package com.onyx.perfmonitor;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
 import org.junit.Test;
 
@@ -71,12 +69,11 @@ public class MonitoringSampleParsingTest {
         assertEquals(ThermalCoolingReader.UNAVAILABLE, sample.coolingDeviceActive);
         assertEquals(ThermalCoolingReader.UNAVAILABLE, sample.cpuCoolingState);
         assertEquals(ThermalCoolingReader.UNAVAILABLE, sample.gpuCoolingState);
-        assertNull(null); // Keeps this test independent of Android runtime objects.
     }
 
     @Test
     public void coolingParserSafelyIgnoresNullSample() {
         MonitoringEngine.applyCoolingReading("cpu 1 2", null);
-        assertNotNull(new Sample());
+        // No exception is expected for a null destination sample.
     }
 }
