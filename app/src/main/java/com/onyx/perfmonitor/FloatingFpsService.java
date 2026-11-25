@@ -260,22 +260,10 @@ public class FloatingFpsService extends Service {
         String gpu = readings[4];
         String ram = readings[5];
         int thermalStatus;
-        int cpuCoolingState;
-        int gpuCoolingState;
         try {
             thermalStatus = Integer.parseInt(readings[6]);
         } catch (Exception ignored) {
             thermalStatus = ThermalStatusReader.UNAVAILABLE;
-        }
-        try {
-            cpuCoolingState = Integer.parseInt(readings[7]);
-        } catch (Exception ignored) {
-            cpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
-        }
-        try {
-            gpuCoolingState = Integer.parseInt(readings[9]);
-        } catch (Exception ignored) {
-            gpuCoolingState = ThermalCoolingReader.UNAVAILABLE;
         }
 
         boolean showFps = overlayPrefs.getBoolean("show_fps", true);
@@ -388,10 +376,7 @@ public class FloatingFpsService extends Service {
         if (temperatureView != null) temperatureView.setText(temperature);
         if (batteryIconView != null) {
             int thermalLevel = ThermalStatusReader.overlayLevel(thermalStatus);
-            boolean cpuCoolingActive = cpuCoolingState > 0;
-            boolean gpuCoolingActive = gpuCoolingState > 0;
             if (thermalLevel > 0) {
-                // Android thermal severity remains the primary indicator.
                 batteryIconView.setImageResource(R.drawable.ic_thermal_flame);
                 int flameColor = thermalLevel == 1
                         ? Color.rgb(255, 152, 0)
@@ -400,24 +385,13 @@ public class FloatingFpsService extends Service {
                         android.content.res.ColorStateList.valueOf(flameColor));
                 batteryIconView.setContentDescription(
                         "Android thermal status: " + ThermalStatusReader.label(thermalStatus));
-            } else if (cpuCoolingActive || gpuCoolingActive) {
-                // Hardware cooling activity is a fallback signal, not proof of throttling.
-                batteryIconView.setImageResource(R.drawable.ic_thermal_flame);
-                batteryIconView.setImageTintList(
-                        android.content.res.ColorStateList.valueOf(
-                                Color.rgb(255, 152, 0)));
-                String activeDevices = cpuCoolingActive && gpuCoolingActive
-                        ? "CPU and GPU cooling active"
-                        : cpuCoolingActive ? "CPU cooling active" : "GPU cooling active";
-                batteryIconView.setContentDescription(activeDevices
-                        + "; frequency throttling not confirmed");
             } else {
                 batteryIconView.setImageResource(R.drawable.ic_battery_temp);
                 batteryIconView.setImageTintList(null);
                 batteryIconView.setContentDescription(
                         thermalStatus == ThermalStatusReader.UNAVAILABLE
-                                ? "Thermal status unavailable; no CPU or GPU cooling activity detected"
-                                : "Normal thermal status; no CPU or GPU cooling activity detected");
+                                ? "Android thermal status unavailable"
+                                : "Normal Android thermal status");
             }
         }
         if (frameTimeView != null) frameTimeView.setText(frameTime);
