@@ -452,8 +452,9 @@ final class SettingsContentBuilder {
             TextView note = activity.text(
                     "Frame-time analysis requires BLAST or regular SurfaceFlinger "
                             + "latency access. If neither is available, ONYX can still "
-                            + "show FPS using fallback methods, but frame-time charts "
-                            + "and related summary metrics may be unavailable. "
+                            + "show FPS using fallback methods, but frame intervals, "
+                            + "average frame time, frame-time variation, stutter count, "
+                            + "and related frame-pacing metrics may be unavailable. "
                             + "ROOT or Shizuku may help on some devices, but cannot "
                             + "guarantee access.",
                     11, false, Color.rgb(145, 158, 175));
