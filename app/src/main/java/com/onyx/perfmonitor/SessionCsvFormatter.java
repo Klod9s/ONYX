@@ -47,7 +47,8 @@ final class SessionCsvFormatter {
                         "GPU Frequency (MHz),GPU Load (%)," +
                         "Average Frame Time (ms),Frame Time Std Dev (ms)," +
                         "Stutter Count,FPS Source,Frame Intervals (ms)," +
-                        "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)\n"
+                        "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)," +
+                        "Thermal Status\n"
         );
     }
 
@@ -142,6 +143,9 @@ final class SessionCsvFormatter {
         if (sample.gpuTemperatureC >= 0) {
             row.append(String.format(Locale.US, "%.1f", sample.gpuTemperatureC));
         }
+
+        row.append(',').append(sample.thermalStatus >= 0
+                ? Integer.toString(sample.thermalStatus) : "");
 
         csv.append(row).append('\n');
     }
