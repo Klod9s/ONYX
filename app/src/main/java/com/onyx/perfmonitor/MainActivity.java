@@ -722,15 +722,15 @@ new MonitorPageBuilder(this).build(page);
         super.onPause();
 
         isAppForeground = false;
-        if (brand != null) {
-            brand.stopShine();
-        }
         if (!running) handoffOverlaySampling();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        if (brand != null) {
+            brand.stopShine();
+        }
         finalizePendingDeletes();
     }
 
