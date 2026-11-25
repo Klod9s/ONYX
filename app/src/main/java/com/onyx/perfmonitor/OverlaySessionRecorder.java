@@ -29,7 +29,7 @@ final class OverlaySessionRecorder {
             "GPU Frequency (MHz),GPU Load (%)," +
             "Average Frame Time (ms),Frame Time Std Dev (ms)," +
             "Stutter Count,FPS Source,Frame Intervals (ms)," +
-            "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)\\n";
+            "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)\n";
 
     private final Context context;
     private final android.content.SharedPreferences prefs;
