@@ -193,6 +193,8 @@ public class AnalysisContentBuilder {
         // FPS and system memory charts
         addChart(layout, "FPS OVER TIME", d.fps, "FPS");
         addChart(layout, "RAM USAGE", d.ramUsage, "%");
+        addChart(layout, "CPU TEMPERATURE", d.cpuTemperature, "°C");
+        addChart(layout, "GPU TEMPERATURE", d.gpuTemperature, "°C");
 
         // CPU chart data
         List<List<Double>> cpuSeries = new ArrayList<>();
@@ -873,15 +875,26 @@ public class AnalysisContentBuilder {
                     count++;
                 }
 
-                String[] statLabels = {"AVG", "MIN", "MAX"};
+                boolean minMaxOnly = title.equals("CPU TEMPERATURE")
+                        || title.equals("GPU TEMPERATURE");
+                String[] statLabels = minMaxOnly
+                        ? new String[]{"MIN", "MAX"}
+                        : new String[]{"AVG", "MIN", "MAX"};
 
                 String[] statValues = count > 0
+                        ? (minMaxOnly
                         ? new String[]{
+                        String.format(Locale.US, "%.2f %s", min, unit),
+                        String.format(Locale.US, "%.2f %s", max, unit)
+                        }
+                        : new String[]{
                         String.format(Locale.US, "%.2f %s", total / count, unit),
                         String.format(Locale.US, "%.2f %s", min, unit),
                         String.format(Locale.US, "%.2f %s", max, unit)
-                }
-                        : new String[]{"--", "--", "--"};
+                        })
+                        : (minMaxOnly
+                        ? new String[]{"--", "--"}
+                        : new String[]{"--", "--", "--"});
 
                 if (title.equals("GPU FREQUENCY") && count > 0) {
                     statValues[1] = String.format(Locale.US, "%.1f %s", min, unit);
@@ -904,7 +917,7 @@ public class AnalysisContentBuilder {
                 statsRow.setGravity(Gravity.CENTER_VERTICAL);
                 statsRow.setPadding(0, dp(8), 0, dp(8));
 
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < statLabels.length; i++) {
 
                     LinearLayout statColumn = new LinearLayout(context);
                     statColumn.setOrientation(LinearLayout.VERTICAL);
@@ -933,7 +946,7 @@ public class AnalysisContentBuilder {
                     statsRow.addView(statColumn, new LinearLayout.LayoutParams(
                             0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-                    if (i < 2) {
+                    if (i < statLabels.length - 1) {
                         View statDivider = new View(context);
                         statDivider.setBackgroundColor(Color.rgb(52, 65, 81));
 
