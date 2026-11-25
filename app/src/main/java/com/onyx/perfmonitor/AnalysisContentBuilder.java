@@ -1143,7 +1143,7 @@ public class AnalysisContentBuilder {
 
         private final float chartLeft = 65f;
         private float chartRight;
-        private final float chartTop = 24f;
+        private float chartTop;
         private float chartBottom;
 
         ChartView(Context context,
@@ -1250,6 +1250,7 @@ public class AnalysisContentBuilder {
 
             if (times.isEmpty()) return;
 
+            chartTop = dp(26);                    // room for the thermal track + tooltip
             chartRight = getWidth() - 15f;
             chartBottom = getHeight() - 42f;
 
