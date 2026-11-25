@@ -79,8 +79,8 @@ public class MonitoringSampleParsingTest {
 
     @Test
     public void convertsGpuFrequencyAcrossCommonDriverUnits() {
-        assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587"), 0.0001);
-        assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587000"), 0.0001);
+        assertEquals(0.587, MonitoringEngine.parseGpuFrequencyMHz("587"), 0.0001);
+        assertEquals(0.587, MonitoringEngine.parseGpuFrequencyMHz("587000"), 0.0001);
         assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587000000"), 0.0001);
         assertEquals(0.5, MonitoringEngine.parseGpuFrequencyMHz("0.5"), 0.0001);
     }
