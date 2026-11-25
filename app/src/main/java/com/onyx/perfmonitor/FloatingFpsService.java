@@ -1415,9 +1415,7 @@ public class FloatingFpsService extends Service {
                                 .apply();
                     }
                 } else {
-                    if (SessionDataPreferences.framePacingEnabled(this)) {
-                        monitoringEngine.endFrameCapture();
-                    }
+                    monitoringEngine.endFrameCapture();
                     if (sessionRecorder != null) sessionRecorder.finish();
                 }
 
