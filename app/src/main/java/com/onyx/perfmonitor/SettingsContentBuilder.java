@@ -365,7 +365,7 @@ final class SettingsContentBuilder {
 
         TextView info = new TextView(activity);
         info.setText("ⓘ");
-        info.setTextSize(17);
+        info.setTextSize(20);
         info.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         info.setTextColor(Color.rgb(145, 158, 175));
         info.setGravity(Gravity.CENTER);
@@ -400,7 +400,7 @@ final class SettingsContentBuilder {
 
         header.addView(info, new LinearLayout.LayoutParams(
                 activity.dp(32), activity.dp(32)));
-        activity.add(parent, header, 0, 10);
+        activity.add(parent, header, 0, 8);
     }
 
     private void addDataCollectionCategory(
