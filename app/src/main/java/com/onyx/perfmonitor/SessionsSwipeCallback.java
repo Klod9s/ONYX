@@ -90,6 +90,18 @@ private final int RED = Color.rgb(240, 104, 122);
                             float dX, float dY, int actionState, boolean active) {
         View item = vh.itemView;
 
+        // The card's elevation shadow can remain visible around the revealed
+        // action strip, making it look like an unwanted dark edge. Remove it
+        // while the row is being dragged, then restore its normal elevation
+        // once the swipe settles.
+        if (dX != 0f) {
+            item.setElevation(0f);
+        } else {
+            boolean pinned = vh instanceof SessionsAdapter.Holder
+                    && ((SessionsAdapter.Holder) vh).fileName.equals(activity.pinnedFile);
+            item.setElevation(pinned ? 0f : activity.dp(3));
+        }
+
         if (dX > 0) {
             // ---- swipe right: red delete strip ----
             fill.setColor(Color.rgb(58, 27, 34));
