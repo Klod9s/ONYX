@@ -178,6 +178,9 @@ public class MainActivity extends Activity {
 
     final ArrayList<android.widget.SeekBar> appAccentSeekBars =
             new ArrayList<>();
+    private final NavigationItemBuilder navigationItemBuilder =
+            new NavigationItemBuilder(this);
+
     private android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
 
@@ -653,10 +656,10 @@ new MonitorPageBuilder(this).build(page);
         buildAboutContent();
 
 // BOTTOM NAVIGATION ITEMS
-        addNavigationItem("Monitor", 0);
-        addNavigationItem("Sessions", 1);
-        addNavigationItem("Settings", 2);
-        addNavigationItem("About", 3);
+        navigationItemBuilder.addNavigationItem(bottomNavigation, "Monitor", 0);
+        navigationItemBuilder.addNavigationItem(bottomNavigation, "Sessions", 1);
+        navigationItemBuilder.addNavigationItem(bottomNavigation, "Settings", 2);
+        navigationItemBuilder.addNavigationItem(bottomNavigation, "About", 3);
 
 // SHOW MONITOR BY DEFAULT
         showTab(0);
@@ -677,60 +680,6 @@ new MonitorPageBuilder(this).build(page);
                         Color.argb(0, r, g, b)}));
     }
 
-    private void addNavigationItem(String label, int tab) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setPadding(dp(2), dp(4), dp(2), dp(4));
-
-        android.widget.ImageView icon = new android.widget.ImageView(this);
-
-        int[] iconResources = {
-                R.drawable.ic_nav_monitor,
-                R.drawable.ic_nav_sessions,
-                R.drawable.ic_nav_settings,
-                R.drawable.ic_nav_about
-        };
-
-        icon.setImageResource(iconResources[tab]);
-        icon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-
-        LinearLayout.LayoutParams iconParams =
-                new LinearLayout.LayoutParams(dp(24), dp(24));
-        item.addView(icon, iconParams);
-
-        TextView text = new TextView(this);
-        text.setText(label);
-        text.setTextSize(10);
-        text.setGravity(Gravity.CENTER);
-        text.setTypeface(null, android.graphics.Typeface.BOLD);
-
-        LinearLayout.LayoutParams textParams =
-                new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                );
-        textParams.topMargin = dp(2);
-        item.addView(text, textParams);
-
-        View indicator = new View(this);
-        LinearLayout.LayoutParams indicatorParams =
-                new LinearLayout.LayoutParams(dp(32), dp(2));
-        indicatorParams.topMargin = dp(3);
-        item.addView(indicator, indicatorParams);
-        navIndicators[tab] = indicator;
-
-        navIcons[tab] = icon;
-        navLabels[tab] = text;
-
-        item.setOnClickListener(v -> showTab(tab));
-
-        bottomNavigation.addView(item, new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1f
-        ));
-    }
 
 
     private ScrollView createPlaceholderPage(String title) {
@@ -1045,7 +994,15 @@ new MonitorPageBuilder(this).build(page);
         }
     }
 
-    private void showTab(int tab) {
+
+    void registerNavigationViews(int tab, android.widget.ImageView icon,
+                                 TextView label, View indicator) {
+        navIcons[tab] = icon;
+        navLabels[tab] = label;
+        navIndicators[tab] = indicator;
+    }
+
+    void showTab(int tab) {
         finalizePendingDeletes();
         pinnedFile = null;
         updatePinUi(false);
