@@ -382,7 +382,7 @@ private Sample readSample(boolean recording) {
             }
 
             // GPU Load Block (FIXED: uses 'output', not 'freqOutput')
-            String gpuLoadBlock = between(output, "__GPU_LOAD_BLOCK__\n", "__MALI_BLOCK__").trim();
+            String gpuLoadBlock = between(output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
             String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
             if (gpuLoadParts.length >= 2) {
                 try {
@@ -594,7 +594,7 @@ private Sample readShizukuSample(boolean recording) {
                     }
 
                     // Parse GPU Load
-                    String gpuLoadBlock = between(freqOutput, "__GPU_LOAD_BLOCK__\n", "__MALI_BLOCK__").trim();
+                    String gpuLoadBlock = between(freqOutput, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
                     String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
                     if (gpuLoadParts.length >= 2) {
                         try {
