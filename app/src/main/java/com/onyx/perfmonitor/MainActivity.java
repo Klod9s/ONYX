@@ -182,6 +182,8 @@ public class MainActivity extends Activity {
             new NavigationItemBuilder(this);
     private final AppAccentManager appAccentManager =
             new AppAccentManager(this);
+    private final CardStyleManager cardStyleManager =
+            new CardStyleManager(this);
 
     android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
@@ -952,29 +954,12 @@ new MonitorPageBuilder(this).build(page);
         new CustomColorPickerDialog(this).show(title, currentColor, onApply);
     }
 
-    private final ArrayList<android.graphics.drawable.GradientDrawable> cardBackgrounds =
-            new ArrayList<>();
-
-    private int cardStrokeColor() {
-        int a = getAppAccentColor();
-        return Color.argb(110, Color.red(a), Color.green(a), Color.blue(a));
-    }
-
     android.graphics.drawable.GradientDrawable cardBg(int radiusDp) {
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable(
-                        android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                        new int[]{Color.rgb(22, 32, 48), Color.rgb(15, 22, 34)});
-        bg.setCornerRadius(dp(radiusDp));
-        bg.setStroke(dp(1), cardStrokeColor());
-        cardBackgrounds.add(bg);
-        return bg;
+        return cardStyleManager.createCardBackground(radiusDp);
     }
 
     void refreshCardStrokes() {
-        for (android.graphics.drawable.GradientDrawable bg : cardBackgrounds) {
-            bg.setStroke(dp(1), cardStrokeColor());
-        }
+        cardStyleManager.refreshStrokes();
     }
 
     void showCustomAppColorPicker() {
