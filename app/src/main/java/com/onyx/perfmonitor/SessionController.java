@@ -31,6 +31,7 @@ final class SessionController {
     
             activity.monitoringEngine.resetCpuBaseline();
             activity.monitoringEngine.resetSessionClock();
+            activity.monitoringEngine.beginFrameCapture();
             activity.sessionId++;
             activity.running = true;
     
