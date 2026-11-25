@@ -24,12 +24,7 @@ final class MonitorPageBuilder {
                 statusPill.setGravity(Gravity.CENTER_VERTICAL);
                 statusPill.setPadding(activity.dp(12), activity.dp(7), activity.dp(12), activity.dp(7));
         
-                android.graphics.drawable.GradientDrawable pillBg =
-                        new android.graphics.drawable.GradientDrawable();
-                pillBg.setColor(Color.rgb(25, 33, 45));
-                pillBg.setCornerRadius(activity.dp(50));
-                pillBg.setStroke(activity.dp(1), Color.rgb(43, 52, 65));
-                statusPill.setBackground(pillBg);
+                statusPill.setBackground(activity.glassBg(50));
         
                 activity.statusDot = new View(activity);
                 activity.statusDotBg = new android.graphics.drawable.GradientDrawable();
@@ -55,41 +50,22 @@ final class MonitorPageBuilder {
                 shizukuButton.setAllCaps(false);
                 shizukuButton.setTextColor(Color.WHITE);
         
-                android.graphics.drawable.GradientDrawable shizukuBackground =
-                        new android.graphics.drawable.GradientDrawable();
-                shizukuBackground.setColor(Color.rgb(39, 53, 69));
-                shizukuBackground.setCornerRadius(activity.dp(12));
-                shizukuBackground.setStroke(activity.dp(1), Color.rgb(65, 85, 105));
-        
-                shizukuButton.setBackground(shizukuBackground);
+                shizukuButton.setBackground(activity.flatBg(14));
                 shizukuButton.setOnClickListener(v -> activity.startShizukuService());
         
         // SESSION CONTROLS
                 activity.startButton = new Button(activity);
                 activity.startButton.setText("START SESSION");
                 activity.startButton.setTextSize(13);
+                activity.startButton.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+                activity.startButton.setLetterSpacing(0.04f);
                 activity.startButton.setAllCaps(false);
                 activity.startButton.setTextColor(Color.WHITE);
         
-                android.graphics.drawable.GradientDrawable sessionButtonBackground =
-                        new android.graphics.drawable.GradientDrawable();
-                sessionButtonBackground.setCornerRadius(activity.dp(12));
                 int appAccentColor = activity.getAppAccentColor();
-        
-                sessionButtonBackground.setColor(appAccentColor);
-                sessionButtonBackground.setStroke(
-                        activity.dp(1),
-                        Color.argb(
-                                180,
-                                Color.red(appAccentColor),
-                                Color.green(appAccentColor),
-                                Color.blue(appAccentColor)
-                        )
-                );
-        
-        
-                activity.startButton.setBackground(sessionButtonBackground);
-                activity.startButton.setElevation(activity.dp(3));
+                activity.startButton.setBackground(
+                        GlassStyle.primaryButton(appAccentColor, activity.dp(14), activity.dp(1)));
+                activity.startButton.setElevation(0f);
                 activity.startButton.setOnClickListener(v -> activity.toggleSessionFromMonitor());
         
         
@@ -98,15 +74,11 @@ final class MonitorPageBuilder {
                 activity.overlayButton.setTextSize(12);
                 activity.overlayButton.setAllCaps(false);
                 activity.overlayButton.setTextColor(Color.WHITE);
-                android.graphics.drawable.GradientDrawable overlayButtonBackground =
-                        new android.graphics.drawable.GradientDrawable();
-        
-                overlayButtonBackground.setColor(Color.rgb(39, 53, 69));
-                overlayButtonBackground.setCornerRadius(activity.dp(12));
-                overlayButtonBackground.setStroke(activity.dp(1), Color.rgb(65, 85, 105));
-        
-                activity.overlayButton.setBackground(overlayButtonBackground);
-                activity.overlayButton.setElevation(activity.dp(3));
+                activity.overlayButton.setBackground(activity.flatBg(14));
+                activity.overlayButton.setElevation(0f);
+                activity.overlayButton.setStateListAnimator(null);
+                shizukuButton.setStateListAnimator(null);
+                activity.startButton.setStateListAnimator(null);
                 activity.overlayButton.setOnClickListener(v -> activity.toggleOverlay());
                 activity.compactButton(activity.startButton);
                 activity.compactButton(shizukuButton);
@@ -114,7 +86,7 @@ final class MonitorPageBuilder {
         
         // Start Session: full width, on top
                 LinearLayout.LayoutParams startParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, activity.dp(46));
+                        LinearLayout.LayoutParams.MATCH_PARENT, activity.dp(48));
                 startParams.bottomMargin = activity.dp(8);
                 page.addView(activity.startButton, startParams);
         
@@ -123,12 +95,12 @@ final class MonitorPageBuilder {
                 buttonRow.setOrientation(LinearLayout.HORIZONTAL);
         
                 LinearLayout.LayoutParams leftParams =
-                        new LinearLayout.LayoutParams(0, activity.dp(46), 1f);
+                        new LinearLayout.LayoutParams(0, activity.dp(48), 1f);
                 leftParams.rightMargin = activity.dp(4);
                 buttonRow.addView(shizukuButton, leftParams);
         
                 LinearLayout.LayoutParams rightParams =
-                        new LinearLayout.LayoutParams(0, activity.dp(46), 1f);
+                        new LinearLayout.LayoutParams(0, activity.dp(48), 1f);
                 rightParams.leftMargin = activity.dp(4);
                 buttonRow.addView(activity.overlayButton, rightParams);
         
@@ -311,50 +283,41 @@ final class MonitorPageBuilder {
         
                 LinearLayout gridRow1 = new LinearLayout(activity);
                 gridRow1.setOrientation(LinearLayout.HORIZONTAL);
-                activity.fps = activity.tile(gridRow1, "FPS", false);
-                activity.cpuTile = activity.tile(gridRow1, "CPU", true);
+                activity.fps = glassTile(gridRow1, R.drawable.ic_metric_fps, "FPS", false, false, false);
+                activity.power = glassTile(gridRow1, R.drawable.ic_metric_bolt, "POWER", true, false, false);
+                activity.setPowerStateView(addStateBadge(activity.power));
                 activity.add(page, gridRow1, 0, 8);
-        
+                equalHeight(gridRow1);
+
                 LinearLayout gridRow2 = new LinearLayout(activity);
                 gridRow2.setOrientation(LinearLayout.HORIZONTAL);
-                activity.gpuTile = activity.tile(gridRow2, "GPU", false);
-                activity.temperature = activity.tile(gridRow2, "TEMP", true);
+                activity.cpuTile = glassTile(gridRow2, R.drawable.ic_metric_cpu, "CPU", false, true, false);
+                activity.gpuTile = glassTile(gridRow2, R.drawable.ic_metric_gpu, "GPU", true, true, false);
                 activity.add(page, gridRow2, 0, 8);
-        
+                equalHeight(gridRow2);
+
                 LinearLayout gridRow3 = new LinearLayout(activity);
                 gridRow3.setOrientation(LinearLayout.HORIZONTAL);
-                activity.power = activity.tile(gridRow3, "POWER", false);
-                activity.current = activity.tile(gridRow3, "BATTERY CURRENT", true);
-                activity.setPowerStateView(activity.addSubLine(activity.power));
-        
-        // make both cards in this row the same height
-                for (int i = 0; i < gridRow3.getChildCount(); i++) {
-                    gridRow3.getChildAt(i).getLayoutParams().height =
-                            ViewGroup.LayoutParams.MATCH_PARENT;
-                }
+                activity.current = glassTile(gridRow3, R.drawable.ic_metric_bolt, "CURRENT", false, true, false);
+                activity.temperature = glassTile(gridRow3, R.drawable.ic_metric_temp, "TEMP", true, true, true);
                 activity.add(page, gridRow3, 0, 8);
-        
+                equalHeight(gridRow3);
+
                 LinearLayout gridRow4 = new LinearLayout(activity);
                 gridRow4.setOrientation(LinearLayout.HORIZONTAL);
-                activity.voltage = activity.tile(gridRow4, "BATTERY VOLTAGE", false);
-                activity.battery = activity.tile(gridRow4, "BATTERY LEVEL", true);
+                activity.voltage = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY VOLTAGE", false, true, false);
+                activity.battery = glassTile(gridRow4, R.drawable.ic_metric_battery, "BATTERY LEVEL", true, true, true);
                 activity.add(page, gridRow4, 0, 18);
-        
+                equalHeight(gridRow4);
+
                 // SESSION SUMMARY
                 activity.add(page, activity.section("SESSION SUMMARY"), 0, 8);
         
                 LinearLayout summaryCard = new LinearLayout(activity);
                 summaryCard.setOrientation(LinearLayout.VERTICAL);
                 summaryCard.setPadding(activity.dp(14), activity.dp(14), activity.dp(14), activity.dp(14));
-                android.graphics.drawable.GradientDrawable summaryBackground =
-                        new android.graphics.drawable.GradientDrawable();
-        
-                summaryBackground.setColor(Color.rgb(25, 33, 45));
-                summaryBackground.setCornerRadius(activity.dp(14));
-                summaryBackground.setStroke(activity.dp(1), Color.rgb(55, 70, 88));
-        
-                summaryCard.setBackground(activity.cardBg(14));
-                summaryCard.setElevation(activity.dp(3));
+                summaryCard.setBackground(activity.glassBg(16));
+                summaryCard.setElevation(0f);
         
                 activity.summary = activity.text("No session yet.", 14, false,
                         Color.rgb(210, 220, 232));
@@ -373,5 +336,107 @@ final class MonitorPageBuilder {
         
                 note.setLineSpacing(activity.dp(3), 1f);
                 activity.add(page, note, 0, 12);
+    }
+
+    private void equalHeight(LinearLayout row) {
+        for (int i = 0; i < row.getChildCount(); i++) {
+            row.getChildAt(i).getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
+        }
+    }
+
+    /**
+     * One glass metric card: icon + label on top (with an indicator dot on the right),
+     * big value underneath. Returns the value view.
+     *
+     * @param accentValue colour the value with the app accent (otherwise white)
+     * @param dynamicDot  dot colour is set by the renderer (temp / battery level);
+     *                    otherwise the dot follows the app accent
+     */
+    private TextView glassTile(LinearLayout row, int iconRes, String label, boolean last,
+                               boolean showDot, boolean dynamicDot) {
+        // wrapper lets the dot grid sit in the bottom-right corner over the content
+        android.widget.FrameLayout wrap = new android.widget.FrameLayout(activity);
+        wrap.setBackground(activity.glassBg(16));
+
+        LinearLayout card = new LinearLayout(activity);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(activity.dp(14), activity.dp(11), activity.dp(14), activity.dp(12));
+        wrap.addView(card, new android.widget.FrameLayout.LayoutParams(-1, -2));
+
+        LinearLayout header = new LinearLayout(activity);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setMinimumHeight(activity.dp(20));
+
+        android.widget.ImageView icon = new android.widget.ImageView(activity);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(GlassStyle.MUTED);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(activity.dp(14), activity.dp(14));
+        ip.rightMargin = activity.dp(6);
+        header.addView(icon, ip);
+
+        TextView title = activity.text(label, 10, true, GlassStyle.MUTED);
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setLetterSpacing(0.02f);
+        header.addView(title, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView valueView = activity.text("—", 24, true, Color.WHITE);
+        valueView.setMaxLines(1);
+        valueView.setPadding(0, activity.dp(4), 0, 0);
+
+        GlassStyle.TileTag tag = new GlassStyle.TileTag();
+        if (showDot) { // tiles with a dot grid (bottom-right)
+            GlassStyle.DotMatrixView matrix = new GlassStyle.DotMatrixView(
+                    activity, !dynamicDot, GlassStyle.GOOD);
+            android.widget.FrameLayout.LayoutParams mp =
+                    new android.widget.FrameLayout.LayoutParams(activity.dp(26), activity.dp(40));
+            mp.gravity = Gravity.BOTTOM | Gravity.END;
+            mp.rightMargin = activity.dp(12);
+            mp.bottomMargin = activity.dp(11);
+            wrap.addView(matrix, mp);
+            tag.matrix = matrix;
+        }
+        if (label.equals("FPS")) {
+            GlassStyle.FrameGraphView graph = new GlassStyle.FrameGraphView(activity);
+            android.widget.FrameLayout.LayoutParams gp =
+                    new android.widget.FrameLayout.LayoutParams(activity.dp(88), activity.dp(30));
+            gp.gravity = Gravity.BOTTOM | Gravity.END;
+            gp.rightMargin = activity.dp(12);
+            gp.bottomMargin = activity.dp(12);
+            wrap.addView(graph, gp);
+            tag.graph = graph;
+        }
+        valueView.setTag(tag);
+
+        card.addView(header);
+        card.addView(valueView);
+
+        // FPS keeps the accent colour like the reference design
+        if (label.equals("FPS")) {
+            valueView.setTextColor(activity.getAppAccentColor());
+            activity.appAccentTextViews.add(valueView);
+        }
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        if (!last) lp.rightMargin = activity.dp(8);
+        row.addView(wrap, lp);
+        return valueView;
+    }
+
+    /** CHARGING / DISCHARGING pill in the header row of the power card. */
+    private TextView addStateBadge(TextView powerValue) {
+        LinearLayout card = (LinearLayout) powerValue.getParent();
+        LinearLayout header = (LinearLayout) card.getChildAt(0);
+
+        TextView badge = activity.text("—", 8, true, GlassStyle.MUTED);
+        badge.setSingleLine(true);
+        badge.setAllCaps(true);
+        badge.setLetterSpacing(0.04f);
+        badge.setPadding(activity.dp(6), activity.dp(2), activity.dp(6), activity.dp(2));
+        header.addView(badge);
+        return badge;
     }
 }

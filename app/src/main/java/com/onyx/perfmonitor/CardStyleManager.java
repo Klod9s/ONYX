@@ -9,6 +9,8 @@ import java.util.ArrayList;
 final class CardStyleManager {
     private final MainActivity activity;
     private final ArrayList<GradientDrawable> cardBackgrounds = new ArrayList<>();
+    private final ArrayList<GlassStyle.GlassDrawable> glassBackgrounds = new ArrayList<>();
+    private final ArrayList<GradientDrawable> accentDots = new ArrayList<>();
 
     CardStyleManager(MainActivity activity) {
         this.activity = activity;
@@ -29,11 +31,42 @@ final class CardStyleManager {
         return background;
     }
 
+    /** Frosted-glass background used on the Monitor page. */
+    GlassStyle.GlassDrawable createGlassBackground(int radiusDp) {
+        GlassStyle.GlassDrawable glass = new GlassStyle.GlassDrawable(
+                activity.dp(radiusDp), activity.dp(1), activity.getAppAccentColor());
+        glassBackgrounds.add(glass);
+        return glass;
+    }
+
+    /** Plain dark button background (no glass effects). */
+    GlassStyle.GlassDrawable createFlatBackground(int radiusDp) {
+        GlassStyle.GlassDrawable d = new GlassStyle.GlassDrawable(
+                activity.dp(radiusDp), activity.dp(1), activity.getAppAccentColor()).flat();
+        return d;
+    }
+
+    /** Small indicator dot that follows the app accent. */
+    GradientDrawable createAccentDot() {
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(activity.getAppAccentColor());
+        accentDots.add(dot);
+        return dot;
+    }
+
     void refreshStrokes() {
         int strokeWidth = activity.dp(1);
         int color = cardStrokeColor();
         for (GradientDrawable background : cardBackgrounds) {
             background.setStroke(strokeWidth, color);
+        }
+        int accent = activity.getAppAccentColor();
+        for (GlassStyle.GlassDrawable glass : glassBackgrounds) {
+            glass.setAccent(accent);
+        }
+        for (GradientDrawable dot : accentDots) {
+            dot.setColor(accent);
         }
     }
 }

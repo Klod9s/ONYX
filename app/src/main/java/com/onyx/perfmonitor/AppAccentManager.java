@@ -82,12 +82,8 @@ final class AppAccentManager {
 
         // Start Session button
         if (activity.startButton != null && !activity.running) {
-            GradientDrawable background = new GradientDrawable();
-            background.setCornerRadius(activity.dp(12));
-            background.setColor(color);
-            background.setStroke(activity.dp(1), Color.argb(
-                    180, Color.red(color), Color.green(color), Color.blue(color)));
-            activity.startButton.setBackground(background);
+            activity.startButton.setBackground(
+                    GlassStyle.primaryButton(color, activity.dp(14), activity.dp(1)));
         }
         if (activity.customColorButtonBg != null) {
             activity.customColorButtonBg.setStroke(activity.dp(1), color);

@@ -60,19 +60,10 @@ final class SessionController {
         activity.startButton.setText(recording
                 ? "STOP SESSION" : "START SESSION");
 
-        int color = recording
-                ? Color.rgb(170, 55, 65) : activity.getAppAccentColor();
-        int stroke = recording
-                ? Color.rgb(205, 85, 95)
-                : Color.argb(180, Color.red(color),
-                        Color.green(color), Color.blue(color));
-
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable();
-        bg.setColor(color);
-        bg.setCornerRadius(activity.dp(12));
-        bg.setStroke(activity.dp(1), stroke);
-        activity.startButton.setBackground(bg);
+        activity.startButton.setBackground(recording
+                ? GlassStyle.recordingButton(activity.dp(14), activity.dp(1))
+                : GlassStyle.primaryButton(activity.getAppAccentColor(),
+                        activity.dp(14), activity.dp(1)));
     }
     
         void startSession() {

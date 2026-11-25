@@ -399,9 +399,7 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setPadding(dp(18), dp(8), dp(18), dp(28));
-        page.setBackgroundColor(Color.rgb(13, 18, 26));
-
-        scroll.setBackgroundColor(Color.rgb(13, 18, 26));
+        scroll.setBackground(GlassStyle.pageBackground(this));
         scroll.addView(page);
 
         monitorPage = scroll;
@@ -704,6 +702,18 @@ new MonitorPageBuilder(this).build(page);
 
     android.graphics.drawable.GradientDrawable cardBg(int radiusDp) {
         return cardStyleManager.createCardBackground(radiusDp);
+    }
+
+    GlassStyle.GlassDrawable glassBg(int radiusDp) {
+        return cardStyleManager.createGlassBackground(radiusDp);
+    }
+
+    GlassStyle.GlassDrawable flatBg(int radiusDp) {
+        return cardStyleManager.createFlatBackground(radiusDp);
+    }
+
+    android.graphics.drawable.GradientDrawable accentDot() {
+        return cardStyleManager.createAccentDot();
     }
 
     void refreshCardStrokes() {
