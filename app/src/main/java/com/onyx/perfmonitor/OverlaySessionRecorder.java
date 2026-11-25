@@ -28,7 +28,8 @@ final class OverlaySessionRecorder {
             "CPU 6 Frequency (MHz),CPU 7 Frequency (MHz)," +
             "GPU Frequency (MHz),GPU Load (%)," +
             "Average Frame Time (ms),Frame Time Std Dev (ms)," +
-            "Stutter Count,FPS Source,Frame Intervals (ms)\n";
+            "Stutter Count,FPS Source,Frame Intervals (ms)," +
+            "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)\\n";
 
     private final Context context;
     private final android.content.SharedPreferences prefs;
@@ -191,7 +192,18 @@ final class OverlaySessionRecorder {
             if (i > 0) row.append(';');
             row.append(String.format(Locale.US, "%.3f", s.frameIntervalsMs.get(i)));
         }
-        row.append('"');
+        row.append('"').append(',');
+        if (s.ramUsagePercent >= 0) {
+            row.append(String.format(Locale.US, "%.1f", s.ramUsagePercent));
+        }
+        row.append(',');
+        if (s.cpuTemperatureC >= 0) {
+            row.append(String.format(Locale.US, "%.1f", s.cpuTemperatureC));
+        }
+        row.append(',');
+        if (s.gpuTemperatureC >= 0) {
+            row.append(String.format(Locale.US, "%.1f", s.gpuTemperatureC));
+        }
         return row.append('\n').toString();
     }
 
