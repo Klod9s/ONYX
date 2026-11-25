@@ -74,6 +74,7 @@ final class SessionDataPreferences {
         s.charging = source.charging;
         // Thermal events are diagnostic metadata, independent of optional metric toggles.
         s.thermalStatus = source.thermalStatus;
+        s.coolingDeviceActive = source.coolingDeviceActive;
         s.currentMa = -1;
         s.voltage = -1;
         s.power = -1;
