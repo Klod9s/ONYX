@@ -184,6 +184,8 @@ public class MainActivity extends Activity {
             new AppAccentManager(this);
     private final CardStyleManager cardStyleManager =
             new CardStyleManager(this);
+    private final DialogStyleManager dialogStyleManager =
+            new DialogStyleManager(this);
 
     android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
@@ -1043,48 +1045,8 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void showDarkDialog(android.app.AlertDialog.Builder builder,
-                                boolean destructive) {
-        final android.app.AlertDialog dialog = builder.create();
-
-        dialog.setOnShowListener(d -> {
-            // Rounded dark card matching the app's panels
-            android.graphics.drawable.GradientDrawable bg =
-                    new android.graphics.drawable.GradientDrawable();
-            bg.setColor(Color.rgb(25, 33, 45));
-            bg.setCornerRadius(dp(16));
-            bg.setStroke(dp(1), Color.rgb(55, 70, 88));
-
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(bg);
-            }
-
-            // Title
-            int titleId = getResources()
-                    .getIdentifier("alertTitle", "id", "android");
-            TextView title = dialog.findViewById(titleId);
-            if (title != null) title.setTextColor(Color.WHITE);
-
-            // Message
-            TextView message = dialog.findViewById(android.R.id.message);
-            if (message != null) {
-                message.setTextColor(Color.rgb(210, 220, 232));
-            }
-
-            // Buttons
-            int accent = getAppAccentColor();
-            int positiveColor = destructive
-                    ? Color.rgb(240, 135, 135) : accent;
-
-            Button positive = dialog.getButton(
-                    android.app.AlertDialog.BUTTON_POSITIVE);
-            Button negative = dialog.getButton(
-                    android.app.AlertDialog.BUTTON_NEGATIVE);
-
-            if (positive != null) positive.setTextColor(positiveColor);
-            if (negative != null) negative.setTextColor(Color.rgb(145, 158, 175));
-        });
-
-        dialog.show();
+                         boolean destructive) {
+        dialogStyleManager.show(builder, destructive);
     }
 
     void toggleOverlay() {
