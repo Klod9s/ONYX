@@ -24,7 +24,7 @@ ONYX supports two installation methods: **Shizuku** and **Root**.
 1. Install and set up [Shizuku](https://shizuku.rikka.app/).
 2. Start the Shizuku service.
 3. Open ONYX.
-4. Select **Shizuku** as the access method.
+4. Tap "Connect Shizuku"
 5. Grant ONYX permission when prompted.
 6. Done! ONYX is ready to use.
 
