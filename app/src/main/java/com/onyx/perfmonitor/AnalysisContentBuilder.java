@@ -790,6 +790,13 @@ public class AnalysisContentBuilder {
                             0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
             card.addView(thermalLegend);
+
+            TextView thermalInfo = new TextView(context);
+            thermalInfo.setText("FYI: Thermal throttling data may not be available on all devices.");
+            thermalInfo.setTextSize(9);
+            thermalInfo.setTextColor(muted);
+            thermalInfo.setPadding(dp(3), dp(2), 0, dp(4));
+            card.addView(thermalInfo);
         }
 
         // CPU CORE CARDS INSIDE CHART CARD
