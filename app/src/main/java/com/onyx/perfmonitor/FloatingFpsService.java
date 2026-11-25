@@ -74,7 +74,6 @@ public class FloatingFpsService extends Service {
     private OverlayMetricsStore overlayMetricsStore;
     private OverlaySessionRecorder sessionRecorder;
     private boolean backgroundSamplingEnabled = false;
-    private volatile boolean backgroundRecordingRequested = false;
     private boolean backgroundShizukuBindRequested = false;
     private boolean backgroundShizukuBound = false;
     private boolean shizukuDisconnectToastShown = false;
@@ -376,8 +375,6 @@ public class FloatingFpsService extends Service {
 
         overlayPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         sessionPrefs = getSharedPreferences("session_state", MODE_PRIVATE);
-        backgroundRecordingRequested =
-                sessionPrefs.getBoolean("recording", false);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         overlayMetricsStore = new OverlayMetricsStore(getApplicationContext());
         sessionRecorder = new OverlaySessionRecorder(getApplicationContext());
@@ -1307,8 +1304,6 @@ public class FloatingFpsService extends Service {
         if (start && currentlyRecording) return;
         if (!start && (!currentlyRecording
                 || !SESSION_OWNER_OVERLAY.equals(owner))) return;
-
-        backgroundRecordingRequested = start;
 
         // Publish the shared state immediately. Recorder work is serialized
         // behind any sample already running on samplingExecutor.
