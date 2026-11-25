@@ -111,7 +111,7 @@ final class OverlaySessionRecorder {
         String summary;
         if (!SessionDataPreferences.enabled(context, SessionDataPreferences.BATTERY)) {
             summary = String.format(Locale.US,
-                    "Run time: %.1f minutes\\nBattery data: not collected",
+                    "Run time: %.1f minutes\nBattery data: not collected",
                     duration / 60000.0);
         } else if (first >= 0 && last >= 0) {
             summary = String.format(Locale.US,
