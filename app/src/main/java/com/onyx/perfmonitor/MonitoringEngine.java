@@ -63,6 +63,14 @@ final class MonitoringEngine {
         startMs = System.currentTimeMillis();
     }
 
+    void resetMonitoringModeCheck() {
+        rootChecked = false;
+        rootFailStreak = 0;
+        lastRootCheckMs = 0;
+        lastModeCheckMs = 0;
+        cachedMonitoringMode = "";
+    }
+
     void resetBaselines() {
         resetCpuBaseline();
         fpsDetector.reset();
