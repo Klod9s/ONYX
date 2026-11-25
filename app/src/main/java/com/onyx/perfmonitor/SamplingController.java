@@ -17,7 +17,8 @@ final class SamplingController {
             busy = true;
 
             final int currentSessionId = activity.sessionId;
-            final boolean recording = activity.running;
+            final boolean recording = activity.running
+                    && !activity.isOverlaySession();
 
             activity.worker.execute(() -> {
                 String detected = "ANDROID";
@@ -63,7 +64,7 @@ final class SamplingController {
                                 sample.cpu,
                                 sample.gpuLoadPercent
                         );
-                        if (activity.running) {
+                        if (activity.running && !activity.isOverlaySession()) {
                             if (!activity.samples.isEmpty()) {
                                 Sample previous = activity.samples.get(
                                         activity.samples.size() - 1);
