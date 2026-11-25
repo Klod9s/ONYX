@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
     private LinearLayout bottomNavigation;
     private int selectedTab = 0;
     private TextView[] navLabels = new TextView[4];
-    private final ArrayList<TextView> appAccentTextViews =
+    final ArrayList<TextView> appAccentTextViews =
             new ArrayList<>();
 
     private final ArrayList<android.widget.RadioButton> appAccentRadioButtons =
@@ -258,13 +258,13 @@ public class MainActivity extends Activity {
 
     private final StringBuilder csv = new StringBuilder();
 
-    private final java.util.ArrayList<LinearLayout> appColorOptions =
+    final java.util.ArrayList<LinearLayout> appColorOptions =
             new java.util.ArrayList<>();
 
-    private final java.util.ArrayList<TextView> appColorChecks =
+    final java.util.ArrayList<TextView> appColorChecks =
             new java.util.ArrayList<>();
 
-    private final java.util.ArrayList<android.graphics.drawable.GradientDrawable>
+    final java.util.ArrayList<android.graphics.drawable.GradientDrawable>
             appColorPillBackgrounds = new java.util.ArrayList<>();
 
     android.graphics.drawable.Drawable customRainbowDrawable;
