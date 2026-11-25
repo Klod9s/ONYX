@@ -175,4 +175,10 @@ public class MonitoringSampleParsingTest {
     public void cpuFrequencyParserHandlesNullDestination() {
         MonitoringEngine.parseCpuFrequencies("600000 1200000", null);
     }
+    @Test
+    public void convertsSysfsBatteryCurrentFromMicroampsToMilliamps() {
+        assertEquals(1250.0, BatteryCurrent.sysfsMicroampsToMilliamps(1250000L), 0.0001);
+        assertEquals(-850.0, BatteryCurrent.sysfsMicroampsToMilliamps(-850000L), 0.0001);
+        assertEquals(0.0, BatteryCurrent.sysfsMicroampsToMilliamps(0L), 0.0001);
+    }
 }
