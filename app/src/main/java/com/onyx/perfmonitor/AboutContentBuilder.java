@@ -33,7 +33,7 @@ final class AboutContentBuilder {
         titleRow.addView(appTitle, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        String versionName = "1.0.0";
+        String versionName = "1.1";
         try {
             versionName = activity.getPackageManager()
                     .getPackageInfo(activity.getPackageName(), 0).versionName;
