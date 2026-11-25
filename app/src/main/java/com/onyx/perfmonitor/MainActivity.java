@@ -1045,57 +1045,11 @@ new MonitorPageBuilder(this).build(page);
                 csv, result, cachedMonitoringMode);
     }
 
-    private void setTextIfChanged(TextView view, String value) {
-        if (!value.contentEquals(view.getText())) {
-            view.setText(value);
-        }
-    }
-
-
     void render(Sample s) {
-
-        setTextIfChanged(fps, s.fps < 0
-                ? "—"
-                : String.format(Locale.US, "%.0f", s.fps));
-
-        double cpuSum = 0;
-        int cpuCount = 0;
-        for (double v : s.cpu) {
-            if (v >= 0) { cpuSum += v; cpuCount++; }
-        }
-        setTextIfChanged(cpuTile, cpuCount > 0
-                ? String.format(Locale.US, "%.0f%%", cpuSum / cpuCount)
-                : "—");
-
-        setTextIfChanged(gpuTile, s.gpuLoadPercent < 0
-                ? "—"
-                : String.format(Locale.US, "%.0f%%", s.gpuLoadPercent));
-
-        setTextIfChanged(power,
-                s.power == -1
-                        ? "—"
-                        : String.format(Locale.US, "%.2f W", s.power));
-
-        setTextIfChanged(powerState,
-                s.charging ? "charging" : "discharging");
-
-        setTextIfChanged(current,
-                s.currentMa == -1
-                        ? "—"
-                        : String.format(Locale.US, "%.0f mA", s.currentMa));
-
-        setTextIfChanged(voltage,
-                s.voltage < 0
-                        ? "—"
-                        : String.format(Locale.US, "%.3f V", s.voltage));
-
-        setTextIfChanged(battery, s.battery + "%");
-
-        setTextIfChanged(temperature,
-                String.format(Locale.US, "%.1f°C", s.temperatureC));
+        MonitorSampleRenderer.render(
+                s, fps, cpuTile, gpuTile, power, powerState,
+                current, voltage, battery, temperature);
     }
-
-
 
 
     String makeSummary() {
