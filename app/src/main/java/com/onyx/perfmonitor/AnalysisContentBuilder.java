@@ -483,41 +483,20 @@ public class AnalysisContentBuilder {
             }
         }
 
-        // 1% LOW FPS and 0.1% LOW FPS
-        double onePercentLow = -1;
-        double pointOnePercentLow = -1;
-
-        if (!validFps.isEmpty()) {
-            List<Double> lowSortedFps = new ArrayList<>(validFps);
-            java.util.Collections.sort(lowSortedFps);
-
-            int onePercentCount = Math.max(
-                    1, (int) Math.ceil(lowSortedFps.size() * 0.01));
-            int pointOnePercentCount = Math.max(
-                    1, (int) Math.ceil(lowSortedFps.size() * 0.001));
-
-            double onePercentTotal = 0;
-            double pointOnePercentTotal = 0;
-
-            for (int i = 0; i < onePercentCount; i++) {
-                onePercentTotal += lowSortedFps.get(i);
-            }
-
-            for (int i = 0; i < pointOnePercentCount; i++) {
-                pointOnePercentTotal += lowSortedFps.get(i);
-            }
-
-            onePercentLow = onePercentTotal / onePercentCount;
-            pointOnePercentLow = pointOnePercentTotal / pointOnePercentCount;
-        }
+        // Frame-level lows are calculated from unique SurfaceFlinger
+        // presentation intervals, not the 500 ms sampled FPS values.
+        double onePercentLow = FramePercentileCalculator.averageLowFps(
+                d.frameIntervalsMs, 0.01);
+        double pointOnePercentLow = FramePercentileCalculator.averageLowFps(
+                d.frameIntervalsMs, 0.001);
 
         String[] labels = {
                 "AVG FRAME TIME",
                 "FRAME-TIME VARIATION",
                 "STUTTERS",
                 "FPS STABILITY",
-                "1% LOW FPS",
-                "0.1% LOW FPS"
+                "1% FRAME LOW",
+                "0.1% FRAME LOW"
         };
 
         String[] values = {
@@ -624,6 +603,24 @@ public class AnalysisContentBuilder {
         metricsContainer.addView(horizontalDivider, 1, horizontalParams);
 
         card.addView(metricsContainer);
+
+        if (d.frameIntervalsMs.isEmpty()) {
+            TextView unavailable = new TextView(context);
+            unavailable.setText(
+                    "Frame-level lows unavailable: this session has no individual frame timestamps.");
+            unavailable.setTextSize(11);
+            unavailable.setTextColor(muted);
+            unavailable.setPadding(0, dp(10), 0, 0);
+            card.addView(unavailable);
+        } else {
+            TextView frameCount = new TextView(context);
+            frameCount.setText(d.frameIntervalsMs.size()
+                    + " individual frame intervals analyzed");
+            frameCount.setTextSize(11);
+            frameCount.setTextColor(muted);
+            frameCount.setPadding(0, dp(10), 0, 0);
+            card.addView(frameCount);
+        }
 
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
