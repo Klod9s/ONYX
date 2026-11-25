@@ -142,8 +142,7 @@ public class MainActivity extends Activity {
     OverlayMetricsStore overlayMetricsStore;
     MonitoringEngine monitoringEngine;
 
-    private final ShizukuController shizukuController =
-            new ShizukuController(this);
+    private ShizukuController shizukuController;
 
     private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
         cachedMonitoringMode = "";
@@ -275,6 +274,7 @@ public class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        shizukuController = new ShizukuController(this);
         overlayMetricsStore = new OverlayMetricsStore(this);
         monitoringEngine = new MonitoringEngine(getApplicationContext());
         shizukuController.registerListeners();
