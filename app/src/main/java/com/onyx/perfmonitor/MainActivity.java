@@ -209,28 +209,14 @@ public class MainActivity extends Activity {
         });
     };
 
+    private final StatusPillManager statusPillManager = new StatusPillManager(this);
+
     private void setStatus(String text, boolean error) {
-        if (status == null) return;
-        status.setText(text);
-        if (statusDotBg != null) {
-            int dotColor;
-            if (error) {
-                dotColor = Color.rgb(240, 104, 122);        // disconnected
-            } else if (running) {
-                dotColor = AppColors.compareB(this);        // recording: same partner color as Session Compare
-            } else {
-                dotColor = getAppAccentColor();             // ready: app accent
-            }
-            statusDotBg.setColor(dotColor);
-        }
+        statusPillManager.setStatus(text, error);
     }
 
     void refreshStatusPill() {
-        if (cachedMonitoringMode.isEmpty()) {
-            setStatus("CHECKING…", false);
-        } else {
-            setStatus(cachedMonitoringMode + (running ? " · RECORDING" : " · READY"), false);
-        }
+        statusPillManager.refresh();
     }
 
     private final Shizuku.OnBinderDeadListener binderDeadListener = () -> {
@@ -285,7 +271,7 @@ public class MainActivity extends Activity {
     boolean running = false;
     private int sessionId = 0;
     private boolean isAppForeground = false;
-    private String cachedMonitoringMode = "";
+    String cachedMonitoringMode = "";
 
 
     private final BroadcastReceiver overlayToggleReceiver =
