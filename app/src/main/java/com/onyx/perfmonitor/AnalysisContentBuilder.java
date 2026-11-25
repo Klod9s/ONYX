@@ -265,7 +265,7 @@ public class AnalysisContentBuilder {
         // BATTERY charts and drain summary
         if (hasAny(d.temperature)) addChart(layout, "BATTERY TEMPERATURE", d.temperature, "°C");
         if (hasAny(d.battery)) addChart(layout, "BATTERY LEVEL", d.battery, "%");
-        if (hasAny(d.current)) addChart(layout, "BATTERY CURRENT", d.current, "mA");
+        if (hasAnySigned(d.current)) addChart(layout, "BATTERY CURRENT", d.current, "mA");
         if (hasAny(d.voltage)) addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
         if (hasAny(d.power)) addChart(layout, "BATTERY POWER", d.power, "W");
         // Seconds per 1% Drain chart removed from analysis and comparison.
@@ -426,6 +426,16 @@ public class AnalysisContentBuilder {
         if (values == null) return false;
         for (Double value : values) {
             if (value != null && Double.isFinite(value) && value >= 0) return true;
+        }
+        return false;
+    }
+
+    /** Battery current is signed: negative values represent discharge. */
+    private boolean hasAnySigned(List<Double> values) {
+        if (values == null) return false;
+        for (Double value : values) {
+            // -1 is the existing unavailable-value sentinel.
+            if (value != null && Double.isFinite(value) && value != -1) return true;
         }
         return false;
     }
