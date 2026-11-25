@@ -190,7 +190,15 @@ final class MonitorPageBuilder {
                 showGpu.setOnCheckedChangeListener((button, checked) ->
                         activity.getPrefs().edit().putBoolean("show_gpu", checked).apply());
                 activity.add(overlaySettings, showGpu, 0, 2);
-        
+
+                CheckBox showRam = new CheckBox(activity);
+                showRam.setText("Show RAM usage");
+                activity.styleCheckBox(showRam);
+                showRam.setChecked(activity.getPrefs().getBoolean("show_ram", false));
+                showRam.setOnCheckedChangeListener((button, checked) ->
+                        activity.getPrefs().edit().putBoolean("show_ram", checked).apply());
+                activity.add(overlaySettings, showRam, 0, 2);
+
                 activity.addStylePicker(overlaySettings);
         
                 android.widget.TextView opacityLabel = new android.widget.TextView(activity);
