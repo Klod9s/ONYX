@@ -1454,9 +1454,22 @@ public class AnalysisContentBuilder {
                             * (float) ((period.start - startTime) / timeRange);
                     float right = chartLeft + (chartRight - chartLeft)
                             * (float) ((period.end - startTime) / timeRange);
-                    paint.setColor(period.severity >= 2
-                            ? Color.rgb(245, 91, 91) : Color.rgb(255, 174, 66));
-                    canvas.drawLine(left, trackY, Math.max(left + dp(2), right), trackY, paint);
+                    float segmentEnd = Math.max(left + dp(2), right);
+                    int segmentColor = period.severity >= 2
+                            ? Color.rgb(245, 91, 91) : Color.rgb(255, 174, 66);
+
+                    // Soft, wider under-stroke creates a subtle glow without
+                    // relying on hardware-accelerated shadow rendering.
+                    paint.setStrokeWidth(dp(7));
+                    paint.setColor(Color.argb(65,
+                            Color.red(segmentColor),
+                            Color.green(segmentColor),
+                            Color.blue(segmentColor)));
+                    canvas.drawLine(left, trackY, segmentEnd, trackY, paint);
+
+                    paint.setStrokeWidth(dp(3));
+                    paint.setColor(segmentColor);
+                    canvas.drawLine(left, trackY, segmentEnd, trackY, paint);
                 }
                 paint.setStrokeCap(Paint.Cap.BUTT);
 
