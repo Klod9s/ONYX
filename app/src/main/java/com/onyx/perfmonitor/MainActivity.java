@@ -107,6 +107,9 @@ public class MainActivity extends Activity {
                     if (binder != null && binder.pingBinder()) {
                         shizukuService =
                                 IOnyxUserService.Stub.asInterface(binder);
+                        if (monitoringEngine != null) {
+                            monitoringEngine.setShizukuService(shizukuService);
+                        }
                         shizukuBindRequested = false;
 
                         runOnUiThread(() ->
@@ -122,6 +125,9 @@ public class MainActivity extends Activity {
                 @Override
                 public void onServiceDisconnected(ComponentName name) {
                     shizukuService = null;
+                    if (monitoringEngine != null) {
+                        monitoringEngine.setShizukuService(null);
+                    }
                     shizukuBindRequested = false;
                 }
             };
@@ -181,6 +187,7 @@ public class MainActivity extends Activity {
 
     private BatteryCurrent batteryCurrent;
     private OverlayMetricsStore overlayMetricsStore;
+    private MonitoringEngine monitoringEngine;
 
     private final Shizuku.OnBinderReceivedListener binderReceivedListener = () -> {
         cachedMonitoringMode = "";
@@ -218,6 +225,9 @@ public class MainActivity extends Activity {
 
     private final Shizuku.OnBinderDeadListener binderDeadListener = () -> {
         shizukuService = null;
+        if (monitoringEngine != null) {
+            monitoringEngine.setShizukuService(null);
+        }
         shizukuBindRequested = false;
 
         runOnUiThread(() -> {
@@ -337,7 +347,7 @@ public class MainActivity extends Activity {
         if (samplerNeeded()) {
             handler.postDelayed(sampler, 500);
         } else {
-            cpuUsageTracker.reset();   // so the first CPU % after waking isn't averaged over the idle gap
+            monitoringEngine.resetCpuBaseline();   // avoid averaging CPU usage across the idle gap
         }
     }
 
@@ -377,8 +387,20 @@ public class MainActivity extends Activity {
                 String detected = "ANDROID";
                 Sample taken = null;
                 try {
-                    detected = detectMonitoringMode();
-                    taken = takeSample(detected, recording);
+                    taken = monitoringEngine.sample(recording);
+                    detected = monitoringEngine.getMonitoringMode();
+                    cachedMonitoringMode = detected;
+
+                    if ("SHIZUKU".equals(detected)
+                            && shizukuService == null
+                            && !shizukuBindRequested) {
+                        runOnUiThread(() -> {
+                            if (shizukuService == null && !shizukuBindRequested) {
+                                shizukuBindRequested = true;
+                                startShizukuService();
+                            }
+                        });
+                    }
                 } catch (Throwable ignored) {
                 }
                 final String mode = detected;
@@ -564,6 +586,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         batteryCurrent = new BatteryCurrent(this);
         overlayMetricsStore = new OverlayMetricsStore(this);
+        monitoringEngine = new MonitoringEngine(getApplicationContext());
         shizukuServiceArgs = new Shizuku.UserServiceArgs(
                 new ComponentName(
                         getPackageName(),
@@ -2866,7 +2889,8 @@ public class MainActivity extends Activity {
                         "Stutter Count,FPS Source\n"
         );
 
-        cpuUsageTracker.reset();
+        monitoringEngine.resetCpuBaseline();
+        monitoringEngine.resetSessionClock();
         startMs = System.currentTimeMillis();
         sessionId++;
         running = true;
