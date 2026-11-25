@@ -48,7 +48,7 @@ final class SessionCsvFormatter {
                         "Average Frame Time (ms),Frame Time Std Dev (ms)," +
                         "Stutter Count,FPS Source,Frame Intervals (ms)," +
                         "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)," +
-                        "Thermal Status\n"
+                        "Thermal Status,Cooling Device Active\n"
         );
     }
 
@@ -146,6 +146,8 @@ final class SessionCsvFormatter {
 
         row.append(',').append(sample.thermalStatus >= 0
                 ? Integer.toString(sample.thermalStatus) : "");
+        row.append(',').append(sample.coolingDeviceActive >= 0
+                ? Integer.toString(sample.coolingDeviceActive) : "");
 
         csv.append(row).append('\n');
     }
