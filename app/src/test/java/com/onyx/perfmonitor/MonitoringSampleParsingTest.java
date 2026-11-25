@@ -182,6 +182,53 @@ public class MonitoringSampleParsingTest {
         assertEquals(0.0, BatteryCurrent.sysfsMicroampsToMilliamps(0L), 0.0001);
     }
     @Test
+    public void parsesValidSysfsBatteryReadings() {
+        MonitoringEngine.SysfsBatteryValues values =
+                MonitoringEngine.parseSysfsBatteryValues("-1250000 4200000 87");
+
+        org.junit.Assert.assertEquals(-1250000L, values.currentMicroamps);
+        org.junit.Assert.assertEquals(4200000L, values.voltageMicrovolts);
+        assertEquals(87, values.batteryPercent);
+        org.junit.Assert.assertTrue(values.hasCurrent());
+        org.junit.Assert.assertTrue(values.hasVoltage());
+    }
+
+    @Test
+    public void malformedSysfsBatteryFieldsDoNotDiscardOtherValidReadings() {
+        MonitoringEngine.SysfsBatteryValues badCurrent =
+                MonitoringEngine.parseSysfsBatteryValues("broken 4200000 87");
+        assertEquals(Long.MIN_VALUE, badCurrent.currentMicroamps);
+        assertEquals(4200000L, badCurrent.voltageMicrovolts);
+        assertEquals(87, badCurrent.batteryPercent);
+
+        MonitoringEngine.SysfsBatteryValues badVoltage =
+                MonitoringEngine.parseSysfsBatteryValues("-1250000 NaN 87");
+        assertEquals(-1250000L, badVoltage.currentMicroamps);
+        assertEquals(-1L, badVoltage.voltageMicrovolts);
+        assertEquals(87, badVoltage.batteryPercent);
+
+        MonitoringEngine.SysfsBatteryValues badPercent =
+                MonitoringEngine.parseSysfsBatteryValues("-1250000 4200000 150");
+        assertEquals(-1250000L, badPercent.currentMicroamps);
+        assertEquals(4200000L, badPercent.voltageMicrovolts);
+        assertEquals(-1, badPercent.batteryPercent);
+    }
+
+    @Test
+    public void missingAndInvalidSysfsBatteryReadingsRemainUnavailable() {
+        String[] inputs = {null, "", "- - -", "0 0 -1", "9223372036854775808 -2 101"};
+        for (String input : inputs) {
+            MonitoringEngine.SysfsBatteryValues values =
+                    MonitoringEngine.parseSysfsBatteryValues(input);
+            assertEquals(Long.MIN_VALUE, values.currentMicroamps);
+            assertEquals(-1L, values.voltageMicrovolts);
+            assertEquals(-1, values.batteryPercent);
+            org.junit.Assert.assertFalse(values.hasCurrent());
+            org.junit.Assert.assertFalse(values.hasVoltage());
+        }
+    }
+
+    @Test
     public void calculatesBatteryPowerOnlyFromValidFiniteCurrentAndVoltage() {
         assertEquals(4.8, MonitoringEngine.calculatePowerWatts(1200, 4.0, true), 0.0001);
         assertEquals(-3.4, MonitoringEngine.calculatePowerWatts(-850, 4.0, true), 0.0001);
