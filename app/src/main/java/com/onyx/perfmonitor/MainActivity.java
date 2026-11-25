@@ -612,8 +612,11 @@ new MonitorPageBuilder(this).build(page);
         finalizePendingDeletes();
         pinnedFile = null;
         updatePinUi(false);
+        int previousTab = selectedTab;
         selectedTab = tab;
-        if (samplingController != null) samplingController.onMonitorTabChanged();
+        if (previousTab != tab && samplingController != null) {
+            samplingController.onMonitorTabChanged();
+        }
 
         View selectedPage;
 
