@@ -732,12 +732,12 @@ public class AnalysisContentBuilder {
         card.setElevation(dp(4));
 
         TextView heading = sectionHeading(title);
-        heading.setPadding(0, 0, 0, dp(6));
         boolean showThermalPeriods = "FPS OVER TIME".equals(title);
         if (showThermalPeriods) {
             LinearLayout headingRow = new LinearLayout(context);
             headingRow.setOrientation(LinearLayout.HORIZONTAL);
             headingRow.setGravity(Gravity.CENTER_VERTICAL);
+            headingRow.setPadding(0, 0, 0, dp(6));
 
             LinearLayout.LayoutParams headingParams =
                     new LinearLayout.LayoutParams(
@@ -760,11 +760,40 @@ public class AnalysisContentBuilder {
             infoIcon.setContentDescription("Thermal throttling information");
             infoIcon.setClickable(true);
             infoIcon.setFocusable(true);
-            infoIcon.setOnClickListener(v -> new AlertDialog.Builder(context)
-                    .setTitle("Thermal throttling")
-                    .setMessage("Thermal throttling data may not be available on all devices. Availability depends on the device's hardware and Android implementation.")
-                    .setPositiveButton("OK", null)
-                    .show());
+            infoIcon.setOnClickListener(v -> {
+                AlertDialog dialog = new AlertDialog.Builder(
+                        context, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
+                        .setTitle("Thermal throttling")
+                        .setMessage("Thermal throttling data may not be available on all devices. Availability depends on the device's hardware and Android implementation.")
+                        .setPositiveButton("OK", null)
+                        .create();
+
+                dialog.setOnShowListener(ignored -> {
+                    android.graphics.drawable.GradientDrawable background =
+                            new android.graphics.drawable.GradientDrawable();
+                    background.setColor(Color.rgb(25, 33, 45));
+                    background.setCornerRadius(dp(16));
+                    background.setStroke(dp(1), Color.rgb(55, 70, 88));
+                    if (dialog.getWindow() != null) {
+                        dialog.getWindow().setBackgroundDrawable(background);
+                    }
+
+                    int titleId = context.getResources()
+                            .getIdentifier("alertTitle", "id", "android");
+                    TextView dialogTitle = dialog.findViewById(titleId);
+                    if (dialogTitle != null) dialogTitle.setTextColor(Color.WHITE);
+
+                    TextView message = dialog.findViewById(android.R.id.message);
+                    if (message != null) {
+                        message.setTextColor(Color.rgb(210, 220, 232));
+                    }
+
+                    android.widget.Button positive =
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                    if (positive != null) positive.setTextColor(getAppAccentColor());
+                });
+                dialog.show();
+            });
             headingRow.addView(infoIcon);
             card.addView(headingRow);
         } else {
