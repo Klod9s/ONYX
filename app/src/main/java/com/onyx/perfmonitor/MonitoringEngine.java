@@ -271,6 +271,11 @@ private Sample readSample(boolean recording) {
             }
 
             Sample sample = new Sample();
+            sample.currentMa = -1;
+            sample.voltage = -1;
+            sample.power = -1;
+            sample.temperatureC = -1;
+            sample.battery = -1;
             sample.timeMs = System.currentTimeMillis() - startMs;
             sample.app = app.isEmpty() ? "Unknown" : app;
             lastPackage = sample.app;
@@ -346,8 +351,8 @@ private Sample readSample(boolean recording) {
                         sample.currentMa = currentValid
                                 ? batteryCurrent.toMilliampsFromSysfs(rawCurrent, unplugged) : -1;
                         sample.voltage = voltageValid ? rawVoltage / 1000000.0 : -1;
-                        sample.power = currentValid && voltageValid
-                                ? sample.currentMa * sample.voltage / 1000.0 : -1;
+                        sample.power = calculatePowerWatts(
+                                sample.currentMa, sample.voltage, currentValid && voltageValid);
                         sample.battery = percentValid ? percent : -1;
                     } catch (Exception ignored) {
                         sample.currentMa = -1;
@@ -535,25 +540,36 @@ private Sample readShizukuSample(boolean recording) {
                         if (batteryValues.length >= 2) {
                             try {
                                 if (!batteryValues[0].equals("-")) {
-                                    long rawCurrent = Long.parseLong(batteryValues[0]);
-                                    if (rawCurrent != 0 || sample.currentMa < 0) {
-                                        boolean unplugged = !sample.charging;
-                                        sample.currentMa = batteryCurrent.toMilliampsFromSysfs(rawCurrent, unplugged);
+                                    try {
+                                        long rawCurrent = Long.parseLong(batteryValues[0]);
+                                        if (rawCurrent != Long.MIN_VALUE
+                                                && (rawCurrent != 0 || sample.currentMa < 0)) {
+                                            sample.currentMa = batteryCurrent.toMilliampsFromSysfs(
+                                                    rawCurrent, sample.batteryUnplugged);
+                                        }
+                                    } catch (NumberFormatException ignored) {
+                                        // Preserve the BatteryManager current reading.
                                     }
                                 }
                                 if (!batteryValues[1].equals("-")) {
-                                    long rawVoltage = Long.parseLong(batteryValues[1]);
-                                    if (rawVoltage > 0) sample.voltage = rawVoltage / 1000000.0;
+                                    try {
+                                        long rawVoltage = Long.parseLong(batteryValues[1]);
+                                        if (rawVoltage > 0) sample.voltage = rawVoltage / 1000000.0;
+                                    } catch (NumberFormatException ignored) {
+                                        // Preserve the BatteryManager voltage reading.
+                                    }
                                 }
                                 if (batteryValues.length >= 3 && !batteryValues[2].equals("-")) {
-                                    int percent = Integer.parseInt(batteryValues[2]);
-                                    if (percent >= 0 && percent <= 100) sample.battery = percent;
+                                    try {
+                                        int percent = Integer.parseInt(batteryValues[2]);
+                                        if (percent >= 0 && percent <= 100) sample.battery = percent;
+                                    } catch (NumberFormatException ignored) {
+                                        // Preserve the BatteryManager battery level.
+                                    }
                                 }
-                                sample.power = sample.currentMa != -1 && sample.voltage > 0
-                                        ? sample.currentMa * sample.voltage / 1000.0 : -1;
-                            } catch (Exception ignored) {
-                                // Preserve the BatteryManager values if sysfs parsing fails.
-                            }
+                                sample.power = calculatePowerWatts(
+                                        sample.currentMa, sample.voltage,
+                                        sample.currentMa != -1 && sample.voltage > 0);
                         }
                     }
 
@@ -717,11 +733,13 @@ private Sample readAndroidSample(boolean recording) {
             sample.voltage = voltage >= 0 ? voltage / 1000.0 : -1;
 
             long current = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
-            boolean unplugged = batteryIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
+            sample.batteryUnplugged = batteryIntent.getIntExtra(
+                    BatteryManager.EXTRA_PLUGGED, -1) == 0;
+            boolean unplugged = sample.batteryUnplugged;
             boolean currentValid = current != Long.MIN_VALUE;
 
             sample.currentMa = currentValid ? batteryCurrent.toMilliamps(current, unplugged) : -1;
-            sample.power = currentValid && sample.voltage > 0 ? sample.currentMa * sample.voltage / 1000.0 : -1;
+            sample.power = calculatePowerWatts(sample.currentMa, sample.voltage, currentValid);
 
             return sample;
 
@@ -732,6 +750,13 @@ private Sample readAndroidSample(boolean recording) {
 
 private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
+    }
+
+    static double calculatePowerWatts(
+            double currentMa, double voltageV, boolean currentValid) {
+        if (!currentValid || !Double.isFinite(currentMa)
+                || !Double.isFinite(voltageV) || voltageV <= 0) return -1;
+        return currentMa * voltageV / 1000.0;
     }
 
     static void applyCoolingReading(String raw, Sample sample) {
