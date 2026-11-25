@@ -301,26 +301,15 @@ public class MainActivity extends Activity {
     private final SamplingController samplingController =
             new SamplingController(this);
 
+    private final OverlayController overlayController =
+            new OverlayController(this);
+
     private void handoffOverlaySampling() {
-        if (!getPrefs().getBoolean("overlay_enabled", false)) return;
-        getPrefs().edit().putBoolean("overlay_engine_active", true).apply();
-        Intent intent = new Intent(this, FloatingFpsService.class);
-        intent.setAction(FloatingFpsService.ACTION_ENGINE_HANDOFF);
-        try {
-            startService(intent);
-        } catch (Exception ignored) {
-        }
+        overlayController.handoffSampling();
     }
 
     private void stopOverlaySampling() {
-        if (!getPrefs().getBoolean("overlay_enabled", false)) return;
-        getPrefs().edit().putBoolean("overlay_engine_active", false).apply();
-        Intent intent = new Intent(this, FloatingFpsService.class);
-        intent.setAction(FloatingFpsService.ACTION_ENGINE_STOP);
-        try {
-            startService(intent);
-        } catch (Exception ignored) {
-        }
+        overlayController.stopSampling();
     }
 
     void scheduleSampler() {
@@ -871,32 +860,8 @@ new MonitorPageBuilder(this).build(page);
         finalizePendingDeletes();
     }
 
-    private boolean isOverlayServiceRunning() {
-        android.app.ActivityManager manager =
-                (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
-
-        for (android.app.ActivityManager.RunningServiceInfo service
-                : manager.getRunningServices(Integer.MAX_VALUE)) {
-
-            if (FloatingFpsService.class.getName()
-                    .equals(service.service.getClassName())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private void updateOverlayButton() {
-        boolean enabled = isOverlayServiceRunning();
-
-        getPrefs().edit()
-                .putBoolean("overlay_enabled", enabled)
-                .apply();
-
-        overlayButton.setText(enabled
-                ? "TURN OFF OVERLAY"
-                : "TURN ON OVERLAY");
+        overlayController.updateButton();
     }
 
     android.app.AlertDialog.Builder darkDialogBuilder() {
@@ -911,42 +876,7 @@ new MonitorPageBuilder(this).build(page);
     }
 
     void toggleOverlay() {
-        boolean enabled = isOverlayServiceRunning();
-
-        if (enabled) {
-            stopService(new Intent(this, FloatingFpsService.class));
-            getPrefs().edit()
-                    .putBoolean("overlay_enabled", false)
-                    .putBoolean("overlay_engine_active", false)
-                    .apply();
-            overlayButton.setText("TURN ON OVERLAY");
-            Toast.makeText(this, "Floating overlay disabled",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (!Settings.canDrawOverlays(this)) {
-            Intent intent = new Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName()));
-            startActivity(intent);
-            return;
-        }
-
-        Intent serviceIntent = new Intent(this, FloatingFpsService.class);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-
-        getPrefs().edit().putBoolean("overlay_enabled", true).apply();
-        overlayButton.setText("TURN OFF OVERLAY");
-        wakeSampler();
-
-        Toast.makeText(this, "Floating overlay enabled",
-                Toast.LENGTH_SHORT).show();
+        overlayController.toggle();
     }
 
     // Small card for the 2x2 grid; each one takes half the row
