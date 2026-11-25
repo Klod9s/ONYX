@@ -399,7 +399,7 @@ final class SettingsContentBuilder {
         });
 
         header.addView(info, new LinearLayout.LayoutParams(
-                activity.dp(32), activity.dp(32)));
+                activity.dp(32), activity.dp(20)));
         activity.add(parent, header, 0, 8);
     }
 
