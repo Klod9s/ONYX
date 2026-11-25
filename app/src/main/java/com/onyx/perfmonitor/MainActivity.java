@@ -133,8 +133,8 @@ public class MainActivity extends Activity {
     private static final String PREFS = "overlay_settings";
 
     private Button overlayButton;
-    private android.graphics.drawable.GradientDrawable customColorButtonBg;
-    private TextView customColorCheck;
+    android.graphics.drawable.GradientDrawable customColorButtonBg;
+    TextView customColorCheck;
     private final ArrayList<Runnable> aboutRefreshers = new ArrayList<>();
 
     // TODO: put your real links here
@@ -242,7 +242,7 @@ public class MainActivity extends Activity {
             new java.util.ArrayList<>();
     private LinearLayout sessionsActions;
 
-    private LinearLayout overlaySettingsCard;
+    LinearLayout overlaySettingsCard;
     private TextView sessionsCancel;
     private Button floatingCompareButton;
     private final TextView[] cpuViews = new TextView[8];
@@ -267,7 +267,7 @@ public class MainActivity extends Activity {
     private final java.util.ArrayList<android.graphics.drawable.GradientDrawable>
             appColorPillBackgrounds = new java.util.ArrayList<>();
 
-    private android.graphics.drawable.Drawable customRainbowDrawable;
+    android.graphics.drawable.Drawable customRainbowDrawable;
 
     private boolean running = false;
     private int sessionId = 0;
@@ -1218,227 +1218,7 @@ public class MainActivity extends Activity {
 
 
     private void buildSettingsContent() {
-        LinearLayout content =
-                (LinearLayout) settingsPage.getChildAt(0);
-        content.removeViewAt(0);
-        LinearLayout settingsHeader = tabHeader(R.drawable.ic_nav_settings, "SETTINGS");
-
-        add(content, settingsHeader, 0, 12);
-        add(content, overlaySettingsCard, 0, 14);
-
-        // BACKGROUND ACTIVITY CARD
-        LinearLayout backgroundCard = new LinearLayout(this);
-        backgroundCard.setOrientation(LinearLayout.VERTICAL);
-        backgroundCard.setPadding(
-                dp(16), dp(16), dp(16), dp(16));
-        backgroundCard.setBackground(cardBg(16));
-
-        add(backgroundCard, section("BACKGROUND ACTIVITY"), 0, 8);
-
-        TextView backgroundNote = text(
-                "Allow ONYX to keep monitoring when you're using other apps. "
-                        + "For better reliability, set ONYX battery usage to Unrestricted.",
-                12,
-                false,
-                Color.rgb(145, 158, 175)
-        );
-
-        add(backgroundCard, backgroundNote, 0, 12);
-
-        TextView batterySettingsButton = text(
-                "OPEN BATTERY SETTINGS  →",
-                13,
-                true,
-                getAppAccentColor()
-        );
-        appAccentTextViews.add(batterySettingsButton);
-
-        batterySettingsButton.setPadding(
-                dp(4), dp(10), dp(4), dp(10));
-
-        batterySettingsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:" + getPackageName())
-            );
-            startActivity(intent);
-        });
-
-        add(backgroundCard, batterySettingsButton, 0, 0);
-
-        add(content, backgroundCard, 0, 14);
-
-        LinearLayout appAppearanceCard = new LinearLayout(this);
-        appAppearanceCard.setOrientation(LinearLayout.VERTICAL);
-        appAppearanceCard.setPadding(
-                dp(16), dp(16), dp(16), dp(16));
-
-        android.graphics.drawable.GradientDrawable appCardBg =
-                new android.graphics.drawable.GradientDrawable();
-
-        appCardBg.setColor(Color.rgb(25, 32, 42));
-        appCardBg.setCornerRadius(dp(16));
-        appCardBg.setStroke(dp(1), Color.rgb(43, 52, 65));
-
-        appAppearanceCard.setBackground(cardBg(16));
-
-        add(appAppearanceCard, section("APP APPEARANCE"), 0, 8);
-
-        TextView appColorNote = text(
-                "Customize the appearance of the ONYX interface.",
-                12,
-                false,
-                Color.rgb(145, 158, 175)
-        );
-
-        add(appAppearanceCard, appColorNote, 0, 12);
-
-        LinearLayout appColorRow = new LinearLayout(this);
-        appColorRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        String[] appColorNames = {"ONYX", "OCEAN", "VIOLET", "CRIMSON", "CUSTOM"};
-        int[] appColors = {
-                Color.rgb(101, 214, 165),
-                Color.rgb(69, 168, 245),
-                Color.rgb(167, 139, 250),
-                Color.rgb(241, 107, 117),
-                0   // custom
-        };
-
-        for (int i = 0; i < appColorNames.length; i++) {
-            final boolean isCustom = i == 4;
-            final int presetColor = appColors[i];
-            boolean isSelected = !isCustom && getAppAccentColor() == presetColor;
-
-            // Tile
-            LinearLayout tile = new LinearLayout(this);
-            tile.setOrientation(LinearLayout.VERTICAL);
-            tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(2), dp(12), dp(2), dp(10));
-
-            android.graphics.drawable.GradientDrawable tileBg =
-                    new android.graphics.drawable.GradientDrawable();
-            tileBg.setColor(Color.rgb(30, 38, 49));
-            tileBg.setCornerRadius(dp(12));
-            tileBg.setStroke(dp(isSelected ? 2 : 1),
-                    isSelected ? getAppAccentColor() : Color.rgb(55, 65, 80));
-            tile.setBackground(tileBg);
-
-            // Circle + check
-            android.widget.FrameLayout swatchFrame = new android.widget.FrameLayout(this);
-
-            View circle = new View(this);
-            android.graphics.drawable.GradientDrawable circleBg =
-                    new android.graphics.drawable.GradientDrawable();
-            circleBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-            if (isCustom) {
-                circleBg.setGradientType(
-                        android.graphics.drawable.GradientDrawable.SWEEP_GRADIENT);
-                circleBg.setColors(new int[]{Color.RED, Color.YELLOW, Color.GREEN,
-                        Color.CYAN, Color.BLUE, Color.MAGENTA, Color.RED});
-            } else {
-                circleBg.setColor(presetColor);
-            }
-            circle.setBackground(circleBg);
-            swatchFrame.addView(circle,
-                    new android.widget.FrameLayout.LayoutParams(dp(30), dp(30)));
-
-            TextView check = new TextView(this);
-            check.setText("✓");
-            check.setTextSize(16);
-            check.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-            check.setIncludeFontPadding(false);
-            check.setTextColor(Color.WHITE);
-            check.setGravity(Gravity.CENTER);
-            check.setVisibility(isSelected ? View.VISIBLE : View.GONE);
-            swatchFrame.addView(check,
-                    new android.widget.FrameLayout.LayoutParams(dp(30), dp(30)));
-
-            tile.addView(swatchFrame, new LinearLayout.LayoutParams(dp(30), dp(30)));
-
-            // Label
-            TextView name = text(appColorNames[i], 9, true, Color.WHITE);
-            name.setSingleLine(true);
-            name.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            nameParams.topMargin = dp(8);
-            tile.addView(name, nameParams);
-
-            if (isCustom) {
-                customColorButtonBg = tileBg;
-                customColorCheck = check;
-                customRainbowDrawable = circleBg;
-                tile.setOnClickListener(v -> showCustomAppColorPicker());
-            } else {
-                appColorOptions.add(tile);
-                appColorChecks.add(check);
-                appColorPillBackgrounds.add(tileBg);
-                tile.setOnClickListener(v -> {
-                    getSharedPreferences("app_settings", MODE_PRIVATE)
-                            .edit()
-                            .putInt("app_accent_color", presetColor)
-                            .apply();
-                    updateAppAccentColor();
-                    refreshOverlayColorRows();
-                    updateAppColorSelection();
-                });
-            }
-
-            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            tp.setMargins(i == 0 ? 0 : dp(4), 0, i == 4 ? 0 : dp(4), 0);
-            appColorRow.addView(tile, tp);
-        }
-
-        add(appAppearanceCard, appColorRow, 0, 0);
-
-        add(content, appAppearanceCard, 0, 14);
-
-        // OVERLAY APPEARANCE CARD
-        LinearLayout overlayAppearanceCard = new LinearLayout(this);
-        overlayAppearanceCard.setOrientation(LinearLayout.VERTICAL);
-        overlayAppearanceCard.setPadding(
-                dp(16), dp(16), dp(16), dp(16));
-
-        android.graphics.drawable.GradientDrawable overlayCardBg =
-                new android.graphics.drawable.GradientDrawable();
-
-        overlayCardBg.setColor(Color.rgb(25, 32, 42));
-        overlayCardBg.setCornerRadius(dp(16));
-        overlayCardBg.setStroke(dp(1), Color.rgb(43, 52, 65));
-
-        overlayAppearanceCard.setBackground(cardBg(16));
-
-        add(overlayAppearanceCard, section("OVERLAY APPEARANCE"), 0, 8);
-
-        TextView overlayColorNote = text(
-                "Customize the appearance of your floating performance overlay.",
-                12,
-                false,
-                Color.rgb(145, 158, 175)
-        );
-
-        add(overlayAppearanceCard, overlayColorNote, 0, 12);
-
-        overlayColorRefreshers.clear();
-
-        add(overlayAppearanceCard, section("OVERLAY ACCENT COLOR"), 0, 8);
-        addOverlayColorRow(overlayAppearanceCard, "overlay_accent_color",
-                Color.rgb(55, 210, 130), "Custom Accent Color", 8);
-        addOverlayDivider(overlayAppearanceCard);
-
-        add(overlayAppearanceCard, section("OVERLAY TEXT COLOR"), 0, 8);
-        addOverlayColorRow(overlayAppearanceCard, "overlay_text_color",
-                Color.WHITE, "Custom Text Color", 8);
-        addOverlayDivider(overlayAppearanceCard);
-
-        add(overlayAppearanceCard, section("OVERLAY BACKGROUND COLOR"), 0, 8);
-        addOverlayColorRow(overlayAppearanceCard, "overlay_background_color",
-                Color.rgb(20, 25, 32), "Custom Background Color", 0);
-
-        add(content, overlayAppearanceCard, 0, 14);
+        new SettingsContentBuilder(this).build(settingsPage);
     }
 
     private void buildAboutContent() {
@@ -1725,13 +1505,13 @@ public class MainActivity extends Activity {
     }
 
 
-    private final ArrayList<Runnable> overlayColorRefreshers = new ArrayList<>();
+    final ArrayList<Runnable> overlayColorRefreshers = new ArrayList<>();
 
-    private void refreshOverlayColorRows() {
+    void refreshOverlayColorRows() {
         for (Runnable r : overlayColorRefreshers) r.run();
     }
 
-    private void addOverlayDivider(LinearLayout card) {
+    void addOverlayDivider(LinearLayout card) {
         View d = new View(this);
         d.setBackgroundColor(Color.rgb(43, 52, 65));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
@@ -1797,7 +1577,7 @@ public class MainActivity extends Activity {
     }
 
     // One row: [ONYX pill] [CUSTOM button]
-    private void addOverlayColorRow(LinearLayout card, String prefKey,
+    void addOverlayColorRow(LinearLayout card, String prefKey,
                                     int onyxColor, String dialogTitle,
                                     int bottomMargin) {
 
@@ -2110,7 +1890,7 @@ public class MainActivity extends Activity {
         return sub;
     }
 
-    private void updateAppColorSelection() {
+    void updateAppColorSelection() {
         int currentColor = getAppAccentColor();
 
         int[] presetColors = {
@@ -2191,7 +1971,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private LinearLayout tabHeader(int iconRes, String titleText) {
+    LinearLayout tabHeader(int iconRes, String titleText) {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -2214,11 +1994,11 @@ public class MainActivity extends Activity {
     }
 
 
-    private int getAppAccentColor() {
+    int getAppAccentColor() {
         return AppColors.accent(this);
     }
 
-    private void updateAppAccentColor() {
+    void updateAppAccentColor() {
         int color = getAppAccentColor();
         if (heroBanner != null) {
             heroBanner.refreshAccentColor();
@@ -2306,7 +2086,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void styleCheckBox(CheckBox box) {
+    void styleCheckBox(CheckBox box) {
         box.setTextColor(Color.WHITE);
         box.setButtonTintList(
                 android.content.res.ColorStateList.valueOf(
@@ -2315,7 +2095,7 @@ public class MainActivity extends Activity {
         appAccentCheckBoxes.add(box);
     }
 
-    private void addStylePicker(LinearLayout card) {
+    void addStylePicker(LinearLayout card) {
         TextView label = new TextView(this);
         label.setText("Overlay style");
         label.setTextColor(Color.WHITE);
@@ -2523,7 +2303,7 @@ public class MainActivity extends Activity {
         return Color.argb(110, Color.red(a), Color.green(a), Color.blue(a));
     }
 
-    private android.graphics.drawable.GradientDrawable cardBg(int radiusDp) {
+    android.graphics.drawable.GradientDrawable cardBg(int radiusDp) {
         android.graphics.drawable.GradientDrawable bg =
                 new android.graphics.drawable.GradientDrawable(
                         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
@@ -2540,7 +2320,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void showCustomAppColorPicker() {
+    void showCustomAppColorPicker() {
         showCustomColorPicker("Custom App Color", getAppAccentColor(), color -> {
             getSharedPreferences("app_settings", MODE_PRIVATE)
                     .edit().putInt("app_accent_color", color).apply();
@@ -2550,7 +2330,7 @@ public class MainActivity extends Activity {
     }
 
 
-    private SharedPreferences getPrefs() {
+    SharedPreferences getPrefs() {
         return getSharedPreferences(PREFS, MODE_PRIVATE);
     }
 
@@ -2731,7 +2511,7 @@ public class MainActivity extends Activity {
     }
 
 
-    private TextView section(String value) {
+    TextView section(String value) {
         TextView heading = text(value, 13, true, getAppAccentColor());
         heading.setCompoundDrawablesRelativeWithIntrinsicBounds(
                 R.drawable.ic_section_mark, 0, 0, 0);
@@ -2750,7 +2530,7 @@ public class MainActivity extends Activity {
         b.setEllipsize(null);
     }
 
-    private TextView text(String value, int size, boolean bold, int color) {
+    TextView text(String value, int size, boolean bold, int color) {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(size);
@@ -2763,7 +2543,7 @@ public class MainActivity extends Activity {
         return view;
     }
 
-    private void add(LinearLayout parent, View view, int width, int bottom) {
+    void add(LinearLayout parent, View view, int width, int bottom) {
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(
                         width == 0 ? -1 : width, -2);
@@ -2772,7 +2552,7 @@ public class MainActivity extends Activity {
         parent.addView(view, params);
     }
 
-    private int dp(int value) {
+    int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
