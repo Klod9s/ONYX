@@ -106,7 +106,8 @@ public class FloatingFpsService extends Service {
                                     sample.averageFrameTimeMs,
                                     sample.cpu,
                                     sample.gpuLoadPercent,
-                                    sample.ramUsagePercent);
+                                    sample.ramUsagePercent,
+                                    sample.thermalStatus);
                             // Re-check shared state after sampling; Stop may have been
                             // pressed while this sample was in flight. Never auto-start
                             // the recorder from the sampling loop.
@@ -254,6 +255,12 @@ public class FloatingFpsService extends Service {
         String cpu = readings[3];
         String gpu = readings[4];
         String ram = readings[5];
+        int thermalStatus;
+        try {
+            thermalStatus = Integer.parseInt(readings[6]);
+        } catch (Exception ignored) {
+            thermalStatus = ThermalStatusReader.UNAVAILABLE;
+        }
 
         boolean showFps = overlayPrefs.getBoolean("show_fps", true);
         boolean showTemperature =
@@ -363,6 +370,26 @@ public class FloatingFpsService extends Service {
         // Text is re-applied after a rebuild, so nothing flashes back to "--"
         if (fpsView != null) fpsView.setText(fps);
         if (temperatureView != null) temperatureView.setText(temperature);
+        if (batteryIconView != null) {
+            int thermalLevel = ThermalStatusReader.overlayLevel(thermalStatus);
+            if (thermalLevel == 0) {
+                batteryIconView.setImageResource(R.drawable.ic_battery_temp);
+                batteryIconView.setImageTintList(null);
+                batteryIconView.setContentDescription(
+                        thermalStatus == ThermalStatusReader.UNAVAILABLE
+                                ? "Thermal status unavailable"
+                                : "Normal thermal status");
+            } else {
+                batteryIconView.setImageResource(R.drawable.ic_thermal_flame);
+                int flameColor = thermalLevel == 1
+                        ? Color.rgb(255, 152, 0)
+                        : Color.rgb(244, 67, 54);
+                batteryIconView.setImageTintList(
+                        android.content.res.ColorStateList.valueOf(flameColor));
+                batteryIconView.setContentDescription(
+                        "Thermal status: " + ThermalStatusReader.label(thermalStatus));
+            }
+        }
         if (frameTimeView != null) frameTimeView.setText(frameTime);
         if (cpuView != null) cpuView.setText("CPU " + cpu);
         if (gpuView != null) gpuView.setText("GPU " + gpu);
@@ -1166,6 +1193,8 @@ public class FloatingFpsService extends Service {
                 livePrefs.getString("gpu_load", "--%");
         String ram =
                 livePrefs.getString("ram_usage", "--%");
+        String thermalStatus = String.valueOf(livePrefs.getInt(
+                "thermal_status", ThermalStatusReader.UNAVAILABLE));
 
         return new String[]{
                 fps,
@@ -1173,7 +1202,8 @@ public class FloatingFpsService extends Service {
                 frameTime,
                 cpu,
                 gpu,
-                ram
+                ram,
+                thermalStatus
         };
     }
 
