@@ -627,7 +627,7 @@ new MonitorPageBuilder(this).build(page);
 
 // Rebuild the cards so they pick up the current accent
         if (tab == 1 && sessionsAdapter != null) {
-            loadHistory();
+            loadHistory(true);
         }
     }
 
