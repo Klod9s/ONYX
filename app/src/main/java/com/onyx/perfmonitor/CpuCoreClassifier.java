@@ -62,6 +62,21 @@ final class CpuCoreClassifier {
             return result;
         }
 
+        long[] unique = new long[validCount];
+        int uniqueCount = 0;
+        for (long value : capacities) {
+            if (value <= 0) continue;
+            boolean found = false;
+            for (int i = 0; i < uniqueCount; i++) {
+                if (unique[i] == value) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) unique[uniqueCount++] = value;
+        }
+        Arrays.sort(unique, 0, uniqueCount);
+
         long range = max - min;
         long lowBoundary = min + range / 3;
         long highBoundary = min + (range * 2) / 3;
@@ -70,12 +85,10 @@ final class CpuCoreClassifier {
             long value = capacities[i];
             if (value <= 0) continue;
 
-            if (max == min) {
-                result[i] = UNKNOWN;
-            } else if (range < 3 || lowBoundary == highBoundary) {
+            if (uniqueCount == 2) {
                 // Two-cluster processors have efficiency and performance
                 // groups, but no artificial middle group.
-                result[i] = value < max ? EFFICIENCY : PERFORMANCE;
+                result[i] = value == min ? EFFICIENCY : PERFORMANCE;
             } else if (value <= lowBoundary) {
                 result[i] = EFFICIENCY;
             } else if (value >= highBoundary) {
