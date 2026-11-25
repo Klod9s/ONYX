@@ -235,6 +235,15 @@ private Sample readSample(boolean recording) {
                         " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                         " echo \"$K $V\"; " +
                         "done; " +
+                        "echo __COOLING_BLOCK__; " +
+                        "for C in /sys/class/thermal/cooling_device*; do " +
+                        " [ -d \"$C\" ] || continue; " +
+                        " T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
+                        " case \"$T\" in *cpu*|*gpu*|*cpufreq*|*devfreq*) ;; *) continue;; esac; " +
+                        " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; " +
+                        " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
+                        " echo \"$T $S $M\"; " +
+                        "done; " +
                         "echo __MALI_BLOCK__; " +
                         "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                         "echo __END__; ";
@@ -410,7 +419,9 @@ private Sample readSample(boolean recording) {
             }
 
             parseThermalTemperatures(
-                    between(output, "__THERMAL_BLOCK__\n", "__MALI_BLOCK__"), sample);
+                    between(output, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
+            sample.coolingDeviceActive = ThermalCoolingReader.parse(
+                    between(output, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"));
 
             // Cache MALI_PATH (FIXED: uses 'output', not 'freqOutput')
             String maliBlock = between(output, "__MALI_BLOCK__\n", "__END__").trim();
@@ -622,7 +633,9 @@ private Sample readShizukuSample(boolean recording) {
                     }
 
                     parseThermalTemperatures(
-                            between(freqOutput, "__THERMAL_BLOCK__\n", "__MALI_BLOCK__"), sample);
+                            between(freqOutput, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
+                    sample.coolingDeviceActive = ThermalCoolingReader.parse(
+                            between(freqOutput, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"));
 
                     // Cache MALI_PATH safely
                     String maliBlock = between(freqOutput, "__MALI_BLOCK__\n", "__END__").trim();
