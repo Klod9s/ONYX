@@ -130,7 +130,11 @@ final class SamplingController {
 
     void wake() {
         activity.handler.removeCallbacks(sampler);
-        sampler.run();
+        if (isNeeded()) {
+            sampler.run();
+        } else {
+            activity.monitoringEngine.resetCpuBaseline();
+        }
     }
 
     void stop() {
