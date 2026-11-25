@@ -420,32 +420,53 @@ public class AnalysisContentBuilder {
         heading.setPadding(0, 0, 0, dp(12));
         card.addView(heading);
 
-        double frameTimeTotal = 0;
-        double stdDevTotal = 0;
-        double stutterTotal = 0;
-        int frameTimeCount = 0;
-        int stdDevCount = 0;
-        int stutterCountValid = 0;
+        // Prefer session-wide calculations from every unique captured frame interval.
+        FramePacingSummaryCalculator.Result frameSummary =
+                FramePacingSummaryCalculator.calculate(d.frameIntervalsMs);
 
-        for (double value : d.averageFrameTime) {
-            if (Double.isFinite(value) && value >= 0) {
-                frameTimeTotal += value;
-                frameTimeCount++;
-            }
-        }
+        double averageFrameTime = frameSummary.averageFrameTimeMs;
+        double frameTimeVariation = frameSummary.standardDeviationMs;
+        double stutters = frameSummary.stutterCount;
+        String stutterUnit = "total";
 
-        for (double value : d.frameTimeStdDev) {
-            if (Double.isFinite(value) && value >= 0) {
-                stdDevTotal += value;
-                stdDevCount++;
-            }
-        }
+        // Older/imported sessions may contain sampled pacing metrics but no
+        // individual frame intervals. Preserve their previous summary behavior.
+        if (!frameSummary.valid()) {
+            double frameTimeTotal = 0;
+            double stdDevTotal = 0;
+            double stutterTotal = 0;
+            int frameTimeCount = 0;
+            int stdDevCount = 0;
+            int stutterCountValid = 0;
 
-        for (double value : d.stutterCount) {
-            if (Double.isFinite(value) && value >= 0) {
-                stutterTotal += value;
-                stutterCountValid++;
+            for (double value : d.averageFrameTime) {
+                if (Double.isFinite(value) && value >= 0) {
+                    frameTimeTotal += value;
+                    frameTimeCount++;
+                }
             }
+
+            for (double value : d.frameTimeStdDev) {
+                if (Double.isFinite(value) && value >= 0) {
+                    stdDevTotal += value;
+                    stdDevCount++;
+                }
+            }
+
+            for (double value : d.stutterCount) {
+                if (Double.isFinite(value) && value >= 0) {
+                    stutterTotal += value;
+                    stutterCountValid++;
+                }
+            }
+
+            averageFrameTime = frameTimeCount > 0
+                    ? frameTimeTotal / frameTimeCount : -1;
+            frameTimeVariation = stdDevCount > 0
+                    ? stdDevTotal / stdDevCount : -1;
+            stutters = stutterCountValid > 0
+                    ? stutterTotal / stutterCountValid : -1;
+            stutterUnit = "avg/1s";
         }
 
         // FPS STABILITY: percentage within 5% of median FPS
@@ -503,17 +524,14 @@ public class AnalysisContentBuilder {
         };
 
         String[] values = {
-                frameTimeCount > 0
-                        ? String.format(Locale.US, "%.2f",
-                        frameTimeTotal / frameTimeCount) : "--",
+                averageFrameTime >= 0
+                        ? String.format(Locale.US, "%.2f", averageFrameTime) : "--",
 
-                stdDevCount > 0
-                        ? String.format(Locale.US, "%.2f",
-                        stdDevTotal / stdDevCount) : "--",
+                frameTimeVariation >= 0
+                        ? String.format(Locale.US, "%.2f", frameTimeVariation) : "--",
 
-                stutterCountValid > 0
-                        ? String.format(Locale.US, "%.1f",
-                        stutterTotal / stutterCountValid) : "--",
+                stutters >= 0
+                        ? String.format(Locale.US, "%.1f", stutters) : "--",
 
                 stability >= 0
                         ? String.format(Locale.US, "%.1f%%", stability) : "--",
@@ -525,7 +543,7 @@ public class AnalysisContentBuilder {
                         ? String.format(Locale.US, "%.1f", pointOnePercentLow) : "--"
         };
 
-        String[] units = {"ms", "ms", "/ 1s", "", "FPS", "FPS"};
+        String[] units = {"ms", "ms", stutterUnit, "", "FPS", "FPS"};
 
         LinearLayout metricsContainer = new LinearLayout(context);
         metricsContainer.setOrientation(LinearLayout.VERTICAL);
