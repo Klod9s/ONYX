@@ -732,7 +732,10 @@ public class AnalysisContentBuilder {
         card.setElevation(dp(4));
 
         TextView heading = sectionHeading(title);
-        boolean showThermalPeriods = "FPS OVER TIME".equals(title);
+        boolean isFpsChart = "FPS OVER TIME".equals(title);
+        boolean showThermalPeriods = isFpsChart
+                && context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+                .getBoolean("show_thermal_throttling", true);
         if (showThermalPeriods) {
             LinearLayout headingRow = new LinearLayout(context);
             headingRow.setOrientation(LinearLayout.HORIZONTAL);
