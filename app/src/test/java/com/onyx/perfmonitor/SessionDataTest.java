@@ -68,6 +68,8 @@ public class SessionDataTest {
         assertEquals(data.times.size(), data.gpuFreq.size());
         assertEquals(data.times.size(), data.averageFrameTime.size());
         assertEquals(data.times.size(), data.ramUsage.size());
+        assertEquals(data.times.size(), data.cpuTemperature.size());
+        assertEquals(data.times.size(), data.gpuTemperature.size());
 
         assertEquals(60.0, data.fps.get(0), 0.0001);
         assertEquals(-1.0, data.ramUsage.get(0), 0.0001);
@@ -103,6 +105,24 @@ public class SessionDataTest {
 
         assertNotNull(legacyData);
         assertEquals(-1.0, legacyData.ramUsage.get(0), 0.0001);
+    }
+
+    @Test
+    public void loadParsesCpuAndGpuTemperaturesAndKeepsLegacyUnavailable() throws Exception {
+        File current = writeSession(
+                "Device,Test device",
+                rowWithThermal("00:00:01", "60", "52.1", "45.3")
+        );
+        SessionData currentData = SessionData.load(current);
+        assertNotNull(currentData);
+        assertEquals(52.1, currentData.cpuTemperature.get(0), 0.0001);
+        assertEquals(45.3, currentData.gpuTemperature.get(0), 0.0001);
+
+        File legacy = writeSession("Device,Test device", row("00:00:01", "60"));
+        SessionData legacyData = SessionData.load(legacy);
+        assertNotNull(legacyData);
+        assertEquals(-1.0, legacyData.cpuTemperature.get(0), 0.0001);
+        assertEquals(-1.0, legacyData.gpuTemperature.get(0), 0.0001);
     }
 
     @Test
@@ -184,7 +204,7 @@ public class SessionDataTest {
                 }
             }
             writer.write("PERFORMANCE READINGS\n");
-            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,SecondsPerPercent,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount\n");
+            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,SecondsPerPercent,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount,FpsSource,FrameIntervals,RamUsage,CpuTemperature,GpuTemperature\n");
             for (String line : lines) {
                 if (!(line.startsWith("Device,") || line.startsWith("Android,")
                         || line.startsWith("Mode,"))) {
@@ -194,6 +214,16 @@ public class SessionDataTest {
             }
         }
         return file;
+    }
+
+    private String rowWithThermal(String time, String fps, String cpuTemp, String gpuTemp) {
+        String[] columns = new String[35];
+        Arrays.fill(columns, "");
+        columns[0] = time;
+        columns[2] = fps;
+        columns[33] = cpuTemp;
+        columns[34] = gpuTemp;
+        return String.join(",", columns);
     }
 
     private String rowWithRam(String time, String fps, String ram) {
