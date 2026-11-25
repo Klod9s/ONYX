@@ -35,12 +35,23 @@ final class ThermalStatusReader {
         }
     }
 
+    // Overlay levels: 0 = battery icon, 1 = light warning, 2 = moderate,
+    // 3 = severe or higher. UNAVAILABLE remains distinct from normal, but
+    // both use the battery icon because no thermal pressure is confirmed.
+    static int overlayLevel(int status) {
+        if (status == UNAVAILABLE || status == NONE) return 0;
+        if (status == LIGHT) return 1;
+        if (status == MODERATE) return 2;
+        if (status >= SEVERE && status <= SHUTDOWN) return 3;
+        return 0;
+    }
+
     static boolean isElevated(int status) {
-        return status >= LIGHT && status <= SHUTDOWN;
+        return overlayLevel(status) > 0;
     }
 
     static boolean isSevere(int status) {
-        return status >= SEVERE && status <= SHUTDOWN;
+        return overlayLevel(status) >= 3;
     }
 
     static String label(int status) {
