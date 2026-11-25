@@ -371,8 +371,8 @@ final class SettingsContentBuilder {
         info.setGravity(Gravity.CENTER);
         info.setIncludeFontPadding(false);
         info.setContentDescription(title + " information");
-        info.setBackground(activity.cardBg(20));
-        info.setPadding(activity.dp(7), activity.dp(3), activity.dp(7), activity.dp(3));
+        info.setBackground(null);
+        info.setPadding(0, 0, 0, 0);
         info.setOnClickListener(v -> {
             AlertDialog dialog = new AlertDialog.Builder(activity)
                     .setTitle(title)
@@ -382,6 +382,13 @@ final class SettingsContentBuilder {
             dialog.setOnShowListener(ignored -> {
                 dialog.getWindow().setBackgroundDrawable(
                         activity.cardBg(16));
+                TextView messageView = dialog.findViewById(android.R.id.message);
+                if (messageView != null) messageView.setTextColor(Color.WHITE);
+                int titleId = activity.getResources().getIdentifier(
+                        "alertTitle", "id", "android");
+                TextView titleView = titleId != 0
+                        ? dialog.findViewById(titleId) : null;
+                if (titleView != null) titleView.setTextColor(Color.WHITE);
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                         .setTextColor(activity.getAppAccentColor());
             });
