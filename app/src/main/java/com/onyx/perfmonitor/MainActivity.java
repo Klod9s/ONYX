@@ -3029,7 +3029,7 @@ public class MainActivity extends Activity {
         int startBattery = samples.get(0).battery;
         int endBattery = samples.get(samples.size() - 1).battery;
 
-        long duration = System.currentTimeMillis() - startMs;
+        long duration = samples.get(samples.size() - 1).timeMs;
 
         return String.format(Locale.US,
                 "Run time: %.1f minutes\n" +
