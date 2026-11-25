@@ -37,12 +37,18 @@ final class SessionSummaryFormatter {
     static String build(List<Sample> samples, android.content.Context context) {
         if (samples.isEmpty()) return "No valid readings collected.";
 
+        long duration = samples.get(samples.size() - 1).timeMs;
+        if (context != null && !SessionDataPreferences.enabled(
+                context, SessionDataPreferences.BATTERY)) {
+            return String.format(Locale.US,
+                    "Run time: %.1f minutes\\nBattery data: not collected",
+                    duration / 60000.0);
+        }
+
         int startBattery = samples.get(0).battery;
         int endBattery = samples.get(samples.size() - 1).battery;
-        long duration = samples.get(samples.size() - 1).timeMs;
-
         return String.format(Locale.US,
-                "Run time: %.1f minutes\n" +
+                "Run time: %.1f minutes\\n" +
                         "Battery level: %d%% → %d%% (%d%% change)",
                 duration / 60000.0,
                 startBattery,
