@@ -135,12 +135,12 @@ public class MainActivity extends Activity {
     private Button overlayButton;
     android.graphics.drawable.GradientDrawable customColorButtonBg;
     TextView customColorCheck;
-    private final ArrayList<Runnable> aboutRefreshers = new ArrayList<>();
+    final ArrayList<Runnable> aboutRefreshers = new ArrayList<>();
 
     // TODO: put your real links here
-    private static final String URL_COFFEE = "https://buymeacoffee.com/klod9s";
-    private static final String URL_GITHUB = "https://github.com/Klod9s";
-    private static final String URL_XDA = "https://xdaforums.com/m/klod9s.13504375/";
+    static final String URL_COFFEE = "https://buymeacoffee.com/klod9s";
+    static final String URL_GITHUB = "https://github.com/Klod9s";
+    static final String URL_XDA = "https://xdaforums.com/m/klod9s.13504375/";
 
 
     private View statusDot;
@@ -1221,273 +1221,17 @@ public class MainActivity extends Activity {
         new SettingsContentBuilder(this).build(settingsPage);
     }
 
-    private void buildAboutContent() {
-        LinearLayout content = (LinearLayout) aboutPage.getChildAt(0);
-        content.removeViewAt(0);
-        aboutRefreshers.clear();
 
-        // Simple header matching the other tabs
-        add(content, tabHeader(R.drawable.ic_nav_about, "ABOUT"), 0, 12);
 
-        // ================= CARD 1: app info =================
-        LinearLayout infoCard = aboutCard();
 
-        LinearLayout titleRow = new LinearLayout(this);
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView appTitle = section("ONYX PERFORMANCE MONITOR");
-        appTitle.setSingleLine(true);
-        titleRow.addView(appTitle, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        String versionName = "1.0.0";
-        try {
-            versionName = getPackageManager()
-                    .getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Exception ignored) {
-        }
 
-        TextView versionPill = text("v" + versionName + " • STABLE", 9, true,
-                getAppAccentColor());
-        versionPill.setSingleLine(true);
-        versionPill.setPadding(dp(10), dp(4), dp(10), dp(4));
-        android.graphics.drawable.GradientDrawable pillBg =
-                new android.graphics.drawable.GradientDrawable();
-        pillBg.setCornerRadius(dp(50));
-        pillBg.setColor(Color.rgb(27, 38, 54));
-        pillBg.setStroke(dp(1), getAppAccentColor());
-        versionPill.setBackground(pillBg);
-        appAccentTextViews.add(versionPill);
-        aboutRefreshers.add(() -> pillBg.setStroke(dp(1), getAppAccentColor()));
 
-        LinearLayout.LayoutParams pillParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        pillParams.leftMargin = dp(8);
-        titleRow.addView(versionPill, pillParams);
-        add(infoCard, titleRow, 0, 8);
 
-        TextView desc = text(
-                "A comprehensive, lightweight performance analysis overlay. Measures FPS, frametime, 1% lows, stutters, and hardware telemetry with smart foreground-only refreshing.",
-                12, false, Color.rgb(145, 158, 175));
-        desc.setLineSpacing(dp(2), 1f);
-        add(infoCard, desc, 0, 12);
 
-        LinearLayout infoRow = new LinearLayout(this);
-        infoRow.setOrientation(LinearLayout.HORIZONTAL);
 
-        LinearLayout.LayoutParams left = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        left.rightMargin = dp(4);
-        infoRow.addView(aboutInfoBox("DEVELOPER", "Klod9s"), left);
-
-        LinearLayout.LayoutParams right = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        right.leftMargin = dp(4);
-        infoRow.addView(aboutInfoBox("LICENSE", "GNU GPLv3"), right);
-        add(infoCard, infoRow, 0, 0);
-
-        add(content, infoCard, 0, 14);
-
-        // ================= CARD 2: support =================
-        LinearLayout supportCard = aboutCard();
-        add(supportCard, section("SUPPORT DEVELOPMENT"), 0, 8);
-
-        TextView supportText = text(
-                "ONYX is free, ad-free, and open source. If this tool helps you benchmark or optimize your device, consider supporting the project.",
-                12, false, Color.rgb(145, 158, 175));
-        supportText.setLineSpacing(dp(2), 1f);
-        add(supportCard, supportText, 0, 12);
-
-        LinearLayout coffee = aboutButton("BUY ME A COFFEE", true, R.drawable.ic_coffee);
-        coffee.setOnClickListener(v -> openUrl(URL_COFFEE));
-        LinearLayout.LayoutParams coffeeParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
-        coffeeParams.bottomMargin = dp(8);
-        supportCard.addView(coffee, coffeeParams);
-
-        LinearLayout linkRow = new LinearLayout(this);
-        linkRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        LinearLayout github = aboutButton("GITHUB", false, R.drawable.ic_github);
-        github.setOnClickListener(v -> openUrl(URL_GITHUB));
-        LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(0, dp(44), 1f);
-        gp.rightMargin = dp(4);
-        linkRow.addView(github, gp);
-
-        LinearLayout xda = aboutButton("XDA THREAD", false, R.drawable.ic_xda);
-        xda.setOnClickListener(v -> openUrl(URL_XDA));
-        LinearLayout.LayoutParams xp = new LinearLayout.LayoutParams(0, dp(44), 1f);
-        xp.leftMargin = dp(4);
-        linkRow.addView(xda, xp);
-        add(supportCard, linkRow, 0, 0);
-
-        add(content, supportCard, 0, 14);
-
-        // ================= CARD 3: how metrics work =================
-        LinearLayout metricsCard = aboutCard();
-        add(metricsCard, section("HOW METRICS WORK"), 0, 10);
-
-        addAboutBullet(metricsCard, "Frame Pacing & Analysis",
-                "Real-time FPS, frametime graph, 1% and 0.1% lows, and stutter counts for deep performance analysis.", 10);
-        addAboutBullet(metricsCard, "Hardware Telemetry",
-                "Live CPU and GPU utilization percentages fetched directly from hardware performance counters.", 10);
-        addAboutBullet(metricsCard, "Thermal & Power",
-                "Battery temperature and power state monitoring to help identify performance throttling.", 10);
-        addAboutBullet(metricsCard, "Smart Foreground Refresh",
-                "Overlay metrics and UI only update when actively in use, ensuring zero background battery drain.", 0);
-
-        add(content, metricsCard, 0, 14);
-
-        // ================= CARD 4: credits =================
-        LinearLayout creditsCard = aboutCard();
-        add(creditsCard, section("CREDITS & ACKNOWLEDGMENTS"), 0, 8);
-
-        TextView creditsText = text(
-                "Independently developed and tested. Powered by RikkaApps' Shizuku API for privileged telemetry access.",
-                12, false, Color.rgb(145, 158, 175));
-        creditsText.setLineSpacing(dp(2), 1f);
-        add(creditsCard, creditsText, 0, 10);
-
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.rgb(43, 52, 65));
-        creditsCard.addView(divider, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)));
-
-        LinearLayout licensesRow = new LinearLayout(this);
-        licensesRow.setOrientation(LinearLayout.HORIZONTAL);
-        licensesRow.setGravity(Gravity.CENTER_VERTICAL);
-        licensesRow.setPadding(0, dp(12), 0, dp(2));
-
-        licensesRow.addView(text("View Open Source Licenses", 14, false, Color.WHITE),
-                new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        licensesRow.addView(text("›", 20, false, Color.rgb(145, 158, 175)));
-
-        licensesRow.setOnClickListener(v -> showDarkDialog(
-                darkDialogBuilder()
-                        .setTitle("Open Source Licenses")
-                        .setMessage("• AndroidX Libraries & Jetpack Compose\n"
-                                + "  License: Apache License 2.0\n\n"
-                                + "• Shizuku API & Provider (RikkaApps)\n"
-                                + "  License: Apache License 2.0\n\n"
-                                + "• ONYX Performance Monitor\n"
-                                + "  License: GNU General Public License v3.0 (or later)\n\n"
-                                + "ONYX is free, open-source software. Tap below to read the full legal license text or view the source code.")
-                        .setPositiveButton("CLOSE", null)
-                        .setNeutralButton("VIEW LICENSE", (dialog, which) -> {
-                            // Link to your GitHub repo's LICENSE file, or the official GNU site
-                            openUrl("https://www.gnu.org/licenses/gpl-3.0.html");
-                        }),
-                false));
-        creditsCard.addView(licensesRow, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        add(content, creditsCard, 0, 10);
-    }
-
-    private LinearLayout aboutCard() {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-        card.setBackground(cardBg(16));
-        return card;
-    }
-
-    private LinearLayout aboutInfoBox(String label, String value) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(12), dp(10), dp(12), dp(10));
-
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable();
-        bg.setColor(Color.rgb(27, 38, 54));
-        bg.setCornerRadius(dp(10));
-        box.setBackground(bg);
-
-        TextView l = text(label, 11, true, getAppAccentColor());
-        appAccentTextViews.add(l);
-        box.addView(l);
-
-        TextView v = text(value, 14, true, Color.WHITE);
-        v.setSingleLine(true);
-        box.addView(v);
-        return box;
-    }
-
-    private LinearLayout aboutButton(String label, boolean filled, int iconRes) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER);
-
-        android.widget.ImageView icon = new android.widget.ImageView(this);
-        icon.setImageResource(iconRes);
-        LinearLayout.LayoutParams ip =
-                new LinearLayout.LayoutParams(dp(18), dp(18));
-        ip.rightMargin = dp(8);
-        row.addView(icon, ip);
-
-        TextView t = text(label, 13, true, Color.WHITE);
-        t.setSingleLine(true);
-        t.setLetterSpacing(0.04f);
-        row.addView(t);
-
-        android.graphics.drawable.GradientDrawable bg =
-                new android.graphics.drawable.GradientDrawable();
-        bg.setCornerRadius(dp(12));
-
-        if (filled) {
-            Runnable style = () -> {
-                int accent = getAppAccentColor();
-                bg.setColor(accent);
-                t.setTextColor(androidx.core.graphics.ColorUtils
-                        .calculateLuminance(accent) > 0.5
-                        ? Color.rgb(13, 18, 26) : Color.WHITE);
-            };
-            style.run();
-            aboutRefreshers.add(style);
-        } else {
-            bg.setColor(Color.TRANSPARENT);
-            bg.setStroke(dp(1), Color.rgb(70, 82, 100));
-        }
-
-        row.setBackground(bg);
-        return row;
-    }
-
-    private void addAboutBullet(LinearLayout card, String title, String body, int bottom) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-
-        View dot = new View(this);
-        android.graphics.drawable.GradientDrawable dotBg =
-                new android.graphics.drawable.GradientDrawable();
-        dotBg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        dotBg.setColor(getAppAccentColor());
-        dot.setBackground(dotBg);
-        aboutRefreshers.add(() -> dotBg.setColor(getAppAccentColor()));
-
-        LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dp(7), dp(7));
-        dotParams.topMargin = dp(7);
-        dotParams.rightMargin = dp(10);
-        row.addView(dot, dotParams);
-
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.addView(text(title, 14, true, Color.WHITE));
-
-        TextView desc = text(body, 12, false, Color.rgb(145, 158, 175));
-        desc.setLineSpacing(dp(2), 1f);
-        column.addView(desc);
-
-        row.addView(column, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        add(card, row, 0, bottom);
-    }
-
-    private void openUrl(String url) {
+    void openUrl(String url) {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
         } catch (Exception e) {
@@ -2394,13 +2138,13 @@ public class MainActivity extends Activity {
                 : "TURN ON OVERLAY");
     }
 
-    private android.app.AlertDialog.Builder darkDialogBuilder() {
+    android.app.AlertDialog.Builder darkDialogBuilder() {
         return new android.app.AlertDialog.Builder(
                 this,
                 android.app.AlertDialog.THEME_DEVICE_DEFAULT_DARK);
     }
 
-    private void showDarkDialog(android.app.AlertDialog.Builder builder,
+    void showDarkDialog(android.app.AlertDialog.Builder builder,
                                 boolean destructive) {
         final android.app.AlertDialog dialog = builder.create();
 
@@ -3155,4 +2899,6 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
-}
+void buildAboutContent() {
+        new AboutContentBuilder(this).build(aboutPage);
+    }
