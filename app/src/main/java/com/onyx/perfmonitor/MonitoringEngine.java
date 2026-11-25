@@ -55,8 +55,16 @@ final class MonitoringEngine {
         return cachedMonitoringMode.isEmpty() ? "ANDROID" : cachedMonitoringMode;
     }
 
-    void resetBaselines() {
+    void resetCpuBaseline() {
         cpuUsageTracker.reset();
+    }
+
+    void resetSessionClock() {
+        startMs = System.currentTimeMillis();
+    }
+
+    void resetBaselines() {
+        resetCpuBaseline();
         fpsDetector.reset();
         lastDisplayedFps = -1;
         lastDisplayedFpsTime = 0;
