@@ -261,6 +261,40 @@ final class SettingsContentBuilder {
         // FLOATING OVERLAY SETTINGS follow all appearance/color controls.
         activity.add(content, activity.overlaySettingsCard, 0, 14);
 
+        // ANALYSIS DISPLAY OPTIONS
+        LinearLayout analysisDisplayCard = new LinearLayout(activity);
+        analysisDisplayCard.setOrientation(LinearLayout.VERTICAL);
+        analysisDisplayCard.setPadding(
+                activity.dp(16), activity.dp(16), activity.dp(16), activity.dp(12));
+        analysisDisplayCard.setBackground(activity.cardBg(16));
+
+        activity.add(analysisDisplayCard, activity.section("ANALYSIS DISPLAY"), 0, 8);
+        TextView analysisDisplayNote = activity.text(
+                "Choose which visual indicators appear in Session Analysis and Comparison.",
+                12, false, Color.rgb(145, 158, 175));
+        activity.add(analysisDisplayCard, analysisDisplayNote, 0, 10);
+
+        android.widget.CheckBox showThermalThrottling =
+                new android.widget.CheckBox(activity);
+        showThermalThrottling.setText("Show thermal throttling");
+        showThermalThrottling.setTextColor(Color.WHITE);
+        showThermalThrottling.setTextSize(12);
+        showThermalThrottling.setGravity(Gravity.CENTER_VERTICAL);
+        showThermalThrottling.setPadding(0, activity.dp(3), 0, activity.dp(3));
+        showThermalThrottling.setButtonTintList(
+                android.content.res.ColorStateList.valueOf(activity.getAppAccentColor()));
+        activity.appAccentCheckBoxes.add(showThermalThrottling);
+        showThermalThrottling.setChecked(activity.getSharedPreferences(
+                "app_settings", android.content.Context.MODE_PRIVATE)
+                .getBoolean("show_thermal_throttling", true));
+        showThermalThrottling.setOnCheckedChangeListener((button, enabled) ->
+                activity.getSharedPreferences(
+                        "app_settings", android.content.Context.MODE_PRIVATE)
+                        .edit().putBoolean("show_thermal_throttling", enabled).apply());
+        activity.add(analysisDisplayCard, showThermalThrottling, 0, 0);
+
+        activity.add(content, analysisDisplayCard, 0, 14);
+
         // DATA COLLECTION OPTIONS
         LinearLayout dataCollectionCard = new LinearLayout(activity);
         dataCollectionCard.setOrientation(LinearLayout.VERTICAL);
