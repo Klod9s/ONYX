@@ -420,8 +420,8 @@ private Sample readSample(boolean recording) {
 
             parseThermalTemperatures(
                     between(output, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
-            sample.coolingDeviceActive = ThermalCoolingReader.parse(
-                    between(output, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"));
+            applyCoolingReading(
+                    between(output, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"), sample);
 
             // Cache MALI_PATH (FIXED: uses 'output', not 'freqOutput')
             String maliBlock = between(output, "__MALI_BLOCK__\n", "__END__").trim();
@@ -643,8 +643,8 @@ private Sample readShizukuSample(boolean recording) {
 
                     parseThermalTemperatures(
                             between(freqOutput, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
-                    sample.coolingDeviceActive = ThermalCoolingReader.parse(
-                            between(freqOutput, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"));
+                    applyCoolingReading(
+                            between(freqOutput, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"), sample);
 
                     // Cache MALI_PATH safely
                     String maliBlock = between(freqOutput, "__MALI_BLOCK__\n", "__END__").trim();
@@ -788,6 +788,16 @@ private Sample readAndroidSample(boolean recording) {
 
 private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
+    }
+
+    private void applyCoolingReading(String raw, Sample sample) {
+        if (sample == null) return;
+        ThermalCoolingReader.Reading reading = ThermalCoolingReader.read(raw);
+        sample.coolingDeviceActive = reading.overallState();
+        sample.cpuCoolingState = reading.cpuState;
+        sample.cpuCoolingMaxState = reading.cpuMaxState;
+        sample.gpuCoolingState = reading.gpuState;
+        sample.gpuCoolingMaxState = reading.gpuMaxState;
     }
 
     private void parseThermalTemperatures(String raw, Sample sample) {
