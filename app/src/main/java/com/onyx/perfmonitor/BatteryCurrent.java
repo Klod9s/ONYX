@@ -50,6 +50,10 @@ public final class BatteryCurrent {
                 inverted = vote == 1;
                 prefs.edit().putBoolean(KEY_INVERTED, inverted).apply();
             }
+        } else {
+            // A plugged-in or low-current sample breaks the consecutive vote streak.
+            lastVote = -1;
+            voteCount = 0;
         }
 
         return inverted ? -ma : ma;
