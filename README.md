@@ -1,53 +1,116 @@
 # ONYX Performance Monitor
 
-Lightweight, real-time frame pacing, telemetry, and battery power overlay for Android.
+ONYX is an Android performance monitor for real-time FPS, frame pacing, hardware telemetry, battery power, and session analysis. It includes a configurable floating overlay and supports privileged data access through **Shizuku** or **root**.
 
 ## Features
 
-- **Comprehensive Performance Metrics**: Measures everything you need for deep analysis, including FPS, frametime graph, 1% & 0.1% lows, and stutter counts.
-- **Hardware Telemetry**: Live CPU/GPU load, battery temperature, and power state monitoring to identify throttling.
-- **Smart Foreground Refresh**: The overlay and UI only update when actively in the foreground, no polling when idle; sampling only while recording or the overlay is visible.
-- **Shizuku Integration**: Privileged telemetry access without requiring full root (Root also supported).
-- **Highly Customizable**: Adjustable scaling, drag-to-position, and multiple accent color themes (Onyx, Ocean, Violet, Crimson, or Custom).
+### Live performance monitoring
+- **FPS monitoring** with multiple detection methods and fallbacks: SurfaceFlinger BLAST/frame latency, display FPS, SurfaceFlinger frame counters, and TimeStats.
+- **Frame pacing metrics** when frame presentation timestamps are available: average frame time, frame-time variation, stutter count, and 1% / 0.1% frame lows.
+- **CPU telemetry** including per-core utilization and frequency, plus CPU temperature when exposed by the device.
+- **GPU telemetry** including utilization, frequency, and temperature when exposed by the device.
+- **Memory monitoring** with RAM usage.
+- **Battery and power telemetry** including battery level, current, voltage, power, and temperature.
+- **Thermal diagnostics** using Android thermal status and cooling-device activity when available.
+
+### Floating performance overlay
+- Show or hide FPS, temperature, frame-time graph, CPU load, GPU load, and RAM usage independently.
+- Choose the overlay style and adjust its size and opacity.
+- Drag the overlay to position it on screen.
+- Customize overlay accent, text, and background colors.
+- Start and stop session recording from the overlay.
+
+### Session recording and analysis
+- Record performance sessions from the app or floating overlay.
+- Save sessions as CSV files, with device and Android information where available.
+- Browse, import, export, compare, and delete saved sessions.
+- View a frame-pacing summary with average frame time, frame-time variation, stutters, FPS stability, and 1% / 0.1% frame lows when the required frame data is available.
+- Explore session charts for FPS, RAM, CPU core load and frequency, GPU load and frequency, CPU/GPU temperatures, and battery metrics.
+- Review battery drain intervals and recorded thermal-throttling periods.
+- Export a complete session analysis as a PNG image.
+- Compare two sessions in synchronized panes: stacked in portrait and side-by-side in landscape, with linked scrolling.
+
+### Customization and data controls
+- Choose an app accent preset: **Ocean**, **Emerald**, **Violet**, or **Crimson**, or use a custom color.
+- Configure which metrics are collected and saved to session files.
+- Toggle thermal-throttling indicators in session analysis and comparison independently of thermal data collection.
+- Enable or disable app animations.
+
+### Efficient sampling
+ONYX avoids unnecessary continuous sampling while idle. Monitoring is active when a session is being recorded or the floating overlay needs live readings; foreground UI updates are handled separately from background recording.
 
 ## Requirements
 
-- Android 8.0 (API 26) or higher.
-- Android 14 or higher recommended.
-- [Shizuku](https://shizuku.rikka.app/) installed and authorized (or a rooted device)
+- **Android 8.0 (API 26) or higher.**
+- **Android 14 or higher recommended.**
+- [Shizuku](https://shizuku.rikka.app/) installed, running, and authorized for ONYX, **or** a rooted device with root access granted.
+
+> **Device compatibility:** Available metrics depend on the device, Android version, kernel, vendor implementation, and access permissions. Some devices may not expose particular CPU/GPU temperatures, frequencies, utilization values, thermal diagnostics, or frame-level timestamps. When a frame-timestamp source is unavailable, ONYX may fall back to a display-level FPS source; frame-pacing statistics that require individual frame intervals may then be unavailable.
 
 ## Tested Devices
 
-ONYX has been verified to work on the following devices and environments:
+ONYX has been tested on the following devices and environments:
 
-* **Redmi Turbo 4 Pro** – LineageOS 23.2 (Android 16)
-* **Honor 400 Pro** – Android 16 / Android 17
-* **Lenovo Legion Y70 (2026)** – Android 16 / Android 17
-* **iQOO Z9x** – Android 14
+- **Redmi Turbo 4 Pro** — LineageOS 23.2 (Android 16)
+- **Honor 400 Pro** — Android 16 / Android 17
+- **Lenovo Legion Y70 (2026)** — Android 16 / Android 17
+- **iQOO Z9x** — Android 14
 
 ## Installation
 
-ONYX supports two installation methods: **Shizuku** and **Root**.
+ONYX supports two methods for privileged access.
 
 ### Method 1: Shizuku
+
 1. Install and set up [Shizuku](https://shizuku.rikka.app/).
 2. Start the Shizuku service.
-3. Open ONYX.
-4. Tap "Connect Shizuku"
+3. Install and open ONYX.
+4. Tap **Connect Shizuku**.
 5. Grant ONYX permission when prompted.
-6. Done! ONYX is ready to use.
 
 ### Method 2: Root
-1. Install ONYX.
-2. Open ONYX and grant it root access when prompted by your root manager (e.g., Magisk).
-3. Done! ONYX is ready to use.
+
+1. Install and open ONYX.
+2. Grant root access when prompted by your root manager (for example, Magisk).
 
 ## Building from Source
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/Klod9s/ONYX.git
+   cd ONYX
    ```
+
+2. Build the debug APK.
+
+   **Windows:**
+   ```powershell
+   .\gradlew.bat assembleDebug
+   ```
+
+   **Linux / macOS:**
+   ```bash
+   ./gradlew assembleDebug
+   ```
+
+3. Find the APK at:
+
+   ```
+   app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+To run the unit tests:
+
+**Windows:**
+```powershell
+.\gradlew.bat testDebugUnitTest
+```
+
+**Linux / macOS:**
+```bash
+./gradlew testDebugUnitTest
+```
 
 ## License
 
