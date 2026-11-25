@@ -76,4 +76,47 @@ public class MonitoringSampleParsingTest {
         MonitoringEngine.applyCoolingReading("cpu 1 2", null);
         // No exception is expected for a null destination sample.
     }
+
+    @Test
+    public void convertsGpuFrequencyAcrossCommonDriverUnits() {
+        assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587"), 0.0001);
+        assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587000"), 0.0001);
+        assertEquals(587.0, MonitoringEngine.parseGpuFrequencyMHz("587000000"), 0.0001);
+        assertEquals(0.0, MonitoringEngine.parseGpuFrequencyMHz("0.5"), 0.0001);
+    }
+
+    @Test
+    public void rejectsUnavailableOrMalformedGpuFrequencies() {
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz(null), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz(""), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz("-1"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz("NaN"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz("Infinity"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuFrequencyMHz("unknown"), 0.0001);
+    }
+
+    @Test
+    public void parsesGpuBusyCountersAndDirectUtilizationFormats() {
+        assertEquals(25.0, MonitoringEngine.parseGpuLoadPercent("250 1000 /sys/class/kgsl/gpubusy"), 0.0001);
+        assertEquals(42.5, MonitoringEngine.parseGpuLoadPercent("42.5 -1 /sys/devices/gpu/load"), 0.0001);
+        assertEquals(73.0, MonitoringEngine.parseGpuLoadPercent("73 /sys/devices/gpu/utilisation"), 0.0001);
+        assertEquals(0.0, MonitoringEngine.parseGpuLoadPercent("0 -1 /sys/devices/gpu/load"), 0.0001);
+    }
+
+    @Test
+    public void clampsGpuBusyCounterRatiosToValidPercentRange() {
+        assertEquals(100.0, MonitoringEngine.parseGpuLoadPercent("1200 1000 /sys/class/kgsl/gpubusy"), 0.0001);
+    }
+
+    @Test
+    public void rejectsInvalidGpuLoadValues() {
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent(null), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent(""), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("-1 -1 /sys/devices/gpu/load"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("101 /sys/devices/gpu/load"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("20 0 /sys/class/kgsl/gpubusy"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("NaN /sys/devices/gpu/load"), 0.0001);
+        assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("broken output"), 0.0001);
+    }
+
 }
