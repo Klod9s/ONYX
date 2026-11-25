@@ -28,7 +28,7 @@ final class OverlaySessionRecorder {
             "CPU 6 Frequency (MHz),CPU 7 Frequency (MHz)," +
             "GPU Frequency (MHz),GPU Load (%)," +
             "Average Frame Time (ms),Frame Time Std Dev (ms)," +
-            "Stutter Count,FPS Source\n";
+            "Stutter Count,FPS Source,Frame Intervals (ms)\n";
 
     private final Context context;
     private final android.content.SharedPreferences prefs;
@@ -186,6 +186,12 @@ final class OverlaySessionRecorder {
         if (s.stutterCount >= 0) row.append(s.stutterCount);
         row.append(',');
         if (s.fpsSource != null) row.append(s.fpsSource);
+        row.append(',').append('"');
+        for (int i = 0; i < s.frameIntervalsMs.size(); i++) {
+            if (i > 0) row.append(';');
+            row.append(String.format(Locale.US, "%.3f", s.frameIntervalsMs.get(i)));
+        }
+        row.append('"');
         return row.append('\n').toString();
     }
 
