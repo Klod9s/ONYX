@@ -330,7 +330,7 @@ public class FpsDetector {
             return NONE;
         }
 
-        return new Result(fps, "display", false);
+        return new Result(fps, "Panel / composition rate", false);
     }
 
     // ------------------------------------------------------------
