@@ -31,9 +31,16 @@ final class MonitorSampleRenderer {
                 ? "—"
                 : String.format(Locale.US, "%.0f", s.fps));
 
-        // frame-time graph in the FPS tile (same reading the overlay graph uses)
+        // Keep the FPS tile honest when the only available source is device-wide.
         if (fps != null && fps.getTag() instanceof GlassStyle.TileTag) {
-            GlassStyle.FrameGraphView g = ((GlassStyle.TileTag) fps.getTag()).graph;
+            GlassStyle.TileTag tag = (GlassStyle.TileTag) fps.getTag();
+            boolean panelRate = s.fpsSource != null
+                    && (s.fpsSource.toLowerCase(Locale.US).contains("display")
+                    || s.fpsSource.toLowerCase(Locale.US).contains("panel"));
+            setTextIfChanged(tag.label, panelRate ? "PANEL RATE" : "FPS");
+
+            // Frame-time graph only uses measured frame-pacing data.
+            GlassStyle.FrameGraphView g = tag.graph;
             if (g != null) {
                 if (s.averageFrameTimeMs > 0) g.addFrameTime((float) s.averageFrameTimeMs);
                 else g.noData();
