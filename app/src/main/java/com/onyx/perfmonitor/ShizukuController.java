@@ -69,7 +69,7 @@ final class ShizukuController {
                 .daemon(false)
                 .processNameSuffix("onyx")
                 .debuggable(false)
-                .version(1);
+                .version(2);
     }
 
     void registerListeners() {
