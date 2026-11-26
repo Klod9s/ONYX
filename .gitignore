@@ -88,3 +88,5 @@ lint-results.xml
 *.iml
 local.properties
 /captures/
+# Release build artifacts (including R8 mapping files)
+app/release/
