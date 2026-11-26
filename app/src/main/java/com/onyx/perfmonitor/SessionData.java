@@ -34,6 +34,7 @@ public class SessionData {
     // ---------- Readings (one entry per sample, -1 = unavailable) ----------
     public final List<Double> times = new ArrayList<>();
     public final List<Double> fps = new ArrayList<>();
+    public final List<String> fpsSource = new ArrayList<>();
     public final List<Double> current = new ArrayList<>();
     public final List<Double> voltage = new ArrayList<>();
     public final List<Double> power = new ArrayList<>();
@@ -176,6 +177,7 @@ public class SessionData {
 
         times.add(parseTime(columns.get(0)));
         fps.add(number(columns, 2));
+        fpsSource.add(columns.size() > 30 ? columns.get(30) : "");
         current.add(number(columns, 3));
         voltage.add(number(columns, 4));
         power.add(number(columns, 5));
