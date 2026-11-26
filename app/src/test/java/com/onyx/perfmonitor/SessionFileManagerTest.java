@@ -18,10 +18,10 @@ public class SessionFileManagerTest {
     }
 
     @Test
-    public void rejectsImportSizesAboveLimitOrUnknown() {
+    public void rejectsOversizedImportAndAllowsUnknownProviderSize() {
         assertFalse(SessionFileManager.isImportSizeAllowed(
                 SessionFileManager.MAX_IMPORT_BYTES + 1));
-        assertFalse(SessionFileManager.isImportSizeAllowed(-1));
+        assertTrue(SessionFileManager.isImportSizeAllowed(-1));
     }
 
     @Test
