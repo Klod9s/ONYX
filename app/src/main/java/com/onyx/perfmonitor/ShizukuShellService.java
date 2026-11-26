@@ -9,8 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 public class ShizukuShellService extends IOnyxUserService.Stub {
-    private static final int MAX_OUTPUT_CHARS = 2_000_000;
-    private static final long COMMAND_TIMEOUT_SECONDS = 5;
+    // Keep Binder replies comfortably below the transaction-size limit.
+    private static final int MAX_OUTPUT_CHARS = 256 * 1024;
+    private static final int MAX_COMPONENT_OUTPUT_CHARS = 8 * 1024;
+    private static final long COMMAND_TIMEOUT_SECONDS = 15;
 
     @Override
     public String readMetrics(String cachedGpuFreqPath, String cachedGpuLoadPath,
@@ -104,17 +106,22 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 "echo __MALI_BLOCK__; " +
                                 "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                                 "echo __END__;";
-        return run(new String[]{"sh", "-c", script});
+        return run(new String[]{"sh", "-c", script}, 10, MAX_OUTPUT_CHARS);
     }
 
     @Override
     public String getResumedActivityDump() throws RemoteException {
-        return run(new String[]{"dumpsys", "activity", "activities"});
+        // Return only component references; the full dump can exceed Binder's transaction limit.
+        String dump = run(new String[]{"dumpsys", "activity", "activities"},
+                15, 512 * 1024);
+        return extractComponentReferences(dump);
     }
 
     @Override
     public String getWindowDump() throws RemoteException {
-        return run(new String[]{"dumpsys", "window"});
+        // WindowManager dumps are large; keep only component references needed by the caller.
+        String dump = run(new String[]{"dumpsys", "window"}, 15, 512 * 1024);
+        return extractComponentReferences(dump);
     }
 
     @Override
@@ -155,6 +162,27 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
     }
 
     private static String run(String[] command) {
+        return run(command, COMMAND_TIMEOUT_SECONDS, MAX_OUTPUT_CHARS);
+    }
+
+    private static String extractComponentReferences(String dump) {
+        if (dump == null || dump.isEmpty()) return "";
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+                "([A-Za-z0-9_]+(?:[.][A-Za-z0-9_]+)+)/[A-Za-z0-9_.$]+")
+                .matcher(dump);
+        StringBuilder result = new StringBuilder();
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        while (matcher.find() && result.length() < MAX_COMPONENT_OUTPUT_CHARS) {
+            String component = matcher.group();
+            if (seen.add(component)) {
+                if (result.length() > 0) result.append('\n');
+                result.append(component);
+            }
+        }
+        return result.toString();
+    }
+
+    private static String run(String[] command, long timeoutSeconds, int maxOutputChars) {
         Process process = null;
         Thread readerThread = null;
         StringBuilder output = new StringBuilder();
@@ -171,7 +199,7 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                     int count;
                     while ((count = reader.read(buffer)) != -1) {
                         synchronized (output) {
-                            int remaining = MAX_OUTPUT_CHARS - output.length();
+                            int remaining = maxOutputChars - output.length();
                             if (remaining > 0) {
                                 output.append(buffer, 0, Math.min(count, remaining));
                             }
@@ -183,7 +211,7 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
             readerThread.setDaemon(true);
             readerThread.start();
 
-            boolean finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor(500, TimeUnit.MILLISECONDS);
