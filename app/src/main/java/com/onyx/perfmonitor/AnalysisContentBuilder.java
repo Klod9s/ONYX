@@ -68,6 +68,18 @@ public class AnalysisContentBuilder {
         return accentOverride != 0 ? accentOverride : AppColors.accent(context);
     }
 
+    private boolean hasPanelRateSource() {
+        for (String source : d.fpsSource) {
+            if (source != null) {
+                String normalized = source.toLowerCase(Locale.US);
+                if (normalized.contains("panel") || normalized.contains("display")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Accent-bar heading, same look as the section headings on Monitor. */
     private TextView sectionHeading(String value) {
         int accent = getAppAccentColor();
@@ -180,6 +192,15 @@ public class AnalysisContentBuilder {
         readings.setTextColor(muted);
         readings.setPadding(0, dp(5), 0, 0);
         infoCard.addView(readings);
+
+        if (hasPanelRateSource()) {
+            TextView sourceLine = new TextView(context);
+            sourceLine.setText("FPS SOURCE: PANEL / COMPOSITION RATE — may not represent individual-app FPS");
+            sourceLine.setTextSize(10);
+            sourceLine.setTextColor(muted);
+            sourceLine.setPadding(0, dp(4), 0, 0);
+            infoCard.addView(sourceLine);
+        }
 
         TextView fileLine = new TextView(context);
         fileLine.setText(d.fileName);
