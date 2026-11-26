@@ -71,7 +71,7 @@ public class FpsDetectorTest {
     }
 
     @Test
-    public void usesDisplayFpsWhenLayerMethodsAreUnavailable() {
+    public void doesNotUseDisplayRateAsAppFps() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
         List<String> commands = new ArrayList<>();
@@ -82,24 +82,9 @@ public class FpsDetectorTest {
             return "";
         }, "com.example.game");
 
-        assertTrue(result.valid());
-        assertEquals(90.0, result.fps, 0.0001);
-        assertEquals("Panel / composition rate", result.source);
-        assertTrue(commands.stream().anyMatch(command -> command.contains("measured_fps")));
-    }
-
-    @Test
-    public void rejectsOutOfRangeDisplayFpsAndReturnsUnavailable() {
-        AtomicLong clock = new AtomicLong(1000);
-        FpsDetector detector = new FpsDetector(clock::get);
-
-        FpsDetector.Result result = detector.detect(command -> {
-            if (command.contains("measured_fps")) return "fps: 500";
-            return "";
-        }, "com.example.game");
-
         assertFalse(result.valid());
         assertEquals("none", result.source);
+        assertTrue(commands.stream().noneMatch(command -> command.contains("measured_fps")));
     }
 
     @Test
