@@ -9,13 +9,11 @@ ONYX is a free, open-source Android performance monitor with **no ads and no use
   <img src="screenshots/monitor.png" width="300"/>
 </p>
 
+
 ### Floating Overlay in Gameplay
 
-<p align="center">
-  <a href="https://raw.githubusercontent.com/Klod9s/ONYX/master/screenshots/gameplay-overlay.png">
-    <img src="https://raw.githubusercontent.com/Klod9s/ONYX/master/screenshots/gameplay-overlay.png" alt="ONYX floating performance overlay during gameplay" width="100%">
-  </a>
-</p>
+![ONYX Floating Performance Overlay](https://raw.githubusercontent.com/Klod9s/ONYX/master/screenshots/gameplay-overlay.png)
+
 
 ### Session Recording & Comparison
 <p align="center">
