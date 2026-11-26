@@ -81,6 +81,7 @@ final class GlassStyle {
     static final class TileTag {
         DotMatrixView matrix;      // may be null
         FrameGraphView graph;      // FPS tile only
+        TextView label;            // metric title, used for source-aware FPS labeling
     }
 
     /** Live frame-time graph (ms per frame), fed one point per monitoring sample. */
