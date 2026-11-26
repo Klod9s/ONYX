@@ -78,7 +78,6 @@ public class FpsDetector {
     private static final Result NONE = new Result(-1, "none", false);
 
     private static final int M_BLAST = 0;
-    private static final int M_DISPLAY = 1;
     private static final int M_COUNTER = 2;
     private static final int M_LATENCY = 3;
     private static final int M_TIMESTATS = 4;
@@ -97,8 +96,6 @@ public class FpsDetector {
     private static final Pattern FRAME_RE =
             Pattern.compile("frame=([0-9]+)");
 
-    private static final Pattern DISPLAY_FPS_RE =
-            Pattern.compile("fps:\\s*([0-9]+(?:\\.[0-9]+)?)");
 
     private final java.util.function.LongSupplier elapsedRealtime;
 
@@ -214,15 +211,11 @@ public class FpsDetector {
         Result latency = attempt(M_LATENCY, shell, now);
         if (latency.valid()) return latency;
 
-        // 3. Display FPS fallback
-        Result display = attempt(M_DISPLAY, shell, now);
-        if (display.valid()) return display;
-
-        // 4. SurfaceFlinger frame counter fallback
+        // 3. SurfaceFlinger frame counter fallback
         Result counter = attempt(M_COUNTER, shell, now);
         if (counter.valid()) return counter;
 
-        // 5. TimeStats fallback
+        // 4. TimeStats fallback
         Result timeStats = attempt(M_TIMESTATS, shell, now);
         if (timeStats.valid()) return timeStats;
 
@@ -246,10 +239,6 @@ public class FpsDetector {
 
                 case M_BLAST:
                     r = bySurfaceFlingerLatency(shell, now, true);
-                    break;
-
-                case M_DISPLAY:
-                    r = byDisplayNode(shell);
                     break;
 
                 case M_COUNTER:
@@ -295,42 +284,6 @@ public class FpsDetector {
         }
 
         return r;
-    }
-
-    // ------------------------------------------------------------
-    // DISPLAY
-    // Reads the display controller's measured FPS.
-    // Not guaranteed to represent individual-app FPS on every device.
-
-    private Result byDisplayNode(Shell shell) throws Exception {
-
-        String out = shell.run(
-                "for f in "
-                        + "/sys/class/drm/sde-crtc-*/measured_fps "
-                        + "/sys/devices/platform/soc/*/drm/card0/card0-sde-crtc-0/measured_fps "
-                        + "/sys/class/drm/*/measured_fps "
-                        + "/sys/kernel/debug/dri/0/measured_fps "
-                        + "/sys/kernel/debug/dri/0/crtc*/measured_fps "
-                        + "/sys/class/graphics/fb0/measured_fps "
-                        + "/sys/class/graphics/fb1/measured_fps "
-                        + "/sys/kernel/oplus_display/measured_fps "
-                        + "/sys/class/mi_display/demon/measured_fps; do "
-                        + "[ -r \"$f\" ] && { cat \"$f\"; break; }; "
-                        + "done 2>/dev/null");
-
-        if (out == null) return NONE;
-
-        Matcher m = DISPLAY_FPS_RE.matcher(out);
-
-        if (!m.find()) return NONE;
-
-        double fps = Double.parseDouble(m.group(1));
-
-        if (fps <= 0 || fps > 360) {
-            return NONE;
-        }
-
-        return new Result(fps, "Panel / composition rate", false);
     }
 
     // ------------------------------------------------------------
