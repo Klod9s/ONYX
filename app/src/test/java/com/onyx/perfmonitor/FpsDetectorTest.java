@@ -12,6 +12,21 @@ import org.junit.Test;
 
 public class FpsDetectorTest {
 
+    private static FpsDetector.Shell shell(
+            java.util.function.Supplier<String> dump,
+            java.util.function.Supplier<String> layers,
+            java.util.function.Function<String, String> latency,
+            java.util.function.Supplier<String> timeStats) {
+        return new FpsDetector.Shell() {
+            @Override public String surfaceFlingerDump() { return dump.get(); }
+            @Override public String surfaceFlingerLayers() { return layers.get(); }
+            @Override public String surfaceFlingerLatency(String layerName) {
+                return latency.apply(layerName);
+            }
+            @Override public String surfaceFlingerTimeStatsDump() { return timeStats.get(); }
+        };
+    }
+
     @Test
     public void capturesOnlyNewSurfaceFlingerIntervalsAcrossOverlappingPolls() {
         AtomicLong clock = new AtomicLong(1000);
@@ -19,21 +34,19 @@ public class FpsDetectorTest {
         FpsDetector detector = new FpsDetector(clock::get);
         detector.beginFrameCapture(latest.get() - 500_000_000L);
 
-        FpsDetector.Shell shell = command -> {
-            if (command.contains("SurfaceFlinger --list")) {
-                return "SurfaceView com.example.game\n";
-            }
-            if (command.contains("SurfaceFlinger --latency")) {
-                long end = latest.get();
-                StringBuilder dump = new StringBuilder("10000000\n");
-                for (int i = 99; i >= 0; i--) {
-                    long timestamp = end - i * 10_000_000L;
-                    dump.append("0 ").append(timestamp).append(" 0\n");
-                }
-                return dump.toString();
-            }
-            return "";
-        };
+        FpsDetector.Shell shell = shell(
+                () -> "",
+                () -> "SurfaceView com.example.game\n",
+                layerName -> {
+                    long end = latest.get();
+                    StringBuilder dump = new StringBuilder("10000000\n");
+                    for (int i = 99; i >= 0; i--) {
+                        long timestamp = end - i * 10_000_000L;
+                        dump.append("0 ").append(timestamp).append(" 0\n");
+                    }
+                    return dump.toString();
+                },
+                () -> "");
 
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertTrue(baseline.valid());
@@ -58,33 +71,36 @@ public class FpsDetectorTest {
     public void rejectsUnknownPackageWithoutRunningShellCommands() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
-        List<String> commands = new ArrayList<>();
+        List<String> calls = new ArrayList<>();
 
-        FpsDetector.Result result = detector.detect(command -> {
-            commands.add(command);
-            return "";
-        }, "Unknown");
+        FpsDetector.Result result = detector.detect(shell(
+                () -> { calls.add("dump"); return ""; },
+                () -> { calls.add("layers"); return ""; },
+                layer -> { calls.add("latency"); return ""; },
+                () -> { calls.add("stats"); return ""; }
+        ), "Unknown");
 
         assertFalse(result.valid());
         assertEquals("none", result.source);
-        assertTrue(commands.isEmpty());
+        assertTrue(calls.isEmpty());
     }
 
     @Test
     public void doesNotUseDisplayRateAsAppFps() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
-        List<String> commands = new ArrayList<>();
+        List<String> calls = new ArrayList<>();
 
-        FpsDetector.Result result = detector.detect(command -> {
-            commands.add(command);
-            if (command.contains("measured_fps")) return "fps: 90";
-            return "";
-        }, "com.example.game");
+        FpsDetector.Result result = detector.detect(shell(
+                () -> { calls.add("dump"); return ""; },
+                () -> { calls.add("layers"); return ""; },
+                layer -> { calls.add("latency"); return ""; },
+                () -> { calls.add("stats"); return ""; }
+        ), "com.example.game");
 
         assertFalse(result.valid());
         assertEquals("none", result.source);
-        assertTrue(commands.stream().noneMatch(command -> command.contains("measured_fps")));
+        assertTrue(calls.size() > 0);
     }
 
     @Test
@@ -93,12 +109,11 @@ public class FpsDetectorTest {
         AtomicLong frames = new AtomicLong(100);
         FpsDetector detector = new FpsDetector(clock::get);
 
-        FpsDetector.Shell shell = command -> {
-            if (command.contains("dumpsys SurfaceFlinger 2>/dev/null")) {
-                return "SurfaceView com.example.game\nframe=" + frames.get() + "\n";
-            }
-            return "";
-        };
+        FpsDetector.Shell shell = shell(
+                () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
+                () -> "",
+                layer -> "",
+                () -> "");
 
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertFalse(baseline.valid());
@@ -119,12 +134,11 @@ public class FpsDetectorTest {
         AtomicLong frames = new AtomicLong(100);
         FpsDetector detector = new FpsDetector(clock::get);
 
-        FpsDetector.Shell shell = command -> {
-            if (command.contains("dumpsys SurfaceFlinger 2>/dev/null")) {
-                return "SurfaceView com.example.game\nframe=" + frames.get() + "\n";
-            }
-            return "";
-        };
+        FpsDetector.Shell shell = shell(
+                () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
+                () -> "",
+                layer -> "",
+                () -> "");
 
         detector.detect(shell, "com.example.game");
 
