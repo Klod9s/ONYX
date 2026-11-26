@@ -59,6 +59,7 @@ final class SamplingController {
                     if (sample != null) {
                         activity.overlayMetricsStore.publish(
                                 sample.fps,
+                                sample.fpsSource,
                                 sample.temperatureC,
                                 sample.averageFrameTimeMs,
                                 sample.cpu,
