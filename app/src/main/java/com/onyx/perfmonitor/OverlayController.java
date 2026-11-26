@@ -116,13 +116,14 @@ final class OverlayController {
         Intent serviceIntent =
                 new Intent(activity, FloatingFpsService.class);
 
+        // Persist user intent before service creation so onCreate() can safely
+        // decide whether the overlay window should be attached.
+        getPrefs().edit().putBoolean("overlay_enabled", true).apply();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity.startForegroundService(serviceIntent);
         } else {
             activity.startService(serviceIntent);
         }
-
-        getPrefs().edit().putBoolean("overlay_enabled", true).apply();
         if (activity.overlayButton != null) {
             activity.overlayButton.setText("TURN OFF OVERLAY");
         }
