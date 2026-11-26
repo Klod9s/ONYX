@@ -117,10 +117,7 @@ final class SessionCsvFormatter {
             row.append(sample.stutterCount);
         }
 
-        row.append(',');
-        if (sample.fpsSource != null && !sample.fpsSource.isEmpty()) {
-            row.append(sample.fpsSource);
-        }
+        row.append(',').append(quoteSafeText(sample.fpsSource));
 
         row.append(',').append('"');
         for (int i = 0; i < sample.frameIntervalsMs.size(); i++) {
