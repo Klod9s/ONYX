@@ -22,7 +22,10 @@ import java.util.regex.Pattern;
 public class FpsDetector {
 
     public interface Shell {
-        String run(String command) throws Exception;
+        String surfaceFlingerDump() throws Exception;
+        String surfaceFlingerLayers() throws Exception;
+        String surfaceFlingerLatency(String layerName) throws Exception;
+        String surfaceFlingerTimeStatsDump() throws Exception;
     }
 
     public static final class Result {
@@ -222,10 +225,6 @@ public class FpsDetector {
         return NONE;
     }
 
-    private static String shellQuote(String value) {
-        return "'" + value.replace("'", "'\\''") + "'";
-    }
-
     private Result attempt(int method, Shell shell, long now) {
 
         if (now < retryAt[method]) {
@@ -293,7 +292,7 @@ public class FpsDetector {
     private Result bySurfaceFlingerCounter(
             Shell shell, long now) throws Exception {
 
-        String out = shell.run("dumpsys SurfaceFlinger 2>/dev/null");
+        String out = shell.surfaceFlingerDump();
 
         if (out == null || out.isEmpty()) {
             return NONE;
@@ -411,9 +410,7 @@ public class FpsDetector {
             return NONE;
         }
 
-        String out = shell.run(
-                "dumpsys SurfaceFlinger --latency " + shellQuote(selectedLayer)
-        );
+        String out = shell.surfaceFlingerLatency(selectedLayer);
 
         if (out == null || out.isEmpty()
                 || out.contains("permission")
@@ -635,7 +632,7 @@ public class FpsDetector {
     private String findLayer(
             Shell shell, boolean blastOnly) throws Exception {
 
-        String out = shell.run("dumpsys SurfaceFlinger --list");
+        String out = shell.surfaceFlingerLayers();
 
         if (out == null) return "";
 
@@ -681,8 +678,7 @@ public class FpsDetector {
 
     private Result byTimeStats(Shell shell) throws Exception {
 
-        String layers = shell.run(
-                "dumpsys SurfaceFlinger --list 2>/dev/null");
+        String layers = shell.surfaceFlingerLayers();
 
         if (layers == null || layers.isEmpty()) {
             return NONE;
@@ -703,8 +699,7 @@ public class FpsDetector {
             return NONE;
         }
 
-        String dump = shell.run(
-                "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
+        String dump = shell.surfaceFlingerTimeStatsDump();
 
         if (dump == null || dump.isEmpty()) {
             return NONE;
