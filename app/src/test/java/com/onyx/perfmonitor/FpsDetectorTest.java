@@ -48,6 +48,11 @@ public class FpsDetectorTest {
                 },
                 () -> "");
 
+        // The first sample probes BLAST only; this fixture exposes a regular
+        // SurfaceView layer, so the regular-latency fallback is tried next.
+        FpsDetector.Result firstProbe = detector.detect(shell, "com.example.game");
+        assertFalse(firstProbe.valid());
+
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertTrue(baseline.valid());
         assertTrue(baseline.frameIntervalsMs.size() > 0);
