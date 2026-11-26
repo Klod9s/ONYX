@@ -328,8 +328,8 @@ final class MonitorPageBuilder {
         
                 // FOOTNOTE
                 TextView note = activity.text(
-                        "Display FPS is read from the display controller. " +
-                                "CPU loads are system-wide. Battery power is battery-side " +
+                        "Display-sourced FPS is a panel / composition rate and may not represent " +
+                                "the foreground app. CPU loads are system-wide. Battery power is battery-side " +
                                 "power; unplug the phone for discharge measurements. " +
                                 "Root access or Shizuku is required.",
                         11, false, Color.rgb(115, 130, 148));
@@ -385,6 +385,7 @@ final class MonitorPageBuilder {
         valueView.setPadding(0, activity.dp(4), 0, 0);
 
         GlassStyle.TileTag tag = new GlassStyle.TileTag();
+        tag.label = title;
         if (hasGrid) {
             GlassStyle.DotMatrixView matrix = new GlassStyle.DotMatrixView(activity);
             android.widget.FrameLayout.LayoutParams mp =
