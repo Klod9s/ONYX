@@ -296,7 +296,7 @@ private Sample readSample(boolean recording) {
                 sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
             } else if (displayFps > 0) {
                 sample.fps = displayFps;
-                sample.fpsSource = "Display Controller";
+                sample.fpsSource = "Panel / composition rate";
                 // Display FPS is a device-level rate, not presentation timestamps.
                 // Do not infer frame pacing metrics from it.
                 sample.averageFrameTimeMs = -1;
