@@ -8,6 +8,23 @@ import static org.junit.Assert.assertTrue;
 public class SessionFileManagerTest {
 
     @Test
+    public void acceptsImportSizesAtAndBelowLimit() {
+        assertTrue(SessionFileManager.isImportSizeAllowed(0));
+        assertTrue(SessionFileManager.isImportSizeAllowed(1));
+        assertTrue(SessionFileManager.isImportSizeAllowed(
+                SessionFileManager.MAX_IMPORT_BYTES));
+        assertTrue(SessionFileManager.isImportSizeAllowed(
+                SessionFileManager.MAX_IMPORT_BYTES - 1));
+    }
+
+    @Test
+    public void rejectsImportSizesAboveLimitOrUnknown() {
+        assertFalse(SessionFileManager.isImportSizeAllowed(
+                SessionFileManager.MAX_IMPORT_BYTES + 1));
+        assertFalse(SessionFileManager.isImportSizeAllowed(-1));
+    }
+
+    @Test
     public void acceptsOnyxSessionFilenames() {
         assertTrue(SessionFileManager.isSafeSessionFilename(
                 "session_2026-11-27_01-02-03.csv"));
