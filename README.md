@@ -71,7 +71,7 @@ ONYX avoids unnecessary continuous sampling while idle. Monitoring is active whe
 - **Android 14 or higher recommended.**
 - [Shizuku](https://shizuku.rikka.app/) installed, running, and authorized for ONYX, **or** a rooted device with root access granted.
 
-> **Device compatibility:** Available metrics depend on the device, Android version, kernel, vendor implementation, and access permissions. Some devices may not expose particular CPU/GPU temperatures, frequencies, utilization values, thermal diagnostics, or frame-level timestamps. When a frame-timestamp source is unavailable, ONYX may fall back to a display-level FPS source; frame-pacing statistics that require individual frame intervals may then be unavailable.
+> **Device compatibility:** Available metrics depend on the device, Android version, kernel, vendor implementation, and access permissions. Some devices may not expose particular CPU/GPU temperatures, frequencies, utilization values, thermal diagnostics, or frame-level timestamps. When a frame-timestamp source is unavailable, ONYX may fall back to a panel / composition-rate FPS source. This is a device-wide display reading and may not represent the foreground app; frame-pacing statistics that require individual frame intervals remain unavailable.
 
 ## Tested Devices
 
