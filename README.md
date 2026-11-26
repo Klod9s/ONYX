@@ -140,6 +140,8 @@ To run the unit tests:
 
 ## License
 
+Copyright © 2026 Klod9s.
+
 ONYX is licensed under the **GNU General Public License v3.0 or later (GPL-3.0-or-later)**.
 
 See [LICENSE](LICENSE) for the complete license text.
