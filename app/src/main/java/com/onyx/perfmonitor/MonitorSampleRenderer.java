@@ -36,7 +36,6 @@ final class MonitorSampleRenderer {
             GlassStyle.FrameGraphView g = ((GlassStyle.TileTag) fps.getTag()).graph;
             if (g != null) {
                 if (s.averageFrameTimeMs > 0) g.addFrameTime((float) s.averageFrameTimeMs);
-                else if (s.fps > 0) g.addFrameTime((float) (1000.0 / s.fps));
                 else g.noData();
             }
         }
