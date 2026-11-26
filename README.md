@@ -2,6 +2,31 @@
 
 ONYX is a free, open-source Android performance monitor with **no ads and no user tracking/analytics**. It provides real-time FPS, frame pacing, hardware telemetry, battery power, and session analysis through a configurable floating overlay, supporting privileged data access via **Shizuku** or **root**.
 
+## Screenshots
+
+### Monitor Dashboard
+<p align="center">
+  <img src="screenshots/monitor.png" width="300"/>
+</p>
+
+### Floating Overlay in Gameplay
+<p align="center">
+  <img src="screenshots/gameplay-overlay.png" width="100%"/>
+</p>
+
+### Session Recording & Comparison
+<p align="center">
+  <img src="screenshots/sessions.png" width="32%"/>
+  <img src="screenshots/comparison.png" width="32%"/>
+</p>
+
+### Customization & Settings
+<p align="center">
+  <img src="screenshots/appearance.png" width="32%"/>
+  <img src="screenshots/overlay-settings.png" width="32%"/>
+  <img src="screenshots/about.png" width="32%"/>
+</p>
+
 ## Features
 
 ### Live performance monitoring
