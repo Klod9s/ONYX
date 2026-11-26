@@ -612,17 +612,6 @@ private Sample readShizukuSample(boolean recording) {
                 sample.stutterCount = r.stutterCount;
                 sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
 
-                lastDisplayedFps = r.fps;
-                lastDisplayedFpsTime = now;
-                lastDisplayedFpsPackage = foregroundPackage;
-            } else if (lastDisplayedFps >= 0
-                    && foregroundPackage.equals(lastDisplayedFpsPackage)
-                    && now - lastDisplayedFpsTime < 2000) {
-                sample.fps = lastDisplayedFps;
-                sample.fpsSource = "SF Counter";
-                sample.averageFrameTimeMs = -1;
-                sample.frameTimeStdDevMs = -1;
-                sample.stutterCount = -1;
             } else {
                 clearFps(sample);
             }
