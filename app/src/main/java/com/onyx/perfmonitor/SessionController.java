@@ -14,6 +14,20 @@ final class SessionController {
 
     void toggle() {
         if (activity.isOverlaySession()) {
+            android.content.SharedPreferences overlayPrefs =
+                    activity.getSharedPreferences("overlay_settings",
+                            android.content.Context.MODE_PRIVATE);
+            if (!overlayPrefs.getBoolean("overlay_enabled", false)) {
+                // The service may already have been stopped. Clear stale state
+                // locally instead of starting it again just to send STOP.
+                activity.getSharedPreferences("session_state",
+                        android.content.Context.MODE_PRIVATE).edit()
+                        .putBoolean("recording", false)
+                        .putString("owner", FloatingFpsService.SESSION_OWNER_NONE)
+                        .apply();
+                syncOverlaySessionState();
+                return;
+            }
             android.content.Intent stop = new android.content.Intent(
                     activity, FloatingFpsService.class);
             stop.setAction(FloatingFpsService.ACTION_STOP_RECORDING);
