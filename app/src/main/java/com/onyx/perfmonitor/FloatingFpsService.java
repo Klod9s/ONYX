@@ -778,7 +778,8 @@ public class FloatingFpsService extends Service {
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
-        TextView fpsLabel = createMetricView("FPS");
+        fpsLabelView = createMetricView("FPS");
+        TextView fpsLabel = fpsLabelView;
         setOverlayTextSize(fpsLabel, 6);
         fpsLabel.setTranslationY(-dpScaled(15));
         fpsLabel.setTranslationX(-dpScaled(4));   // label moves left
