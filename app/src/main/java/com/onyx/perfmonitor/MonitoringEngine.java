@@ -30,9 +30,6 @@ final class MonitoringEngine {
     private long startMs = System.currentTimeMillis();
     private String lastPackage = "Unknown";
     private final CpuUsageTracker cpuUsageTracker = new CpuUsageTracker();
-    private double lastDisplayedFps = -1;
-    private long lastDisplayedFpsTime = 0;
-    private String lastDisplayedFpsPackage = "";
     private String cachedForegroundPackage = "";
     private long lastForegroundCheckMs = 0;
     private String cachedGpuFreqPath = "";
@@ -93,9 +90,6 @@ final class MonitoringEngine {
     void resetBaselines() {
         resetCpuBaseline();
         fpsDetector.reset();
-        lastDisplayedFps = -1;
-        lastDisplayedFpsTime = 0;
-        lastDisplayedFpsPackage = "";
     }
 
     Sample sample(boolean recording) {
@@ -166,7 +160,6 @@ private Sample readSample(boolean recording) {
                         "[ -n \"$APP\" ] || APP=Unknown; " +
                         "echo __APP__; echo \"$APP\"; " +
                         "echo __TEMP__; cat /sys/class/power_supply/battery/temp 2>/dev/null; " +
-                        "echo __FPS__; cat /sys/devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/card0-sde-crtc-0/measured_fps 2>/dev/null; " +
                         "echo __BAT__; " +
                         "cat /sys/class/power_supply/battery/current_now 2>/dev/null; " +
                         "cat /sys/class/power_supply/battery/voltage_now 2>/dev/null; " +
@@ -260,15 +253,7 @@ private Sample readSample(boolean recording) {
 
         try {
             String app = between(output, "__APP__\n", "__TEMP__").trim();
-            String tempRaw = between(output, "__TEMP__\n", "__FPS__").trim();
-            String fpsRaw;
-
-            int batIndex = output.indexOf("__BAT__");
-            if (batIndex >= 0) {
-                fpsRaw = between(output, "__FPS__\n", "__BAT__");
-            } else {
-                fpsRaw = output.substring(output.indexOf("__FPS__") + 7);
-            }
+            String tempRaw = between(output, "__TEMP__\n", "__BAT__").trim();
 
             Sample sample = new Sample();
             sample.currentMa = -1;
@@ -280,8 +265,6 @@ private Sample readSample(boolean recording) {
             sample.app = app.isEmpty() ? "Unknown" : app;
             lastPackage = sample.app;
 
-            // IMPROVED FPS FALLBACK LOGIC
-            double displayFps = parseFps(fpsRaw);
             FpsDetector.Result r = fpsDetector.detect(cmd -> {
                 String out = rootCommand(cmd);
                 return out == null ? "" : out;
@@ -294,14 +277,6 @@ private Sample readSample(boolean recording) {
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
                 sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
-            } else if (displayFps > 0) {
-                sample.fps = displayFps;
-                sample.fpsSource = "Panel / composition rate";
-                // Display FPS is a device-level rate, not presentation timestamps.
-                // Do not infer frame pacing metrics from it.
-                sample.averageFrameTimeMs = -1;
-                sample.frameTimeStdDevMs = -1;
-                sample.stutterCount = -1;
             } else {
                 sample.fps = -1;
                 sample.fpsSource = "none";
@@ -870,23 +845,6 @@ private double[] parseCpu(String raw) {
         } catch (NumberFormatException ignored) {
             // Unsupported or malformed driver output.
         }
-        return -1;
-    }
-
-    static double parseFps(String output) {
-        if (output == null) return -1;
-
-        try {
-            java.util.regex.Matcher m =
-                    java.util.regex.Pattern
-                            .compile("fps:\\s*([0-9]+(?:\\.[0-9]+)?)")
-                            .matcher(output);
-
-            if (m.find()) {
-                return Double.parseDouble(m.group(1));
-            }
-        } catch (Exception ignored) {}
-
         return -1;
     }
 
