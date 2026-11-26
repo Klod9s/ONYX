@@ -105,4 +105,24 @@ public class SessionCsvRoundTripTest {
         assertEquals("", columns[35]);
         assertEquals("", columns[36]);
     }
+
+    @Test
+    public void formulaLikeTextCellsAreExportedAsPlainText() {
+        Sample sample = new Sample();
+        sample.app = "=HYPERLINK(\"https://example.com\",\"open\")";
+        sample.fpsSource = "+cmd|' /C calc'!A0";
+
+        StringBuilder csv = new StringBuilder();
+        SessionCsvFormatter.appendSample(csv, sample);
+
+        org.junit.Assert.assertTrue(csv.toString().contains("\"'=HYPERLINK("));
+        org.junit.Assert.assertTrue(csv.toString().contains("\"'+cmd|'"));
+    }
+
+    @Test
+    public void formulaLikeSummaryIsExportedAsPlainText() {
+        String csv = SessionCsvFormatter.buildSessionCsv(
+                new StringBuilder(), "=1+1", "ROOT");
+        org.junit.Assert.assertTrue(csv.contains("\"'=1+1\""));
+    }
 }
