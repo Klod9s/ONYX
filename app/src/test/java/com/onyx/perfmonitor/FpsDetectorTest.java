@@ -156,10 +156,15 @@ public class FpsDetectorTest {
         assertFalse(afterReset.valid());
 
         frames.set(110);
+        // The detector staggers fallback probes: BLAST, latency, then counter.
         clock.addAndGet(1000);
+        detector.detect(shell, "com.example.game");
+        clock.addAndGet(500);
+        detector.detect(shell, "com.example.game");
+        clock.addAndGet(500);
         FpsDetector.Result recovered = detector.detect(shell, "com.example.game");
 
         assertTrue(recovered.valid());
-        assertEquals(60.0, recovered.fps, 0.0001);
+        assertEquals(30.0, recovered.fps, 0.0001);
     }
 }
