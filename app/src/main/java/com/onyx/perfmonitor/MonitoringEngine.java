@@ -254,6 +254,7 @@ private Sample readSample(boolean recording) {
         try {
             String app = between(output, "__APP__\n", "__TEMP__").trim();
             String tempRaw = between(output, "__TEMP__\n", "__BAT__").trim();
+            int batIndex = output.indexOf("__BAT__");
 
             Sample sample = new Sample();
             sample.currentMa = -1;
