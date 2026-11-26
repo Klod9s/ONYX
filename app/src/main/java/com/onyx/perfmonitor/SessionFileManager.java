@@ -13,12 +13,34 @@ final class SessionFileManager {
     private SessionFileManager() {
     }
 
+    /**
+     * Accept only ONYX-owned session filenames. Never allow a caller-provided
+     * path, separator, hidden filename, or arbitrary extension into filesDir.
+     */
+    static boolean isSafeSessionFilename(String filename) {
+        return filename != null
+                && filename.length() <= 96
+                && filename.matches("session_(?:imported_)?[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}(?:-[0-9]{1,6})?\\.csv");
+    }
+
+    private static File resolveSessionFile(File filesDir, String filename)
+            throws java.io.IOException {
+        if (filesDir == null || !isSafeSessionFilename(filename)) {
+            throw new java.io.IOException("Invalid session filename.");
+        }
+        File root = filesDir.getCanonicalFile();
+        File file = new File(root, filename).getCanonicalFile();
+        if (!root.equals(file.getParentFile())) {
+            throw new java.io.IOException("Invalid session path.");
+        }
+        return file;
+    }
+
     static List<String> listVisibleSessionNames(
             File filesDir, Collection<String> pendingDeletes) {
         List<String> names = new ArrayList<>();
         File[] files = filesDir.listFiles((dir, name) ->
-                name.startsWith("session_") && name.endsWith(".csv")
-                        && !pendingDeletes.contains(name));
+                isSafeSessionFilename(name) && !pendingDeletes.contains(name));
         if (files != null) {
             for (File file : files) {
                 names.add(file.getName());
@@ -33,8 +55,7 @@ final class SessionFileManager {
             File folder,
             Collection<String> hiddenNames) {
         File[] files = folder.listFiles((dir, name) ->
-                name.startsWith("session_") && name.endsWith(".csv")
-                        && !hiddenNames.contains(name));
+                isSafeSessionFilename(name) && !hiddenNames.contains(name));
 
         List<SessionItem> items = new ArrayList<>();
         if (files != null) {
@@ -79,7 +100,13 @@ final class SessionFileManager {
             String stamp = new java.text.SimpleDateFormat(
                     "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
                     .format(new java.util.Date());
-            dest = new File(filesDir, "session_imported_" + stamp + ".csv");
+            String baseName = "session_imported_" + stamp;
+            dest = resolveSessionFile(filesDir, baseName + ".csv");
+            int suffix = 1;
+            while (!dest.createNewFile()) {
+                dest = resolveSessionFile(
+                        filesDir, baseName + "-" + suffix++ + ".csv");
+            }
 
             try (java.io.InputStream input = resolver.openInputStream(uri);
                  java.io.FileOutputStream output =
@@ -146,7 +173,10 @@ final class SessionFileManager {
             android.net.Uri uri,
             File filesDir,
             String filename) throws java.io.IOException {
-        File source = new File(filesDir, filename);
+        File source = resolveSessionFile(filesDir, filename);
+        if (!source.isFile()) {
+            throw new java.io.IOException("Session file not found.");
+        }
         try (java.io.FileInputStream input =
                      new java.io.FileInputStream(source);
              java.io.OutputStream output = resolver.openOutputStream(uri)) {
@@ -177,8 +207,8 @@ final class SessionFileManager {
                      new java.util.zip.ZipOutputStream(output)) {
             byte[] buffer = new byte[8192];
             for (String name : names) {
-                File file = new File(filesDir, name);
-                if (!file.exists()) {
+                File file = resolveSessionFile(filesDir, name);
+                if (!file.isFile()) {
                     continue;
                 }
 
@@ -207,9 +237,16 @@ final class SessionFileManager {
             SharedPreferences.Editor editor = metadata.edit();
 
             for (String name : pendingDeletes) {
-                new File(filesDir, name).delete();
-                editor.remove(name + ".original")
-                        .remove(name + ".imported_at");
+                if (!isSafeSessionFilename(name)) {
+                    continue;
+                }
+                try {
+                    resolveSessionFile(filesDir, name).delete();
+                    editor.remove(name + ".original")
+                            .remove(name + ".imported_at");
+                } catch (java.io.IOException ignored) {
+                    // Ignore invalid or non-canonical paths.
+                }
             }
 
             editor.apply();
