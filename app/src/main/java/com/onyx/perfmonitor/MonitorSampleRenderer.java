@@ -76,11 +76,13 @@ final class MonitorSampleRenderer {
                         : String.format(Locale.US, "%.3f V", s.voltage));
         setLevel(voltage, s.voltage < 0 ? 0f : (float) ((s.voltage - 3.3) / 1.1));
 
-        setTextIfChanged(battery, s.battery + "%");
-        setLevel(battery, s.battery / 100f);
+        setTextIfChanged(battery, s.battery < 0 ? "—" : s.battery + "%");
+        setLevel(battery, s.battery < 0 ? 0f : s.battery / 100f);
 
-        setTextIfChanged(temperature,
-                String.format(Locale.US, "%.1f°C", s.temperatureC));
-        setLevel(temperature, (float) ((s.temperatureC - 20.0) / 30.0));
+        setTextIfChanged(temperature, s.temperatureC < 0
+                ? "—"
+                : String.format(Locale.US, "%.1f°C", s.temperatureC));
+        setLevel(temperature, s.temperatureC < 0
+                ? 0f : (float) ((s.temperatureC - 20.0) / 30.0));
     }
 }
