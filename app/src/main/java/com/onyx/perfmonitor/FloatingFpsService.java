@@ -446,7 +446,11 @@ public class FloatingFpsService extends Service {
         windowManager =
                 (WindowManager) getSystemService(WINDOW_SERVICE);
 
-        attachOverlay();
+        // A stop-recording command may start the service only to clean up
+        // stale session state. Never recreate the window when the user disabled it.
+        if (overlayPrefs.getBoolean("overlay_enabled", false)) {
+            attachOverlay();
+        }
     }
 
     private void createChannel() {
@@ -1089,6 +1093,10 @@ public class FloatingFpsService extends Service {
     }
 
     private void attachOverlay() {
+        if (overlayPrefs == null
+                || !overlayPrefs.getBoolean("overlay_enabled", false)) {
+            return;
+        }
         if (Build.VERSION.SDK_INT >= 23
                 && !android.provider.Settings.canDrawOverlays(this)) {
             stopSelf();
@@ -1604,6 +1612,17 @@ public class FloatingFpsService extends Service {
 
     @Override
     public void onDestroy() {
+        // Finalize overlay-owned sessions before shutting down the sampling executor.
+        // finish() is synchronized with append(), so an in-flight row is written first.
+        if (sessionPrefs != null && SESSION_OWNER_OVERLAY.equals(
+                sessionPrefs.getString("owner", SESSION_OWNER_NONE))) {
+            sessionPrefs.edit()
+                    .putBoolean("recording", false)
+                    .putString("owner", SESSION_OWNER_NONE)
+                    .apply();
+            if (sessionRecorder != null) sessionRecorder.finish();
+        }
+
         serviceDestroyed = true;
         attached = false;
         backgroundSamplingEnabled = false;
