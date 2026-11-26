@@ -205,22 +205,18 @@ public class FpsDetector {
 
         long now = elapsedRealtime.getAsLong();
 
-        // 1. BLAST SurfaceFlinger latency
-        Result blast = attempt(M_BLAST, shell, now);
-        if (blast.valid()) return blast;
+        // Probe at most one FPS source per sampling cycle. A failed source
+        // backs off in attempt(), allowing the next source to be tried on a
+        // later cycle instead of spawning several dumpsys processes at once.
+        int[] methods = {M_BLAST, M_LATENCY, M_COUNTER, M_TIMESTATS};
+        for (int method : methods) {
+            if (now < retryAt[method]) {
+                continue;
+            }
 
-        // 2. Other SurfaceFlinger latency
-        // Provides actual frame timestamps for frame pacing metrics.
-        Result latency = attempt(M_LATENCY, shell, now);
-        if (latency.valid()) return latency;
-
-        // 3. SurfaceFlinger frame counter fallback
-        Result counter = attempt(M_COUNTER, shell, now);
-        if (counter.valid()) return counter;
-
-        // 4. TimeStats fallback
-        Result timeStats = attempt(M_TIMESTATS, shell, now);
-        if (timeStats.valid()) return timeStats;
+            Result result = attempt(method, shell, now);
+            return result.valid() ? result : NONE;
+        }
 
         return NONE;
     }
