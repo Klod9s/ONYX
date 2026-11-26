@@ -261,7 +261,6 @@ public class FloatingFpsService extends Service {
         String cpu = readings[3];
         String gpu = readings[4];
         String ram = readings[5];
-        String fpsSource = readings.length > 11 ? readings[11] : "";
         int thermalStatus;
         try {
             thermalStatus = Integer.parseInt(readings[6]);
@@ -377,12 +376,8 @@ public class FloatingFpsService extends Service {
         // Text is re-applied after a rebuild, so nothing flashes back to "--"
         if (fpsView != null) fpsView.setText(fps);
         if (fpsLabelView != null) {
-            boolean panelRate = fpsSource.toLowerCase(java.util.Locale.US).contains("panel")
-                    || fpsSource.toLowerCase(java.util.Locale.US).contains("display");
-            fpsLabelView.setText(panelRate ? "PANEL" : "FPS");
-            fpsLabelView.setContentDescription(panelRate
-                    ? "Panel / composition rate; may not represent individual-app FPS"
-                    : "Frames per second");
+            fpsLabelView.setText("FPS");
+            fpsLabelView.setContentDescription("Frames per second");
         }
         if (temperatureView != null) temperatureView.setText(temperature);
         if (batteryIconView != null) {
