@@ -45,8 +45,19 @@ final class SessionSummaryFormatter {
                     duration / 60000.0);
         }
 
-        int startBattery = samples.get(0).battery;
-        int endBattery = samples.get(samples.size() - 1).battery;
+        int startBattery = -1;
+        int endBattery = -1;
+        for (Sample sample : samples) {
+            if (sample.battery >= 0) {
+                if (startBattery < 0) startBattery = sample.battery;
+                endBattery = sample.battery;
+            }
+        }
+        if (startBattery < 0 || endBattery < 0) {
+            return String.format(Locale.US,
+                    "Run time: %.1f minutes\nBattery level: unavailable",
+                    duration / 60000.0);
+        }
         return String.format(Locale.US,
                 "Run time: %.1f minutes\n" +
                         "Battery level: %d%% → %d%% (%d%% change)",
