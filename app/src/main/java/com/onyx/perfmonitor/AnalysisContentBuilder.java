@@ -789,7 +789,7 @@ public class AnalysisContentBuilder {
                 AlertDialog dialog = new AlertDialog.Builder(
                         context, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                         .setTitle("Thermal throttling")
-                        .setMessage("data may not be available on all devices. Availability depends on the device's hardware and Android implementation.")
+                        .setMessage("Data may not be available on all devices. Availability depends on the device's hardware and Android implementation.")
                         .setPositiveButton("OK", null)
                         .create();
 
