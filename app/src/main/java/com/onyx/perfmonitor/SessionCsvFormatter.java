@@ -60,9 +60,7 @@ final class SessionCsvFormatter {
         StringBuilder row = new StringBuilder();
 
         row.append(formatElapsed(sample.timeMs)).append(',')
-                .append("\"")
-                .append(sample.app.replace("\"", "\"\""))
-                .append("\"").append(',')
+                .append(quoteSafeText(sample.app)).append(',')
                 .append(sample.fps < 0 ? "" :
                         String.format(Locale.US, "%.0f", sample.fps))
                 .append(',')
@@ -157,20 +155,45 @@ final class SessionCsvFormatter {
         StringBuilder output = new StringBuilder();
 
         output.append("SESSION INFO\n");
-        output.append("Device,\"")
-                .append(deviceName().replace("\"", "\"\""))
-                .append("\"\n");
+        output.append("Device,").append(quoteSafeText(deviceName())).append('\n');
         output.append("Android,").append(Build.VERSION.RELEASE).append('\n');
         output.append("Mode,").append(monitoringMode).append('\n');
         output.append("Summary\n");
-        output.append("\"")
-                .append(summary.replace("\"", "\"\""))
-                .append("\"\n\n");
+        output.append(quoteSafeText(summary)).append("\n\n");
 
         output.append("PERFORMANCE READINGS\n");
         output.append(readings);
 
         return output.toString();
+    }
+
+
+    /**
+     * Quotes a CSV text cell and neutralizes spreadsheet formulas.
+     * A leading apostrophe makes formula-like values plain text in common
+     * spreadsheet applications; CSV quoting alone does not prevent execution.
+     */
+    private static String quoteSafeText(String value) {
+        String safe = value == null ? "" : value;
+        int first = 0;
+        while (first < safe.length()
+                && (Character.isWhitespace(safe.charAt(first))
+                || Character.isISOControl(safe.charAt(first)))) {
+            first++;
+        }
+
+        if (first < safe.length()) {
+            char initial = safe.charAt(first);
+            if (initial == '=' || initial == '+' || initial == '-'
+                    || initial == '@'
+                    || Character.isISOControl(safe.charAt(0))) {
+                safe = "'" + safe;
+            }
+        } else if (!safe.isEmpty() && Character.isISOControl(safe.charAt(0))) {
+            safe = "'" + safe;
+        }
+
+        return "\"" + safe.replace("\"", "\"\"") + "\"";
     }
 
     private static String formatElapsed(long milliseconds) {
