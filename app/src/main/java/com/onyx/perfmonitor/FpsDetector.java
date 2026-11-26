@@ -12,12 +12,11 @@ import java.util.regex.Pattern;
 /*
  * Multi-method FPS detection that works over ROOT or Shizuku.
  *
- * Priority:
+ * Priority (one probe per sampling cycle):
  * 1. BLAST SF latency (frame pacing)
  * 2. SF latency (frame pacing)
- * 3. DISPLAY (device-wide, no pacing)
- * 4. SF_COUNTER
- * 5. TIMESTATS
+ * 3. SF frame counter
+ * 4. TimeStats
  */
 public class FpsDetector {
 
