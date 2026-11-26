@@ -104,6 +104,10 @@ final class SessionFileManager {
             dest = resolveSessionFile(filesDir, baseName + ".csv");
             int suffix = 1;
             while (!dest.createNewFile()) {
+                if (!dest.exists() || suffix > 999999) {
+                    throw new java.io.IOException(
+                            "Could not reserve an import filename.");
+                }
                 dest = resolveSessionFile(
                         filesDir, baseName + "-" + suffix++ + ".csv");
             }
