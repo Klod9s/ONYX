@@ -100,7 +100,7 @@ public class FpsDetectorTest {
 
         assertFalse(result.valid());
         assertEquals("none", result.source);
-        assertTrue(calls.size() > 0);
+        assertEquals("Only the first FPS probe should run per sample", 1, calls.size());
     }
 
     @Test
@@ -115,6 +115,10 @@ public class FpsDetectorTest {
                 layer -> "",
                 () -> "");
 
+        // BLAST and regular latency are checked on separate samples before
+        // the frame-counter fallback is reached.
+        detector.detect(shell, "com.example.game");
+        detector.detect(shell, "com.example.game");
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertFalse(baseline.valid());
 
@@ -140,6 +144,10 @@ public class FpsDetectorTest {
                 layer -> "",
                 () -> "");
 
+        // Move through BLAST and regular latency before establishing
+        // the frame-counter baseline.
+        detector.detect(shell, "com.example.game");
+        detector.detect(shell, "com.example.game");
         detector.detect(shell, "com.example.game");
 
         frames.set(50);
