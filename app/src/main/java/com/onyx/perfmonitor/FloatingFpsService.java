@@ -102,6 +102,7 @@ public class FloatingFpsService extends Service {
                         if (sample != null) {
                             overlayMetricsStore.publish(
                                     sample.fps,
+                                    sample.fpsSource,
                                     sample.temperatureC,
                                     sample.averageFrameTimeMs,
                                     sample.cpu,
@@ -186,6 +187,7 @@ public class FloatingFpsService extends Service {
     private GradientDrawable overlayBackground;
     private LinearLayout overlayContent;
     private TextView fpsView;
+    private TextView fpsLabelView;
     private TextView temperatureView;
     private ImageView batteryIconView;
     private TextView frameTimeView;
@@ -259,6 +261,7 @@ public class FloatingFpsService extends Service {
         String cpu = readings[3];
         String gpu = readings[4];
         String ram = readings[5];
+        String fpsSource = readings.length > 11 ? readings[11] : "";
         int thermalStatus;
         try {
             thermalStatus = Integer.parseInt(readings[6]);
@@ -373,6 +376,14 @@ public class FloatingFpsService extends Service {
 
         // Text is re-applied after a rebuild, so nothing flashes back to "--"
         if (fpsView != null) fpsView.setText(fps);
+        if (fpsLabelView != null) {
+            boolean panelRate = fpsSource.toLowerCase(java.util.Locale.US).contains("panel")
+                    || fpsSource.toLowerCase(java.util.Locale.US).contains("display");
+            fpsLabelView.setText(panelRate ? "PANEL" : "FPS");
+            fpsLabelView.setContentDescription(panelRate
+                    ? "Panel / composition rate; may not represent individual-app FPS"
+                    : "Frames per second");
+        }
         if (temperatureView != null) temperatureView.setText(temperature);
         if (batteryIconView != null) {
             int thermalLevel = ThermalStatusReader.overlayLevel(thermalStatus);
@@ -567,7 +578,8 @@ public class FloatingFpsService extends Service {
         fpsView.setGravity(Gravity.CENTER);
         fpsView.setTextColor(overlayAccentColor);
 
-        TextView fpsLabel = createMetricView("FPS");
+        fpsLabelView = createMetricView("FPS");
+        TextView fpsLabel = fpsLabelView;
         setOverlayTextSize(fpsLabel, 5);
         fpsLabel.setTranslationY(-dpScaled(9));
 
@@ -1236,6 +1248,7 @@ public class FloatingFpsService extends Service {
                 livePrefs.getString("gpu_load", "--%");
         String ram =
                 livePrefs.getString("ram_usage", "--%");
+        String fpsSource = livePrefs.getString("fps_source", "");
         String thermalStatus = String.valueOf(livePrefs.getInt(
                 "thermal_status", ThermalStatusReader.UNAVAILABLE));
         String cpuCoolingState = String.valueOf(livePrefs.getInt(
@@ -1258,7 +1271,8 @@ public class FloatingFpsService extends Service {
                 cpuCoolingState,
                 cpuCoolingMaxState,
                 gpuCoolingState,
-                gpuCoolingMaxState
+                gpuCoolingMaxState,
+                fpsSource
         };
     }
 
