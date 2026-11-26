@@ -266,10 +266,7 @@ private Sample readSample(boolean recording) {
             sample.app = app.isEmpty() ? "Unknown" : app;
             lastPackage = sample.app;
 
-            FpsDetector.Result r = fpsDetector.detect(cmd -> {
-                String out = rootCommand(cmd);
-                return out == null ? "" : out;
-            }, sample.app);
+            FpsDetector.Result r = fpsDetector.detect(rootFpsShell(), sample.app);
 
             if (r.valid()) {
                 sample.fps = r.fps;
@@ -397,97 +394,10 @@ private Sample readShizukuSample(boolean recording) {
                 sample.gpuLoadPercent = -1;
 
                 // Universal script with safe Mali discovery guard
-                String freqScript =
-                        "echo __BATTERY_BLOCK__; " +
-                                "for P in /sys/class/power_supply/*; do " +
-                                " [ -d \"$P\" ] || continue; " +
-                                " TYPE=$(cat \"$P/type\" 2>/dev/null); " +
-                                " [ \"$TYPE\" = \"Battery\" ] || continue; " +
-                                " CURRENT=-; VOLTAGE=-; CAPACITY=-; " +
-                                " [ -r \"$P/current_now\" ] && CURRENT=$(cat \"$P/current_now\"); " +
-                                " [ -r \"$P/voltage_now\" ] && VOLTAGE=$(cat \"$P/voltage_now\"); " +
-                                " [ -r \"$P/capacity\" ] && CAPACITY=$(cat \"$P/capacity\"); " +
-                                " echo \"$CURRENT $VOLTAGE $CAPACITY\"; break; " +
-                                "done; " +
-                                "echo __PROC_STAT__; cat /proc/stat; " +
-                                "echo __CPU_FREQ__; " +
-                                "for i in 0 1 2 3 4 5 6 7; do " +
-                                "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
-                                "[ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
-                                "case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
-                                "if [ -z \"$V\" ] || [ \"$V\" -le 0 ] 2>/dev/null; then " +
-                                " F=/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq; V=; " +
-                                " [ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
-                                " case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
-                                "fi; " +
-                                "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
-                                "done; " +
-                                "CACHED_FREQ='" + validateSysfsPath(cachedGpuFreqPath) + "'; " +
-                                "CACHED_LOAD='" + validateSysfsPath(cachedGpuLoadPath) + "'; " +
-                                "CACHED_MALI='" + validateSysfsPath(cachedMaliPath) + "'; " +
-                                "GPU_FREQ=-1; GPU_LOAD='-1 -1'; FOUND_FREQ='none'; FOUND_LOAD='none'; " +
-                                "MALI_PATH=\"$CACHED_MALI\"; " +
-                                "MALI_RETRY=0; " +
-                                "if [ -n \"$MALI_PATH\" ] && [ ! -d \"$MALI_PATH\" ]; then " +
-                                " MALI_PATH=''; " +
-                                " MALI_RETRY=1; " +
-                                "fi; " +
-                                "if [ -z \"$MALI_PATH\" ] && { " +
-                                (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
-                                " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
-                                " MALI_PATH=$(find /sys/devices/platform/soc -name '*.mali' -type d 2>/dev/null | head -n 1); " +
-                                "fi; " +
-                                "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
-                                "  GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
-                                "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then " +
-                                "  GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
-                                "elif [ -n \"$MALI_PATH\" ]; then " +
-                                " for F in \"$MALI_PATH\"/devfreq/cur_freq \"$MALI_PATH\"/devfreq/*/cur_freq; do " +
-                                "  if [ -r \"$F\" ]; then " +
-                                "   GPU_FREQ=$(cat \"$F\"); FOUND_FREQ=\"$F\"; break; " +
-                                "  fi; " +
-                                " done; " +
-                                " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then " +
-                                "  GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
-                                " fi; " +
-                                "fi; " +
-                                "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
-                                "if [ -r /sys/class/kgsl/kgsl-3d0/gpubusy ]; then " +
-                                "  GPU_LOAD=$(cat /sys/class/kgsl/kgsl-3d0/gpubusy); FOUND_LOAD='/sys/class/kgsl/kgsl-3d0/gpubusy'; " +
-                                "elif [ -n \"$CACHED_LOAD\" ] && [ -r \"$CACHED_LOAD\" ]; then " +
-                                "  GPU_LOAD=$(cat \"$CACHED_LOAD\"); FOUND_LOAD=\"$CACHED_LOAD\"; " +
-                                "elif [ -n \"$MALI_PATH\" ]; then " +
-                                " for F in \"$MALI_PATH\"/devfreq/load \"$MALI_PATH\"/devfreq/*/load; do " +
-                                "  if [ -r \"$F\" ]; then " +
-                                "   GPU_LOAD=$(cat \"$F\"); FOUND_LOAD=\"$F\"; break; " +
-                                "  fi; " +
-                                " done; " +
-                                " if [ \"$FOUND_LOAD\" = 'none' ] && [ -r \"$MALI_PATH/device/utilisation\" ]; then " +
-                                "  GPU_LOAD=$(cat \"$MALI_PATH/device/utilisation\"); FOUND_LOAD=\"$MALI_PATH/device/utilisation\"; " +
-                                " fi; " +
-                                "fi; " +
-                                "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
-                                "echo __THERMAL_BLOCK__; " +
-                                "for Z in /sys/class/thermal/thermal_zone*; do " +
-                                " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                                " case \"$T\" in cpu-*) K=CPU;; gpu-*|gpuss-*) K=GPU;; *) continue;; esac; " +
-                                " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
-                                " echo \"$K $V\"; " +
-                                "done; " +
-                                "echo __COOLING_BLOCK__; " +
-                                "for C in /sys/class/thermal/cooling_device*; do " +
-                                " [ -d \"$C\" ] || continue; " +
-                                " T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
-                                " case \"$T\" in *cpu*|*gpu*|*cpufreq*|*devfreq*) ;; *) continue;; esac; " +
-                                " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; " +
-                                " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
-                                " echo \"$T $S $M\"; " +
-                                "done; " +
-                                "echo __MALI_BLOCK__; " +
-                                "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
-                                "echo __END__;";
+                String freqOutput = service.readMetrics(
+                        cachedGpuFreqPath, cachedGpuLoadPath, cachedMaliPath,
+                        !maliSearchCompleted);
 
-                String freqOutput = service.runCommand(freqScript);
 
                 if (freqOutput != null) {
                     // BatteryManager current reporting is missing on some vendor ROMs.
@@ -564,10 +474,7 @@ private Sample readShizukuSample(boolean recording) {
             // Faster foreground package refresh while recording
             long foregroundRefreshMs = recording ? 1000 : 2000;
             if (cachedForegroundPackage.isEmpty() || now - lastForegroundCheckMs >= foregroundRefreshMs) {
-                String foregroundOutput = service.runCommand(
-                        "dumpsys activity activities 2>/dev/null" +
-                                " | grep -m 1 -E 'topResumedActivity|mResumedActivity'"
-                );
+                String foregroundOutput = service.getResumedActivityDump();
                 if (foregroundOutput == null) foregroundOutput = "";
 
                 java.util.regex.Pattern componentPattern =
@@ -580,10 +487,7 @@ private Sample readShizukuSample(boolean recording) {
                 String foundPackage = foregroundMatcher.find() ? foregroundMatcher.group(1) : "";
 
                 if (foundPackage.isEmpty()) {
-                    String windowOutput = service.runCommand(
-                            "dumpsys window 2>/dev/null" +
-                                    " | grep -m 1 -E 'mCurrentFocus|mFocusedApp'"
-                    );
+                    String windowOutput = service.getWindowDump();
                     if (windowOutput != null) {
                         java.util.regex.Matcher windowMatcher =
                                 componentPattern.matcher(windowOutput);
@@ -602,7 +506,7 @@ private Sample readShizukuSample(boolean recording) {
             }
 
             sample.app = foregroundPackage;
-            FpsDetector.Result r = fpsDetector.detect(service::runCommand, foregroundPackage);
+            FpsDetector.Result r = fpsDetector.detect(shizukuFpsShell(service), foregroundPackage);
 
             if (r.valid()) {
                 sample.fps = r.fps;
@@ -858,7 +762,50 @@ private String between(String value, String start, String end) {
         return y < 0 ? "" : value.substring(x, y);
     }
 
-private void clearFps(Sample sample) {
+private FpsDetector.Shell rootFpsShell() {
+        return new FpsDetector.Shell() {
+            @Override public String surfaceFlingerDump() {
+                String out = rootCommand("dumpsys SurfaceFlinger 2>/dev/null");
+                return out == null ? "" : out;
+            }
+            @Override public String surfaceFlingerLayers() {
+                String out = rootCommand("dumpsys SurfaceFlinger --list 2>/dev/null");
+                return out == null ? "" : out;
+            }
+            @Override public String surfaceFlingerLatency(String layerName) {
+                String out = rootCommand("dumpsys SurfaceFlinger --latency " + shellQuote(layerName));
+                return out == null ? "" : out;
+            }
+            @Override public String surfaceFlingerTimeStatsDump() {
+                String out = rootCommand(
+                        "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
+                return out == null ? "" : out;
+            }
+        };
+    }
+
+    private FpsDetector.Shell shizukuFpsShell(IOnyxUserService service) {
+        return new FpsDetector.Shell() {
+            @Override public String surfaceFlingerDump() throws Exception {
+                return service.getSurfaceFlingerDump();
+            }
+            @Override public String surfaceFlingerLayers() throws Exception {
+                return service.getSurfaceFlingerLayers();
+            }
+            @Override public String surfaceFlingerLatency(String layerName) throws Exception {
+                return service.getSurfaceFlingerLatency(layerName);
+            }
+            @Override public String surfaceFlingerTimeStatsDump() throws Exception {
+                return service.getSurfaceFlingerTimeStatsDump();
+            }
+        };
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
+    }
+
+    private void clearFps(Sample sample) {
         sample.fps = -1;
         sample.fpsSource = "none";
         sample.averageFrameTimeMs = -1;
