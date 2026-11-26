@@ -3,82 +3,212 @@ package com.onyx.perfmonitor;
 import android.os.RemoteException;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 public class ShizukuShellService extends IOnyxUserService.Stub {
+    private static final int MAX_OUTPUT_CHARS = 2_000_000;
+    private static final long COMMAND_TIMEOUT_SECONDS = 5;
 
-    public ShizukuShellService() {
+    @Override
+    public String readMetrics(String cachedGpuFreqPath, String cachedGpuLoadPath,
+                              String cachedMaliPath, boolean searchMali)
+            throws RemoteException {
+        String script = "echo __BATTERY_BLOCK__; " +
+                                "for P in /sys/class/power_supply/*; do " +
+                                " [ -d \"$P\" ] || continue; " +
+                                " TYPE=$(cat \"$P/type\" 2>/dev/null); " +
+                                " [ \"$TYPE\" = \"Battery\" ] || continue; " +
+                                " CURRENT=-; VOLTAGE=-; CAPACITY=-; " +
+                                " [ -r \"$P/current_now\" ] && CURRENT=$(cat \"$P/current_now\"); " +
+                                " [ -r \"$P/voltage_now\" ] && VOLTAGE=$(cat \"$P/voltage_now\"); " +
+                                " [ -r \"$P/capacity\" ] && CAPACITY=$(cat \"$P/capacity\"); " +
+                                " echo \"$CURRENT $VOLTAGE $CAPACITY\"; break; " +
+                                "done; " +
+                                "echo __PROC_STAT__; cat /proc/stat; " +
+                                "echo __CPU_FREQ__; " +
+                                "for i in 0 1 2 3 4 5 6 7; do " +
+                                "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
+                                "[ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                                "case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                                "if [ -z \"$V\" ] || [ \"$V\" -le 0 ] 2>/dev/null; then " +
+                                " F=/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_cur_freq; V=; " +
+                                " [ -r \"$F\" ] && V=$(cat \"$F\" 2>/dev/null); " +
+                                " case \"$V\" in \"\"|*[!0-9]*) V=;; esac; " +
+                                "fi; " +
+                                "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
+                                "done; " +
+                                "CACHED_FREQ='" + safeSysfsPath(cachedGpuFreqPath) + "'; " +
+                                "CACHED_LOAD='" + safeSysfsPath(cachedGpuLoadPath) + "'; " +
+                                "CACHED_MALI='" + safeSysfsPath(cachedMaliPath) + "'; " +
+                                "GPU_FREQ=-1; GPU_LOAD='-1 -1'; FOUND_FREQ='none'; FOUND_LOAD='none'; " +
+                                "MALI_PATH=\"$CACHED_MALI\"; " +
+                                "MALI_RETRY=0; " +
+                                "if [ -n \"$MALI_PATH\" ] && [ ! -d \"$MALI_PATH\" ]; then " +
+                                " MALI_PATH=''; " +
+                                " MALI_RETRY=1; " +
+                                "fi; " +
+                                "if [ -z \"$MALI_PATH\" ] && { " +
+                                (searchMali ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
+                                " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
+                                " MALI_PATH=$(find /sys/devices/platform/soc -name '*.mali' -type d 2>/dev/null | head -n 1); " +
+                                "fi; " +
+                                "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
+                                "  GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
+                                "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then " +
+                                "  GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
+                                "elif [ -n \"$MALI_PATH\" ]; then " +
+                                " for F in \"$MALI_PATH\"/devfreq/cur_freq \"$MALI_PATH\"/devfreq/*/cur_freq; do " +
+                                "  if [ -r \"$F\" ]; then " +
+                                "   GPU_FREQ=$(cat \"$F\"); FOUND_FREQ=\"$F\"; break; " +
+                                "  fi; " +
+                                " done; " +
+                                " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then " +
+                                "  GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
+                                " fi; " +
+                                "fi; " +
+                                "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
+                                "if [ -r /sys/class/kgsl/kgsl-3d0/gpubusy ]; then " +
+                                "  GPU_LOAD=$(cat /sys/class/kgsl/kgsl-3d0/gpubusy); FOUND_LOAD='/sys/class/kgsl/kgsl-3d0/gpubusy'; " +
+                                "elif [ -n \"$CACHED_LOAD\" ] && [ -r \"$CACHED_LOAD\" ]; then " +
+                                "  GPU_LOAD=$(cat \"$CACHED_LOAD\"); FOUND_LOAD=\"$CACHED_LOAD\"; " +
+                                "elif [ -n \"$MALI_PATH\" ]; then " +
+                                " for F in \"$MALI_PATH\"/devfreq/load \"$MALI_PATH\"/devfreq/*/load; do " +
+                                "  if [ -r \"$F\" ]; then " +
+                                "   GPU_LOAD=$(cat \"$F\"); FOUND_LOAD=\"$F\"; break; " +
+                                "  fi; " +
+                                " done; " +
+                                " if [ \"$FOUND_LOAD\" = 'none' ] && [ -r \"$MALI_PATH/device/utilisation\" ]; then " +
+                                "  GPU_LOAD=$(cat \"$MALI_PATH/device/utilisation\"); FOUND_LOAD=\"$MALI_PATH/device/utilisation\"; " +
+                                " fi; " +
+                                "fi; " +
+                                "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
+                                "echo __THERMAL_BLOCK__; " +
+                                "for Z in /sys/class/thermal/thermal_zone*; do " +
+                                " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
+                                " case \"$T\" in cpu-*) K=CPU;; gpu-*|gpuss-*) K=GPU;; *) continue;; esac; " +
+                                " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
+                                " echo \"$K $V\"; " +
+                                "done; " +
+                                "echo __COOLING_BLOCK__; " +
+                                "for C in /sys/class/thermal/cooling_device*; do " +
+                                " [ -d \"$C\" ] || continue; " +
+                                " T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
+                                " case \"$T\" in *cpu*|*gpu*|*cpufreq*|*devfreq*) ;; *) continue;; esac; " +
+                                " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; " +
+                                " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
+                                " echo \"$T $S $M\"; " +
+                                "done; " +
+                                "echo __MALI_BLOCK__; " +
+                                "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
+                                "echo __END__;";
+        return run(new String[]{"sh", "-c", script});
     }
 
     @Override
-    public String runCommand(String command) throws RemoteException {
-        // --- LOOPHOLE #1 FIX: Prevent NPE if command is null or empty ---
-        if (command == null || command.trim().isEmpty()) {
-            return "ERROR: Empty command";
-        }
+    public String getResumedActivityDump() throws RemoteException {
+        return run(new String[]{"dumpsys", "activity", "activities"});
+    }
 
+    @Override
+    public String getWindowDump() throws RemoteException {
+        return run(new String[]{"dumpsys", "window"});
+    }
+
+    @Override
+    public String getSurfaceFlingerDump() throws RemoteException {
+        return run(new String[]{"dumpsys", "SurfaceFlinger"});
+    }
+
+    @Override
+    public String getSurfaceFlingerLayers() throws RemoteException {
+        return run(new String[]{"dumpsys", "SurfaceFlinger", "--list"});
+    }
+
+    @Override
+    public String getSurfaceFlingerLatency(String layerName) throws RemoteException {
+        if (!isSafeLayerName(layerName)) return "";
+        return run(new String[]{"dumpsys", "SurfaceFlinger", "--latency", layerName});
+    }
+
+    @Override
+    public String getSurfaceFlingerTimeStatsDump() throws RemoteException {
+        return run(new String[]{"dumpsys", "SurfaceFlinger",
+                "--timestats", "-maxlayers", "64", "-dump"});
+    }
+
+    private static boolean isSafeLayerName(String value) {
+        return value != null && !value.isEmpty() && value.length() <= 512
+                && value.matches("[A-Za-z0-9_ .:/()\\[\\]{}#@+\\-=,]+");
+    }
+
+    private static String safeSysfsPath(String value) {
+        if (value == null || value.isEmpty() || value.length() > 256
+                || !value.startsWith("/sys/")
+                || value.contains("..")
+                || !value.matches("/sys/[A-Za-z0-9_./-]+")) {
+            return "";
+        }
+        return value;
+    }
+
+    private static String run(String[] command) {
         Process process = null;
         Thread readerThread = null;
+        StringBuilder output = new StringBuilder();
 
         try {
-            process = new ProcessBuilder(
-                    "sh", "-c", command
-            ).redirectErrorStream(true).start();
-
+            process = new ProcessBuilder(command).redirectErrorStream(true).start();
             final Process activeProcess = process;
-            final StringBuilder output = new StringBuilder();
-
             readerThread = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(
-                                activeProcess.getInputStream()
-                        )
-                )) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
+                try (InputStream input = activeProcess.getInputStream();
+                     InputStreamReader streamReader =
+                             new InputStreamReader(input, StandardCharsets.UTF_8);
+                     BufferedReader reader = new BufferedReader(streamReader)) {
+                    char[] buffer = new char[4096];
+                    int count;
+                    while ((count = reader.read(buffer)) != -1) {
                         synchronized (output) {
-                            if (output.length() < 2_000_000) {
-                                output.append(line).append("\n");
+                            int remaining = MAX_OUTPUT_CHARS - output.length();
+                            if (remaining > 0) {
+                                output.append(buffer, 0, Math.min(count, remaining));
                             }
                         }
                     }
                 } catch (Exception ignored) {
                 }
-            });
-
+            }, "OnyxShizukuOutput");
             readerThread.setDaemon(true);
             readerThread.start();
 
-            // --- LOOPHOLE #2 FIX: Bumped timeout from 3s to 5s for heavy dumpsys calls ---
-            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
-
+            boolean finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor(500, TimeUnit.MILLISECONDS);
-
-                try {
-                    process.getInputStream().close();
-                } catch (Exception ignored) {}
-
                 readerThread.join(500);
-                return "ERROR: Command timed out";
+                return "";
             }
 
-            readerThread.join(500);
+            readerThread.join(1000);
+            if (readerThread.isAlive()) {
+                process.destroyForcibly();
+                return "";
+            }
 
             synchronized (output) {
                 return output.toString();
             }
-
-        } catch (Exception e) {
-            return "ERROR: " + e.getMessage();
-
+        } catch (Exception ignored) {
+            if (process != null) process.destroyForcibly();
+            return "";
         } finally {
             if (process != null) {
                 try {
                     process.getInputStream().close();
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
                 process.destroy();
             }
         }
