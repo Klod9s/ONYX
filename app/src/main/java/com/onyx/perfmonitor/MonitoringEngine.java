@@ -297,7 +297,9 @@ private Sample readSample(boolean recording) {
             } else if (displayFps > 0) {
                 sample.fps = displayFps;
                 sample.fpsSource = "Display Controller";
-                sample.averageFrameTimeMs = 1000.0 / displayFps;
+                // Display FPS is a device-level rate, not presentation timestamps.
+                // Do not infer frame pacing metrics from it.
+                sample.averageFrameTimeMs = -1;
                 sample.frameTimeStdDevMs = -1;
                 sample.stutterCount = -1;
             } else {
