@@ -14,7 +14,7 @@ import java.util.Locale;
 public final class OverlayMetricsStore {
 
     private final SharedPreferences livePrefs;
-    private final String[] lastPublished = new String[6];
+    private final String[] lastPublished = new String[7];
     private int lastThermalStatus = Integer.MIN_VALUE;
     private int lastCpuCoolingState = Integer.MIN_VALUE;
     private int lastCpuCoolingMaxState = Integer.MIN_VALUE;
@@ -28,6 +28,7 @@ public final class OverlayMetricsStore {
 
     public void publish(
             double fps,
+            String fpsSource,
             double temperatureC,
             double averageFrameTimeMs,
             double[] cpu,
@@ -64,7 +65,8 @@ public final class OverlayMetricsStore {
                 gpuLoadPercent < 0 ? "--%"
                         : String.format(Locale.US, "%.0f%%", gpuLoadPercent),
                 ramUsagePercent < 0 ? "--%"
-                        : String.format(Locale.US, "%.0f%%", ramUsagePercent)
+                        : String.format(Locale.US, "%.0f%%", ramUsagePercent),
+                fpsSource == null ? "" : fpsSource
         };
 
         if (Arrays.equals(values, lastPublished)
@@ -87,6 +89,7 @@ public final class OverlayMetricsStore {
                 .putString("cpu_load", values[3])
                 .putString("gpu_load", values[4])
                 .putString("ram_usage", values[5])
+                .putString("fps_source", values[6])
                 .putInt("thermal_status", thermalStatus)
                 .putInt("cpu_cooling_state", cpuCoolingState)
                 .putInt("cpu_cooling_max_state", cpuCoolingMaxState)
