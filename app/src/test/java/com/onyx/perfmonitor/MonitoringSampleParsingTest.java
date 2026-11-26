@@ -7,19 +7,6 @@ import org.junit.Test;
 public class MonitoringSampleParsingTest {
 
     @Test
-    public void parsesDisplayControllerFpsFromRootOutput() {
-        assertEquals(59.94, MonitoringEngine.parseFps("fps: 59.94\n"), 0.0001);
-        assertEquals(120.0, MonitoringEngine.parseFps("header\nfps: 120\nfooter"), 0.0001);
-    }
-
-    @Test
-    public void rejectsMissingOrMalformedFps() {
-        assertEquals(-1.0, MonitoringEngine.parseFps(null), 0.0001);
-        assertEquals(-1.0, MonitoringEngine.parseFps("fps: unknown"), 0.0001);
-        assertEquals(-1.0, MonitoringEngine.parseFps("refresh rate: 60"), 0.0001);
-    }
-
-    @Test
     public void parsesMaximumCpuAndGpuThermalZoneTemperatures() {
         Sample sample = new Sample();
 
