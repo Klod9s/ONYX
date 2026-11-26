@@ -16,7 +16,9 @@ final class SessionFileManager {
     static final long MAX_IMPORT_BYTES = 20L * 1024L * 1024L;
 
     static boolean isImportSizeAllowed(long sizeBytes) {
-        return sizeBytes >= 0 && sizeBytes <= MAX_IMPORT_BYTES;
+        // Negative values mean the document provider cannot report its size;
+        // the streaming byte counter below still enforces the hard limit.
+        return sizeBytes < 0 || sizeBytes <= MAX_IMPORT_BYTES;
     }
 
     /**
