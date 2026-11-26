@@ -84,7 +84,7 @@ public class FpsDetectorTest {
 
         assertTrue(result.valid());
         assertEquals(90.0, result.fps, 0.0001);
-        assertEquals("display", result.source);
+        assertEquals("Panel / composition rate", result.source);
         assertTrue(commands.stream().anyMatch(command -> command.contains("measured_fps")));
     }
 
