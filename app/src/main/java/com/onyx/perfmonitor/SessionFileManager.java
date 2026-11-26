@@ -13,6 +13,12 @@ final class SessionFileManager {
     private SessionFileManager() {
     }
 
+    static final long MAX_IMPORT_BYTES = 20L * 1024L * 1024L;
+
+    static boolean isImportSizeAllowed(long sizeBytes) {
+        return sizeBytes >= 0 && sizeBytes <= MAX_IMPORT_BYTES;
+    }
+
     /**
      * Accept only ONYX-owned session filenames. Never allow a caller-provided
      * path, separator, hidden filename, or arbitrary extension into filesDir.
@@ -97,6 +103,23 @@ final class SessionFileManager {
                 }
             }
 
+            // Reject providers that report an oversized file before copying it.
+            try (android.database.Cursor cursor = resolver.query(
+                    uri, new String[]{android.provider.OpenableColumns.SIZE},
+                    null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int sizeIndex = cursor.getColumnIndex(
+                            android.provider.OpenableColumns.SIZE);
+                    if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) {
+                        long reportedSize = cursor.getLong(sizeIndex);
+                        if (!isImportSizeAllowed(reportedSize)) {
+                            return new ImportResult(false,
+                                    "Import rejected: CSV exceeds the 20 MB limit.");
+                        }
+                    }
+                }
+            }
+
             String stamp = new java.text.SimpleDateFormat(
                     "yyyy-MM-dd_HH-mm-ss", java.util.Locale.US)
                     .format(new java.util.Date());
@@ -120,7 +143,12 @@ final class SessionFileManager {
                 }
                 byte[] buffer = new byte[8192];
                 int count;
+                long totalBytes = 0;
                 while ((count = input.read(buffer)) != -1) {
+                    if (count > MAX_IMPORT_BYTES - totalBytes) {
+                        throw new ImportTooLargeException();
+                    }
+                    totalBytes += count;
                     output.write(buffer, 0, count);
                 }
             }
@@ -153,12 +181,21 @@ final class SessionFileManager {
             }
 
             return new ImportResult(true, "Session imported");
+        } catch (ImportTooLargeException e) {
+            if (dest != null) {
+                dest.delete();
+            }
+            return new ImportResult(false,
+                    "Import rejected: CSV exceeds the 20 MB limit.");
         } catch (Exception e) {
             if (dest != null) {
                 dest.delete();
             }
             return new ImportResult(false, "Import failed: " + e.getMessage());
         }
+    }
+
+    private static final class ImportTooLargeException extends java.io.IOException {
     }
 
     static final class ImportResult {
