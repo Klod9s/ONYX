@@ -1309,7 +1309,8 @@ new MonitorPageBuilder(this).build(page);
         samplingController.stop();
         handoffOverlaySampling();
         worker.shutdownNow();
-        fileWorker.shutdownNow();
+        // Drain queued session saves/deletes/exports instead of cancelling file work.
+        fileWorker.shutdown();
         if (monitoringEngine != null) {
             final MonitoringEngine engine = monitoringEngine;
             Thread cleanup = new Thread(engine::closeRootShell,
