@@ -402,16 +402,13 @@ final class MonitorPageBuilder {
         card.addView(valueView);
 
         if (label.equals("FPS")) {
-            // Keep the graph in the card's measured layout instead of overlaying it
-            // on top of the value. This guarantees a real drawing area on all sizes.
-            LinearLayout graphRow = new LinearLayout(activity);
-            graphRow.setOrientation(LinearLayout.HORIZONTAL);
-            graphRow.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
             GlassStyle.FrameGraphView graph = new GlassStyle.FrameGraphView(activity);
-            graphRow.addView(graph, new LinearLayout.LayoutParams(
-                    activity.dp(88), activity.dp(30)));
-            card.addView(graphRow, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, activity.dp(30)));
+            android.widget.FrameLayout.LayoutParams gp =
+                    new android.widget.FrameLayout.LayoutParams(activity.dp(88), activity.dp(30));
+            gp.gravity = Gravity.BOTTOM | Gravity.END;
+            gp.rightMargin = activity.dp(12);
+            gp.bottomMargin = activity.dp(12);
+            wrap.addView(graph, gp);
             tag.graph = graph;
         }
 
