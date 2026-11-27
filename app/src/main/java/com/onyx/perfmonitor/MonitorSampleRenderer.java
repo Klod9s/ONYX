@@ -22,6 +22,18 @@ final class MonitorSampleRenderer {
         if (m != null) m.setLevel(level);
     }
 
+    private static String compactSourceLabel(String source) {
+        if (source == null || source.isEmpty() || "none".equalsIgnoreCase(source)) {
+            return "";
+        }
+        if ("BLAST SF latency".equals(source)) return "BLAST";
+        if ("SF latency".equals(source)) return "SF LAT";
+        if ("SF Counter".equals(source)) return "SF COUNT";
+        if ("TimeStats".equals(source)) return "TIMESTATS";
+        if ("Display FPS".equals(source)) return "DISPLAY";
+        return source.toUpperCase(Locale.US);
+    }
+
     static void render(Sample s, TextView fps, TextView cpuTile,
             TextView gpuTile, TextView power, TextView powerState,
             TextView current, TextView voltage, TextView battery,
@@ -33,10 +45,13 @@ final class MonitorSampleRenderer {
 
         if (fps != null && fps.getTag() instanceof GlassStyle.TileTag) {
             GlassStyle.TileTag tag = (GlassStyle.TileTag) fps.getTag();
-            setTextIfChanged(tag.label, "FPS");
+            String sourceLabel = compactSourceLabel(s.fpsSource);
+            // This tile's graph is a reciprocal-FPS estimate, not a measured
+            // presentation interval. Keep that distinction visible.
+            setTextIfChanged(tag.label, sourceLabel.isEmpty()
+                    ? "FPS · EST"
+                    : "FPS · " + sourceLabel + " · EST");
 
-            // Derive frame time from the current FPS reading so the in-app
-            // graph follows the same live FPS value shown in this tile.
             GlassStyle.FrameGraphView g = tag.graph;
             if (g != null) {
                 if (s.fps > 0 && !Double.isNaN(s.fps) && !Double.isInfinite(s.fps)) {
