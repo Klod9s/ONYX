@@ -19,7 +19,7 @@ final class OverlaySessionRecorder {
     private static final String ROWS_FILE = "overlay_session_rows.tmp";
     private static final String HEADER =
             "Time,App,FPS,Current (mA),Voltage (V),Power (W)," +
-            "Battery (%),Seconds per 1% drain,Temperature (°C)," +
+            "Battery (%),Temperature (°C)," +
             "CPU 0 (%),CPU 1 (%),CPU 2 (%),CPU 3 (%)," +
             "CPU 4 (%),CPU 5 (%),CPU 6 (%),CPU 7 (%)," +
             "CPU 0 Frequency (MHz),CPU 1 Frequency (MHz)," +
@@ -174,9 +174,6 @@ final class OverlaySessionRecorder {
                 .append(',')
                 .append(String.format(Locale.US, "%.0f,%.3f,%.2f,%d,",
                         s.currentMa, s.voltage, s.power, s.battery));
-        if (s.secondsPerPercent >= 0) {
-            row.append(String.format(Locale.US, "%.1f", s.secondsPerPercent));
-        }
         row.append(',').append(String.format(Locale.US, "%.1f", s.temperatureC));
         for (double value : s.cpu) {
             row.append(',');
