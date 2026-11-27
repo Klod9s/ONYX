@@ -27,7 +27,7 @@ final class MonitoringEngine {
     private volatile boolean frameCaptureActive;
     private volatile boolean frameCaptureStopRequested;
     private volatile long frameCaptureStartNs = Long.MAX_VALUE;
-    private long startMs = System.currentTimeMillis();
+    private long startElapsedMs = android.os.SystemClock.elapsedRealtime();
     private String lastPackage = "Unknown";
     private final CpuUsageTracker cpuUsageTracker = new CpuUsageTracker();
     private String cachedForegroundPackage = "";
@@ -62,7 +62,7 @@ final class MonitoringEngine {
     }
 
     void resetSessionClock() {
-        startMs = System.currentTimeMillis();
+        startElapsedMs = android.os.SystemClock.elapsedRealtime();
     }
 
     void beginFrameCapture() {
@@ -262,7 +262,8 @@ private Sample readSample(boolean recording) {
             sample.power = -1;
             sample.temperatureC = -1;
             sample.battery = -1;
-            sample.timeMs = System.currentTimeMillis() - startMs;
+            sample.timeMs = Math.max(0,
+                    android.os.SystemClock.elapsedRealtime() - startElapsedMs);
             sample.app = app.isEmpty() ? "Unknown" : app;
             lastPackage = sample.app;
 
@@ -537,7 +538,8 @@ private Sample readAndroidSample(boolean recording) {
 
             Sample sample = new Sample();
 
-            sample.timeMs = System.currentTimeMillis() - startMs;
+            sample.timeMs = Math.max(0,
+                    android.os.SystemClock.elapsedRealtime() - startElapsedMs);
             sample.app = "Unknown";
             sample.fps = -1;
             sample.fpsSource = "none";
