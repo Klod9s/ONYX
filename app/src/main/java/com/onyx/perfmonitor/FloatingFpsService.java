@@ -1622,15 +1622,23 @@ public class FloatingFpsService extends Service {
 
     @Override
     public void onDestroy() {
-        // Finalize overlay-owned sessions before shutting down the sampling executor.
-        // finish() is synchronized with append(), so an in-flight row is written first.
-        if (sessionPrefs != null && SESSION_OWNER_OVERLAY.equals(
-                sessionPrefs.getString("owner", SESSION_OWNER_NONE))) {
+        // Stop recording immediately, then queue finalization behind any
+        // in-flight sample. The recorder's synchronized finish() waits for
+        // append() to complete without blocking the service's main thread.
+        boolean finalizeSession = sessionPrefs != null && SESSION_OWNER_OVERLAY.equals(
+                sessionPrefs.getString("owner", SESSION_OWNER_NONE));
+        if (finalizeSession) {
             sessionPrefs.edit()
                     .putBoolean("recording", false)
                     .putString("owner", SESSION_OWNER_NONE)
                     .apply();
-            if (sessionRecorder != null) sessionRecorder.finish();
+            if (sessionRecorder != null) {
+                try {
+                    samplingExecutor.execute(sessionRecorder::finish);
+                } catch (java.util.concurrent.RejectedExecutionException ignored) {
+                    // The executor is already stopping; avoid blocking teardown.
+                }
+            }
         }
 
         serviceDestroyed = true;
@@ -1638,7 +1646,8 @@ public class FloatingFpsService extends Service {
         backgroundSamplingEnabled = false;
         handler.removeCallbacksAndMessages(null);
         overlayExecutor.shutdownNow();
-        samplingExecutor.shutdownNow();
+        // Drain queued recorder finalization and any in-flight sample safely.
+        samplingExecutor.shutdown();
         if (monitoringEngine != null) {
             final MonitoringEngine engine = monitoringEngine;
             Thread cleanup = new Thread(engine::closeRootShell,
