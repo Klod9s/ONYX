@@ -49,8 +49,7 @@ public class SessionAnalysisActivity extends Activity {
 
         String filename = getIntent().getStringExtra("session_filename");
 
-        if (filename == null || !filename.startsWith("session_")
-                || !filename.endsWith(".csv")) {
+        if (!SessionFileManager.isSafeSessionFilename(filename)) {
             showError("Invalid session file.");
             return;
         }
