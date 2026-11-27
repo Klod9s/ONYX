@@ -781,6 +781,14 @@ private FpsDetector.Shell rootFpsShell() {
                         "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
                 return out == null ? "" : out;
             }
+            @Override public String surfaceFlingerTimeStatsSnapshot() {
+                String out = rootCommand(
+                        "echo __ONYX_LAYERS__; " +
+                        "dumpsys SurfaceFlinger --list 2>/dev/null; " +
+                        "echo __ONYX_TIMESTATS__; " +
+                        "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
+                return out == null ? "" : out;
+            }
         };
     }
 
@@ -797,6 +805,9 @@ private FpsDetector.Shell rootFpsShell() {
             }
             @Override public String surfaceFlingerTimeStatsDump() throws Exception {
                 return service.getSurfaceFlingerTimeStatsDump();
+            }
+            @Override public String surfaceFlingerTimeStatsSnapshot() throws Exception {
+                return service.getSurfaceFlingerTimeStatsSnapshot();
             }
         };
     }
