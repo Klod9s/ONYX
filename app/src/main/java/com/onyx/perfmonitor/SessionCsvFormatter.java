@@ -65,7 +65,7 @@ final class SessionCsvFormatter {
                         String.format(Locale.US, "%.0f", sample.fps))
                 .append(',')
                 .append(String.format(Locale.US,
-                        "%.0f,%.3f,%.2f,%d,",
+                        "%.0f,%.3f,%.2f,%d",
                         sample.currentMa, sample.voltage, sample.power,
                         sample.battery));
 
