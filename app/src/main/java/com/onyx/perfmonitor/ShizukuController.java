@@ -117,6 +117,15 @@ final class ShizukuController {
         }
     }
 
+    void unbindService() {
+        activity.shizukuBindRequested = false;
+        setService(null);
+        try {
+            Shizuku.unbindUserService(serviceArgs, serviceConnection, true);
+        } catch (Exception ignored) {
+        }
+    }
+
     private void requestAccess() {
         if (!Shizuku.pingBinder()) {
             Toast.makeText(activity,

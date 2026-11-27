@@ -2,6 +2,7 @@ package com.onyx.perfmonitor;
 
 import android.content.Context;
 import android.os.Build;
+import android.os.SystemClock;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,7 +50,8 @@ final class OverlaySessionRecorder {
             out.write(HEADER.getBytes(StandardCharsets.UTF_8));
             long now = System.currentTimeMillis();
             prefs.edit()
-                    .putLong("start_ms", now)
+                    .putLong("start_wall_ms", now)
+                    .putLong("start_elapsed_ms", SystemClock.elapsedRealtime())
                     .putInt("start_battery", -1)
                     .putInt("end_battery", -1)
                     .putString("mode", "ANDROID")
@@ -68,8 +70,12 @@ final class OverlaySessionRecorder {
 
     synchronized void append(Sample sample, String mode) {
         if (sample == null || !prefs.getBoolean("recording", false)) return;
-        long start = prefs.getLong("start_ms", System.currentTimeMillis());
-        long elapsed = Math.max(0, System.currentTimeMillis() - start);
+        long startElapsed = prefs.getLong("start_elapsed_ms", -1);
+        long elapsed = startElapsed >= 0
+                ? Math.max(0, SystemClock.elapsedRealtime() - startElapsed)
+                : Math.max(0, System.currentTimeMillis() - prefs.getLong(
+                        "start_wall_ms",
+                        prefs.getLong("start_ms", System.currentTimeMillis())));
         sample.timeMs = elapsed;
 
         if (previousSampleTime >= 0 && previousBattery >= 0
@@ -107,8 +113,12 @@ final class OverlaySessionRecorder {
 
     synchronized void finish() {
         prefs.edit().putBoolean("recording", false).apply();
-        long start = prefs.getLong("start_ms", System.currentTimeMillis());
-        long duration = Math.max(0, System.currentTimeMillis() - start);
+        long startWall = prefs.getLong("start_wall_ms",
+                prefs.getLong("start_ms", System.currentTimeMillis()));
+        long startElapsed = prefs.getLong("start_elapsed_ms", -1);
+        long duration = startElapsed >= 0
+                ? Math.max(0, SystemClock.elapsedRealtime() - startElapsed)
+                : Math.max(0, System.currentTimeMillis() - startWall);
         int first = prefs.getInt("start_battery", -1);
         int last = prefs.getInt("end_battery", -1);
         String summary;
@@ -128,13 +138,14 @@ final class OverlaySessionRecorder {
         }
 
         File rows = new File(context.getFilesDir(), ROWS_FILE);
-        if (!rows.exists() || rows.length() <= HEADER.length()) {
+        if (!rows.exists() || rows.length()
+                <= HEADER.getBytes(StandardCharsets.UTF_8).length) {
             rows.delete();
             return;
         }
 
         String stamp = new SimpleDateFormat(
-                "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date(start));
+                "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date(startWall));
         String fileName = "session_" + stamp + ".csv";
         File destination = new File(context.getFilesDir(), fileName);
         int suffix = 1;
