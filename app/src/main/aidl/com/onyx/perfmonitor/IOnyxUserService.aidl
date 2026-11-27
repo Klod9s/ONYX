@@ -10,4 +10,5 @@ interface IOnyxUserService {
     String getSurfaceFlingerLayers();
     String getSurfaceFlingerLatency(String layerName);
     String getSurfaceFlingerTimeStatsDump();
+    String getSurfaceFlingerTimeStatsSnapshot();
 }
