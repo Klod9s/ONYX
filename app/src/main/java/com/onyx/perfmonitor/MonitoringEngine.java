@@ -39,6 +39,8 @@ final class MonitoringEngine {
     private volatile boolean rootChecked = false;
     private volatile boolean cachedRoot = false;
     private volatile int rootFailStreak = 0;
+    private final java.util.concurrent.atomic.AtomicBoolean rootProbeInProgress =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private long lastRootCheckMs = 0;
     private String cachedMonitoringMode = "";
     private long lastModeCheckMs = 0;
@@ -1021,11 +1023,21 @@ private String detectMonitoringMode() {
         long interval = cachedRoot ? 30_000
                 : (rootFailStreak < 3 ? 5_000 : 60_000);
 
-        if (!rootChecked || now - lastRootCheckMs >= interval) {
-            cachedRoot = checkRootAccess();
-            rootFailStreak = cachedRoot ? 0 : rootFailStreak + 1;
-            lastRootCheckMs = now;
-            rootChecked = true;
+        if ((!rootChecked || now - lastRootCheckMs >= interval)
+                && rootProbeInProgress.compareAndSet(false, true)) {
+            Thread probe = new Thread(() -> {
+                try {
+                    boolean hasRoot = checkRootAccess();
+                    cachedRoot = hasRoot;
+                    rootFailStreak = hasRoot ? 0 : rootFailStreak + 1;
+                    lastRootCheckMs = android.os.SystemClock.elapsedRealtime();
+                    rootChecked = true;
+                } finally {
+                    rootProbeInProgress.set(false);
+                }
+            }, "OnyxRootProbe");
+            probe.setDaemon(true);
+            probe.start();
         }
 
         String mode;
