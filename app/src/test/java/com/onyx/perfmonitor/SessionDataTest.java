@@ -204,7 +204,7 @@ public class SessionDataTest {
                 }
             }
             writer.write("PERFORMANCE READINGS\n");
-            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,SecondsPerPercent,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount,FpsSource,FrameIntervals,RamUsage,CpuTemperature,GpuTemperature\n");
+            writer.write("Time,Unused,FPS,Current,Voltage,Power,Battery,Seconds per 1% drain,Temperature,CPU0,CPU1,CPU2,CPU3,CPU4,CPU5,CPU6,CPU7,CPUFreq0,CPUFreq1,CPUFreq2,CPUFreq3,CPUFreq4,CPUFreq5,CPUFreq6,CPUFreq7,GPUFreq,GPULoad,AverageFrameTime,FrameTimeStdDev,StutterCount,FpsSource,FrameIntervals,RamUsage,CpuTemperature,GpuTemperature\n");
             for (String line : lines) {
                 if (!(line.startsWith("Device,") || line.startsWith("Android,")
                         || line.startsWith("Mode,"))) {
