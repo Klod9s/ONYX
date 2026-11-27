@@ -704,9 +704,16 @@ public class FpsDetector {
     }
 
     private static LayerLatencySnapshot readLayerLatencySnapshot(
-            Shell shell, String packageName, boolean blastOnly) throws Exception {
-        String snapshot = shell.surfaceFlingerLayerLatencySnapshot(
-                packageName, blastOnly);
+            Shell shell, String packageName, boolean blastOnly) {
+        final String snapshot;
+        try {
+            snapshot = shell.surfaceFlingerLayerLatencySnapshot(
+                    packageName, blastOnly);
+        } catch (Exception ignored) {
+            // AIDL/service-version or shell execution failures must not disable
+            // the established layer-list + latency lookup path.
+            return null;
+        }
         if (snapshot == null) {
             return null;
         }
