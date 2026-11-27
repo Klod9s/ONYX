@@ -172,7 +172,26 @@ For a comparable source build, use JDK 17, the checked-in Gradle wrapper
 (Gradle 9.6.0, distribution SHA-256 pinned in
 `gradle/wrapper/gradle-wrapper.properties`), Android SDK Platform 37, and the
 dependency versions declared in `gradle/libs.versions.toml` and
-`app/build.gradle.kts`. Build with:
+`app/build.gradle.kts`. Dependency locking is enabled; generate and commit the
+lock state and artifact checksums when intentionally updating dependencies:
+
+```bash
+./gradlew :app:dependencies --configuration releaseRuntimeClasspath --write-locks
+./gradlew :app:dependencies --configuration debugRuntimeClasspath --write-locks
+./gradlew :app:dependencies --configuration debugAndroidTestRuntimeClasspath --write-locks
+./gradlew --write-verification-metadata sha256 :app:dependencies
+```
+
+The dependency report used for the third-party license review can be generated with:
+
+```bash
+./gradlew :app:dependencies --configuration releaseRuntimeClasspath
+./gradlew :app:dependencies --configuration debugAndroidTestRuntimeClasspath
+```
+
+On Windows, replace `./gradlew` with `.\gradlew.bat`.
+
+Build with:
 
 ```bash
 ./gradlew --no-daemon clean assembleRelease
