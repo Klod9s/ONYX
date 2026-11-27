@@ -105,10 +105,10 @@ public class FpsDetectorTest {
             @Override public String surfaceFlingerLatency(String layerName) {
                 assertEquals("BLAST SurfaceView com.example.game", layerName);
                 separateLatencyCalls.incrementAndGet();
-                StringBuilder dump = new StringBuilder("10000000\\n");
+                StringBuilder dump = new StringBuilder("10000000\n");
                 long end = latest.get();
                 for (int i = 99; i >= 0; i--) {
-                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
                 }
                 return dump.toString();
             }
@@ -117,8 +117,8 @@ public class FpsDetectorTest {
                     String packageName, boolean blastOnly) {
                 assertEquals("com.example.game", packageName);
                 assertTrue(blastOnly);
-                return "__ONYX_SELECTED_LAYER__\\n"
-                        + "__ONYX_LATENCY__\\n";
+                return "__ONYX_SELECTED_LAYER__\n"
+                        + "__ONYX_LATENCY__\n";
             }
         };
 
