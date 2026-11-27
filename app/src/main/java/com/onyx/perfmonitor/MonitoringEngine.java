@@ -889,14 +889,13 @@ private FpsDetector.Shell rootFpsShell() {
                         throw new java.io.IOException("Root shell exited");
                     }
                     if (marker.equals(line)) {
-                        return outputLimitReached ? null : output.toString();
+                        return output.toString();
                     }
 
                     if (!outputLimitReached) {
                         int needed = line.length() + 1;
                         if (output.length() + needed > ROOT_OUTPUT_LIMIT) {
                             outputLimitReached = true;
-                            output.setLength(0);
                         } else {
                             output.append(line).append('\n');
                         }
@@ -1040,6 +1039,9 @@ private String detectMonitoringMode() {
 
         cachedMonitoringMode = mode;
         lastModeCheckMs = now;
+        if (!"ROOT".equals(mode)) {
+            closeRootShell();
+        }
         return mode;
     }
 }
