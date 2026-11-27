@@ -262,7 +262,6 @@ public class MainActivity extends Activity {
 
     void wakeSampler() {
         samplingController.wake();
-        requestNotificationPermissionIfNeeded();
     }
 
     void startShizukuService() {
@@ -325,6 +324,7 @@ public class MainActivity extends Activity {
         loadHistory();
         stopOverlaySampling();
         samplingController.wake();
+        requestNotificationPermissionIfNeeded();
     }
 
 
