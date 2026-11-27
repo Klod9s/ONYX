@@ -716,13 +716,20 @@ public class FpsDetector {
         int layerStart = snapshot.indexOf(layerMarker);
         int latencyStart = snapshot.indexOf(latencyMarker);
         if (layerStart < 0 || latencyStart <= layerStart) {
-            return new LayerLatencySnapshot("", "");
+            // A batched shell may behave differently under Shizuku than ROOT.
+            // Treat malformed output as unsupported so the caller retries
+            // through the established two-command lookup path.
+            return null;
         }
 
         String layer = snapshot.substring(
                 layerStart + layerMarker.length(), latencyStart).trim();
         String latency = snapshot.substring(
                 latencyStart + latencyMarker.length()).trim();
+        if (layer.isEmpty() || latency.isEmpty()) {
+            // Do not let an empty batch result suppress BLAST discovery.
+            return null;
+        }
         return new LayerLatencySnapshot(layer, latency);
     }
 
