@@ -84,7 +84,7 @@ public class FpsDetector {
     private static final int M_LATENCY = 3;
     private static final int M_TIMESTATS = 4;
 
-    private static final long LAYER_CACHE_MS = 1000;
+    private static final long LAYER_CACHE_MS = 5000;
     // How long a method waits after returning nothing.
 // One that worked a moment ago retries fast (loading screen, pause);
 // one that never worked for this app backs off slowly.
