@@ -1284,6 +1284,9 @@ new MonitorPageBuilder(this).build(page);
         handoffOverlaySampling();
         worker.shutdownNow();
         fileWorker.shutdownNow();
+        if (monitoringEngine != null) {
+            monitoringEngine.closeRootShell();
+        }
         try {
             unregisterReceiver(overlayToggleReceiver);
         } catch (IllegalArgumentException ignored) {
