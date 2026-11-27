@@ -235,3 +235,23 @@ Copyright © 2026 Klod9s.
 ONYX is licensed under the **GNU General Public License v3.0 or later (GPL-3.0-or-later)**.
 
 See [LICENSE](LICENSE) for the complete license text.
+
+## Official Release Signing Certificate
+
+Official ONYX APK releases distributed through GitHub are signed using the ONYX release signing key.
+
+**Certificate SHA-256 fingerprint:**
+
+```text
+2F:09:7A:5F:F9:00:F3:9D:9F:3A:2F:04:76:C8:3E:98:02:DF:68:36:49:7D:69:0F:25:18:41:AA:A3:05:83:6B
+```
+
+Users can verify an APK's signing certificate using Android SDK Build Tools:
+
+```powershell
+apksigner verify --print-certs app-release.apk
+```
+
+Compare the reported signer certificate SHA-256 digest against the fingerprint above.
+
+**Note:** F-Droid-distributed APKs may use a separate signing certificate. Verify those against F-Droid's published signing information rather than assuming this fingerprint applies.
