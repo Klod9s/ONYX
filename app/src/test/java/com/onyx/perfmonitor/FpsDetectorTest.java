@@ -89,6 +89,48 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void fallsBackToSeparateBlastLookupWhenBatchedSnapshotIsEmpty() throws Exception {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
+        AtomicLong separateLayerCalls = new AtomicLong();
+        AtomicLong separateLatencyCalls = new AtomicLong();
+        FpsDetector detector = new FpsDetector(clock::get);
+
+        FpsDetector.Shell shell = new FpsDetector.Shell() {
+            @Override public String surfaceFlingerDump() { return ""; }
+            @Override public String surfaceFlingerLayers() {
+                separateLayerCalls.incrementAndGet();
+                return "BLAST SurfaceView com.example.game";
+            }
+            @Override public String surfaceFlingerLatency(String layerName) {
+                assertEquals("BLAST SurfaceView com.example.game", layerName);
+                separateLatencyCalls.incrementAndGet();
+                StringBuilder dump = new StringBuilder("10000000\\n");
+                long end = latest.get();
+                for (int i = 99; i >= 0; i--) {
+                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                }
+                return dump.toString();
+            }
+            @Override public String surfaceFlingerTimeStatsDump() { return ""; }
+            @Override public String surfaceFlingerLayerLatencySnapshot(
+                    String packageName, boolean blastOnly) {
+                assertEquals("com.example.game", packageName);
+                assertTrue(blastOnly);
+                return "__ONYX_SELECTED_LAYER__\\n"
+                        + "__ONYX_LATENCY__\\n";
+            }
+        };
+
+        FpsDetector.Result result = detector.detect(shell, "com.example.game");
+
+        assertTrue(result.valid());
+        assertEquals("BLAST SF latency", result.source);
+        assertEquals(1, separateLayerCalls.get());
+        assertEquals(1, separateLatencyCalls.get());
+    }
+
+    @Test
     public void buildsSafeSingleShellLayerLatencyScript() {
         String script = FpsDetector.buildSurfaceFlingerLayerLatencyScript(
                 "com.example.game", true);
