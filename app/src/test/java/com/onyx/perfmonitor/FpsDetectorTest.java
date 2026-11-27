@@ -121,13 +121,13 @@ public class FpsDetectorTest {
                 () -> "",
                 () -> {
                     layerQueries.incrementAndGet();
-                    return "BLAST SurfaceView com.example.game\\n";
+                    return "BLAST SurfaceView com.example.game\n";
                 },
                 layerName -> {
                     long end = latest.get();
-                    StringBuilder dump = new StringBuilder("10000000\\n");
+                    StringBuilder dump = new StringBuilder("10000000\n");
                     for (int i = 99; i >= 0; i--) {
-                        dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                        dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
                     }
                     return dump.toString();
                 },
