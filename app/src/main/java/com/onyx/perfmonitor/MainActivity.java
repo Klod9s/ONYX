@@ -1285,7 +1285,11 @@ new MonitorPageBuilder(this).build(page);
         worker.shutdownNow();
         fileWorker.shutdownNow();
         if (monitoringEngine != null) {
-            monitoringEngine.closeRootShell();
+            final MonitoringEngine engine = monitoringEngine;
+            Thread cleanup = new Thread(engine::closeRootShell,
+                    "OnyxRootShellCleanup");
+            cleanup.setDaemon(true);
+            cleanup.start();
         }
         try {
             unregisterReceiver(overlayToggleReceiver);
