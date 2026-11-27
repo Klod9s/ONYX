@@ -399,15 +399,6 @@ public class MainActivity extends Activity {
         ));
 
 
-        try {
-            java.io.BufferedReader reader =
-                    new java.io.BufferedReader(
-                            new java.io.FileReader("/proc/stat"));
-
-            reader.close();
-        } catch (Exception e) {
-        }
-
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             androidx.core.graphics.Insets bars = insets.getInsets(
                     androidx.core.view.WindowInsetsCompat.Type.systemBars()
@@ -889,35 +880,49 @@ new MonitorPageBuilder(this).build(page);
 
 
     void saveSession(String result) {
-        File sessionFile = null;
-        try {
-            String stamp = new SimpleDateFormat(
-                    "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
-            String baseName = "session_" + stamp;
-            sessionFile = new File(getFilesDir(), baseName + ".csv");
+        final String sessionCsv = buildCsv(result);
 
-            // Reserve a unique filename so a second session in the same
-            // second cannot overwrite an existing recording.
-            int suffix = 1;
-            while (!sessionFile.createNewFile()) {
-                sessionFile = new File(
-                        getFilesDir(), baseName + "-" + suffix++ + ".csv");
+        fileWorker.execute(() -> {
+            File sessionFile = null;
+            boolean saved = false;
+            try {
+                String stamp = new SimpleDateFormat(
+                        "yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
+                String baseName = "session_" + stamp;
+                sessionFile = new File(getFilesDir(), baseName + ".csv");
+
+                // Reserve a unique filename so a second session in the same
+                // second cannot overwrite an existing recording.
+                int suffix = 1;
+                while (!sessionFile.createNewFile()) {
+                    sessionFile = new File(
+                            getFilesDir(), baseName + "-" + suffix++ + ".csv");
+                }
+
+                try (FileOutputStream out = new FileOutputStream(sessionFile)) {
+                    out.write(sessionCsv.getBytes(StandardCharsets.UTF_8));
+                }
+                saved = true;
+            } catch (Exception e) {
+                if (sessionFile != null) {
+                    sessionFile.delete();
+                }
             }
 
-            try (FileOutputStream out = new FileOutputStream(sessionFile)) {
-                out.write(buildCsv(result).getBytes(StandardCharsets.UTF_8));
-            }
-
-            loadHistory();
-            Toast.makeText(this, "Session saved on this device", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            if (sessionFile != null) {
-                sessionFile.delete();
-            }
-            Toast.makeText(this, "Could not save session", Toast.LENGTH_LONG).show();
-        }
+            final boolean saveSucceeded = saved;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (saveSucceeded) {
+                    loadHistory();
+                    Toast.makeText(this, "Session saved on this device",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Could not save session",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        });
     }
-
 
 
 
@@ -1259,19 +1264,33 @@ new MonitorPageBuilder(this).build(page);
             return;
         }
 
-        if (request == 42 && result == RESULT_OK && data != null) {
-            try (OutputStream output =
-                         getContentResolver().openOutputStream(data.getData())) {
+        if (request == 42 && result == RESULT_OK && data != null
+                && data.getData() != null) {
+            final Uri destination = data.getData();
+            final String exportCsv = buildCsv(makeSummary());
 
-                output.write(buildCsv(makeSummary()).getBytes(StandardCharsets.UTF_8));
+            fileWorker.execute(() -> {
+                boolean exported = false;
+                try (OutputStream output =
+                             getContentResolver().openOutputStream(destination)) {
+                    if (output == null) {
+                        throw new java.io.IOException("Could not open destination.");
+                    }
+                    output.write(exportCsv.getBytes(StandardCharsets.UTF_8));
+                    exported = true;
+                } catch (Exception ignored) {
+                    exported = false;
+                }
 
-                Toast.makeText(this, "CSV exported",
-                        Toast.LENGTH_SHORT).show();
-
-            } catch (Exception e) {
-                Toast.makeText(this, "Export failed",
-                        Toast.LENGTH_LONG).show();
-            }
+                final boolean exportSucceeded = exported;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this,
+                            exportSucceeded ? "CSV exported" : "Export failed",
+                            exportSucceeded ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG)
+                            .show();
+                });
+            });
         }
     }
 
