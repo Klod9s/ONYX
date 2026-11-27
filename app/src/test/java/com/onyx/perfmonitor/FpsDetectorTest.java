@@ -203,14 +203,8 @@ public class FpsDetectorTest {
         frames.set(160);
         clock.addAndGet(1000);
 
-        // The detector probes one source per sample. The higher-priority
-        // BLAST probe is due for a retry now, so let that probe run first;
-        // the next sample reaches the still-active SF Counter fallback.
-        FpsDetector.Result blastRetry = detector.detect(shell, "com.example.game");
-        assertFalse(blastRetry.valid());
-        FpsDetector.Result latencyRetry = detector.detect(shell, "com.example.game");
-        assertFalse(latencyRetry.valid());
-
+        // A failed higher-priority retry must fall back to the already
+        // established SF Counter in this same sampling cycle.
         FpsDetector.Result resumed = detector.detect(shell, "com.example.game");
         assertTrue(resumed.valid());
         assertEquals(60.0, resumed.fps, 0.0001);
