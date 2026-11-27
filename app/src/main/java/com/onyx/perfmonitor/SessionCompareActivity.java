@@ -14,12 +14,21 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.File;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Stacked session compare: A on top, B on bottom (side by side in landscape).
  * While LINK SCROLL is on, scrolling either pane scrolls both.
  */
 public class SessionCompareActivity extends Activity {
+
+    private final ExecutorService loadExecutor =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread thread = new Thread(r, "onyx-session-compare");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     private boolean linked = true;
     private boolean syncing = false;
@@ -28,14 +37,56 @@ public class SessionCompareActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SessionData a = loadSession(getIntent().getStringExtra("a"));
-        SessionData b = loadSession(getIntent().getStringExtra("b"));
-
-        if (a == null || b == null) {
-            showError("Could not load one of the sessions.");
+        String firstName = getIntent().getStringExtra("a");
+        String secondName = getIntent().getStringExtra("b");
+        if (!isValidSessionName(firstName) || !isValidSessionName(secondName)) {
+            showError("Invalid session file.");
             return;
         }
 
+        showLoading();
+        loadExecutor.execute(() -> {
+            SessionData a = loadSession(firstName);
+            SessionData b = loadSession(secondName);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (a == null || b == null) {
+                    showError("Could not load one of the sessions.");
+                } else {
+                    showComparison(a, b);
+                }
+            });
+        });
+    }
+
+    private boolean isValidSessionName(String filename) {
+        return filename != null && filename.startsWith("session_")
+                && filename.endsWith(".csv");
+    }
+
+    private void showLoading() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setBackgroundColor(Color.rgb(13, 18, 26));
+
+        android.widget.ProgressBar progress = new android.widget.ProgressBar(this);
+        root.addView(progress, new LinearLayout.LayoutParams(dp(36), dp(36)));
+
+        TextView label = new TextView(this);
+        label.setText("Loading sessions…");
+        label.setTextSize(13);
+        label.setTextColor(Color.rgb(180, 194, 210));
+        label.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(14);
+        root.addView(label, params);
+        setContentView(root);
+    }
+
+    private void showComparison(SessionData a, SessionData b) {
         boolean landscape =
                 getResources().getConfiguration().orientation
                         == Configuration.ORIENTATION_LANDSCAPE;
@@ -171,12 +222,14 @@ public class SessionCompareActivity extends Activity {
     }
 
     private SessionData loadSession(String filename) {
-        if (filename == null || !filename.startsWith("session_")
-                || !filename.endsWith(".csv")) {
-            return null;
-        }
         File file = getFileStreamPath(filename);
         return SessionData.load(this, file);
+    }
+
+    @Override
+    protected void onDestroy() {
+        loadExecutor.shutdownNow();
+        super.onDestroy();
     }
 
     /** Pinned label bar + scrolling analysis content. */
