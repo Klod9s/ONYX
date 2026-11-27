@@ -75,9 +75,9 @@ public class FpsDetectorTest {
     @Test
     public void recoversIntervalsWhenRollingBufferOverwritesPreviousCursor() {
         AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 2_000_000_000L);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
         FpsDetector detector = new FpsDetector(clock::get);
-        detector.beginFrameCapture(latest.get() - 1_000_000_000L);
+        detector.beginFrameCapture(latest.get() - 500_000_000L);
 
         FpsDetector.Shell shell = shell(
                 () -> "",
