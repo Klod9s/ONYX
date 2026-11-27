@@ -90,6 +90,7 @@ final class GlassStyle {
         private final float[] history = new float[MAX_POINTS];
         private int count = 0;
         private int misses = 0;
+        private boolean animationsEnabled = true;
         private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint halo = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint area = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -110,16 +111,14 @@ final class GlassStyle {
             area.setStyle(Paint.Style.FILL);
         }
 
-        // Kept for compatibility with the shared animation setting. Frame-time
-        // is live measurement data, not a decorative animation, so it must
-        // continue updating even when UI animations are disabled.
         void setAnimationsEnabled(boolean enabled) {
+            if (animationsEnabled == enabled) return;
+            animationsEnabled = enabled;
             invalidate();
         }
 
-        /** Called when a sample has no frame-time data; clears stale data after a few misses. */
         void noData() {
-            if (count == 0) return;
+            if (!animationsEnabled || count == 0) return;
             if (++misses >= 3) {
                 count = 0;
                 invalidate();
@@ -127,6 +126,7 @@ final class GlassStyle {
         }
 
         void addFrameTime(float ms) {
+            if (!animationsEnabled) return;
             if (ms <= 0 || Float.isNaN(ms) || Float.isInfinite(ms)) return;
             misses = 0;
             if (count < MAX_POINTS) {
@@ -141,8 +141,31 @@ final class GlassStyle {
         @Override
         protected void onDraw(Canvas canvas) {
             float w = getWidth(), h = getHeight();
-            if (w <= 0 || h <= 0 || count < 2) return;
+            if (w <= 0 || h <= 0) return;
             float pad = 2f * getResources().getDisplayMetrics().density;
+            if (!animationsEnabled) {
+                float y = h * 0.48f;
+                linePath.rewind();
+                linePath.moveTo(pad, y);
+                linePath.lineTo(w - pad, y);
+                areaPath.rewind();
+                areaPath.moveTo(pad, y);
+                areaPath.lineTo(w - pad, y);
+                areaPath.lineTo(w - pad, h);
+                areaPath.lineTo(pad, h);
+                areaPath.close();
+                int accent = AppColors.accent(getContext());
+                int r = Color.red(accent), g = Color.green(accent), b = Color.blue(accent);
+                area.setShader(new LinearGradient(0, y, 0, h,
+                        Color.argb(105, r, g, b), Color.argb(0, r, g, b), Shader.TileMode.CLAMP));
+                canvas.drawPath(areaPath, area);
+                halo.setColor(Color.argb(35, r, g, b));
+                canvas.drawPath(linePath, halo);
+                line.setColor(accent);
+                canvas.drawPath(linePath, line);
+                return;
+            }
+            if (count < 2) return;
 
             float lo = Float.MAX_VALUE, hi = 0f, sum = 0f;
             for (int i = 0; i < count; i++) {
@@ -150,7 +173,6 @@ final class GlassStyle {
                 hi = Math.max(hi, history[i]);
                 sum += history[i];
             }
-            // Keep at least a 4 ms span so tiny jitter is not blown up into spikes.
             float span = Math.max(4f, hi - lo);
             float mid = (hi - lo < 4f) ? sum / count : (hi + lo) / 2f;
             float vLo = mid - span / 2f, vHi = mid + span / 2f;
@@ -159,7 +181,6 @@ final class GlassStyle {
             float[] px = new float[count], py = new float[count];
             float minY = h;
             for (int i = 0; i < count; i++) {
-                // Newest point sits at the right edge.
                 px[i] = (w - pad) - (count - 1 - i) * step;
                 float t = (history[i] - vLo) / (vHi - vLo);
                 py[i] = pad + (h - 2 * pad) * (1f - Math.max(0f, Math.min(1f, t)));
@@ -172,7 +193,6 @@ final class GlassStyle {
 
             int accent = AppColors.accent(getContext());
             int r = Color.red(accent), g = Color.green(accent), b = Color.blue(accent);
-
             areaPath.set(linePath);
             areaPath.lineTo(px[count - 1], h);
             areaPath.lineTo(px[0], h);
@@ -180,7 +200,6 @@ final class GlassStyle {
             area.setShader(new LinearGradient(0, minY, 0, h,
                     Color.argb(120, r, g, b), Color.argb(0, r, g, b), Shader.TileMode.CLAMP));
             canvas.drawPath(areaPath, area);
-
             halo.setColor(Color.argb(45, r, g, b));
             canvas.drawPath(linePath, halo);
             line.setColor(accent);
