@@ -1639,6 +1639,9 @@ public class FloatingFpsService extends Service {
         handler.removeCallbacksAndMessages(null);
         overlayExecutor.shutdownNow();
         samplingExecutor.shutdownNow();
+        if (monitoringEngine != null) {
+            monitoringEngine.closeRootShell();
+        }
         Shizuku.removeBinderDeadListener(backgroundBinderDeadListener);
         if ((backgroundShizukuBindRequested || backgroundShizukuBound)
                 && backgroundShizukuArgs != null) {
