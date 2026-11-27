@@ -262,10 +262,20 @@ public class MainActivity extends Activity {
 
     void wakeSampler() {
         samplingController.wake();
+        requestNotificationPermissionIfNeeded();
     }
 
     void startShizukuService() {
         shizukuController.startService();
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1002);
+        }
     }
 
     @Override
@@ -1303,6 +1313,7 @@ new MonitorPageBuilder(this).build(page);
 
     @Override
     protected void onDestroy() {
+        shizukuController.unbindService();
         shizukuController.unregisterListeners();
 
         running = false;
