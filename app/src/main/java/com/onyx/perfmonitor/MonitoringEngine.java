@@ -194,14 +194,18 @@ private Sample readSample(boolean recording) {
                         "if [ -z \"$MALI_PATH\" ] && { " +
                         (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
                         " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
-                        " MALI_PATH=$(find /sys/devices/platform/soc -name '*.mali' -type d 2>/dev/null | head -n 1); " +
+                        " if [ -d /sys/class/misc/mali0/device ]; then " +
+                        "  MALI_PATH='/sys/class/misc/mali0/device'; " +
+                        " else " +
+                        "  MALI_PATH=$(find /sys/devices/platform -name '*.mali' -type d 2>/dev/null | head -n 1); " +
+                        " fi; " +
                         "fi; " +
 
                         // GPU Frequency
                         "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
-                        "  GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
+                        " GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
                         "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then " +
-                        "  GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
+                        " GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
                         "elif [ -n \"$MALI_PATH\" ]; then " +
                         " for F in \"$MALI_PATH\"/devfreq/cur_freq \"$MALI_PATH\"/devfreq/*/cur_freq; do " +
                         "  if [ -r \"$F\" ]; then " +
@@ -210,26 +214,107 @@ private Sample readSample(boolean recording) {
                         " done; " +
                         " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then " +
                         "  GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
+                        " elif [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/clock\" ]; then " +
+                        "  GPU_FREQ=$(cat \"$MALI_PATH/clock\"); FOUND_FREQ=\"$MALI_PATH/clock\"; " +
                         " fi; " +
                         "fi; " +
-                        "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
-
-                        // GPU Load
-                        "if [ -r /sys/class/kgsl/kgsl-3d0/gpubusy ]; then " +
-                        "  GPU_LOAD=$(cat /sys/class/kgsl/kgsl-3d0/gpubusy); FOUND_LOAD='/sys/class/kgsl/kgsl-3d0/gpubusy'; " +
-                        "elif [ -n \"$CACHED_LOAD\" ] && [ -r \"$CACHED_LOAD\" ]; then " +
-                        "  GPU_LOAD=$(cat \"$CACHED_LOAD\"); FOUND_LOAD=\"$CACHED_LOAD\"; " +
-                        "elif [ -n \"$MALI_PATH\" ]; then " +
-                        " for F in \"$MALI_PATH\"/devfreq/load \"$MALI_PATH\"/devfreq/*/load; do " +
-                        "  if [ -r \"$F\" ]; then " +
-                        "   GPU_LOAD=$(cat \"$F\"); FOUND_LOAD=\"$F\"; break; " +
+                        "if [ \"$FOUND_FREQ\" = 'none' ]; then " +
+                        " for D in /sys/class/devfreq/*; do " +
+                        "  [ -d \"$D\" ] || continue; " +
+                        "  N=${D##*/}; " +
+                        "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                        "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                        ") ;; *) continue;; esac; " +
+                        "  if [ -r \"$D/cur_freq\" ]; then " +
+                        "   GPU_FREQ=$(cat \"$D/cur_freq\"); FOUND_FREQ=\"$D/cur_freq\"; break; " +
                         "  fi; " +
                         " done; " +
-                        " if [ \"$FOUND_LOAD\" = 'none' ] && [ -r \"$MALI_PATH/device/utilisation\" ]; then " +
-                        "  GPU_LOAD=$(cat \"$MALI_PATH/device/utilisation\"); FOUND_LOAD=\"$MALI_PATH/device/utilisation\"; " +
-                        " fi; " +
                         "fi; " +
-                        "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
+
+                        // One-time fallback for device-level devfreq nodes.
+                        "if [ \"$FOUND_FREQ\" = 'none' ] && " +
+                        (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
+                        "; then " +
+                        " for F in $(find /sys/devices -type f \\( -path '*/devfreq/cur_freq' -o -path '*/devfreq/*/cur_freq' \\) -print 2>/dev/null); do " +
+                        "  [ -r \"$F\" ] || continue; " +
+                        "  D=${F%/cur_freq}; N=${D##*/}; " +
+                        "  if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
+                        "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                        "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                        "  case \"$N\" in *busmon*) continue;; esac; " +
+                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                        ") ;; *) continue;; esac; " +
+                        "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; " +
+                        " done; " +
+                        "fi; " +
+
+                        "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
+
+
+                        // GPU Load
+                        "GPU_LOAD_CANDIDATES=''; " +
+                        "add_gpu_load_candidate() { " +
+                        " F=\"$1\"; " +
+                        " [ -r \"$F\" ] || return; " +
+                        " V=$(cat \"$F\" 2>/dev/null) || return; " +
+                        " [ -n \"$V\" ] || return; " +
+                        " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
+                        " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
+                        "  GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; " +
+                        " fi; " +
+                        " fi; " +
+                        " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; " +
+                        "}; " +
+                        "add_gpu_load_candidate /sys/class/kgsl/kgsl-3d0/gpubusy; " +
+                        "for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do " +
+                        " add_gpu_load_candidate \"$F\"; " +
+                        "done; " +
+                        "if [ -n \"$CACHED_LOAD\" ]; then " +
+                        " add_gpu_load_candidate \"$CACHED_LOAD\"; " +
+                        "fi; " +
+                        "if [ -n \"$MALI_PATH\" ]; then " +
+                        " for F in " +
+                        "  \"$MALI_PATH\"/devfreq/load " +
+                        "  \"$MALI_PATH\"/devfreq/*/load " +
+                        "  \"$MALI_PATH\"/devfreq/utilisation " +
+                        "  \"$MALI_PATH\"/devfreq/*/utilisation " +
+                        "  \"$MALI_PATH\"/devfreq/utilization " +
+                        "  \"$MALI_PATH\"/devfreq/*/utilization " +
+                        "  \"$MALI_PATH\"/device/utilisation " +
+                        "  \"$MALI_PATH\"/device/utilization; do " +
+                        "  add_gpu_load_candidate \"$F\"; " +
+                        " done; " +
+                        "fi; " +
+                        "for D in /sys/class/devfreq/*; do " +
+                        " [ -d \"$D\" ] || continue; " +
+                        " N=${D##*/}; " +
+                        " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                        " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                        " case \"$N\" in *busmon*) continue;; esac; " +
+                        " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                        ") ;; *) continue;; esac; " +
+                        " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do " +
+                        "  add_gpu_load_candidate \"$F\"; " +
+                        " done; " +
+                        "done; " +
+                        "for F in $(find /sys/devices -type f \\( " +
+                        " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
+                        " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
+                        " \\) -print 2>/dev/null); do " +
+                        " [ -r \"$F\" ] || continue; " +
+                        " D=${F%/*}; N=${D##*/}; " +
+                        " if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
+                        " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                        " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                        " case \"$N\" in *busmon*) continue;; esac; " +
+                        " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                        ") ;; *) continue;; esac; " +
+                        " add_gpu_load_candidate \"$F\"; " +
+                        "done; " +
+                        "echo __GPU_LOAD_BLOCK__; " +
+                        "printf '%s\\n' \"$GPU_LOAD_CANDIDATES\"; " +
+
                         "echo __THERMAL_BLOCK__; " +
                         "for Z in /sys/class/thermal/thermal_zone*; do " +
                         " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
@@ -342,21 +427,40 @@ private Sample readSample(boolean recording) {
             String cpuFreqRaw = between(output, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
             parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
-            // GPU Freq Block (FIXED: uses 'output', not 'freqOutput')
-            String gpuFreqBlock = between(output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
+            // GPU Freq Block
+            String gpuFreqBlock = between(
+                    output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__"
+            ).trim();
+
             String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
-            sample.gpuFreqMHz = parseGpuFrequencyMHz(gpuFreqBlock);
-            if (gpuFreqParts.length >= 2 && !gpuFreqParts[1].equals("none")) {
-                cachedGpuFreqPath = validateSysfsPath(gpuFreqParts[1]);
+            String gpuFreqPath = gpuFreqParts.length >= 2
+                    ? gpuFreqParts[1] : "";
+
+            sample.gpuFreqMHz = parseGpuFrequencyMHz(
+                    gpuFreqBlock, gpuFreqPath);
+
+            if (!gpuFreqPath.equals("none") && !gpuFreqPath.isEmpty()) {
+                cachedGpuFreqPath = validateSysfsPath(gpuFreqPath);
             }
 
-            // GPU Load Block (FIXED: uses 'output', not 'freqOutput')
-            String gpuLoadBlock = between(output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
-            String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
-            sample.gpuLoadPercent = parseGpuLoadPercent(gpuLoadBlock);
-            if (gpuLoadParts.length >= 2) {
-                String path = gpuLoadParts[gpuLoadParts.length - 1];
-                if (!path.equals("none")) cachedGpuLoadPath = validateSysfsPath(path);
+            // GPU Load Block: select the first valid candidate in priority order.
+            String gpuLoadBlock = between(
+                    output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
+
+            String selectedGpuLoad = firstValidGpuLoadCandidate(gpuLoadBlock);
+
+            sample.gpuLoadPercent = -1;
+            cachedGpuLoadPath = "";
+
+            if (!selectedGpuLoad.isEmpty()) {
+                String[] gpuLoadParts = selectedGpuLoad.split("\\s+");
+                String gpuLoadPath = gpuLoadParts[gpuLoadParts.length - 1];
+                String validatedPath = validateSysfsPath(gpuLoadPath);
+
+                if (!validatedPath.isEmpty()) {
+                    sample.gpuLoadPercent = parseGpuLoadPercent(selectedGpuLoad);
+                    cachedGpuLoadPath = validatedPath;
+                }
             }
 
             parseThermalTemperatures(
@@ -443,20 +547,39 @@ private Sample readShizukuSample(boolean recording) {
                     parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
                     // Parse GPU Freq
-                    String gpuFreqBlock = between(freqOutput, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
+                    String gpuFreqBlock = between(
+                            freqOutput, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__"
+                    ).trim();
+
                     String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
-                    sample.gpuFreqMHz = parseGpuFrequencyMHz(gpuFreqBlock);
-                    if (gpuFreqParts.length >= 2 && !gpuFreqParts[1].equals("none")) {
-                        cachedGpuFreqPath = validateSysfsPath(gpuFreqParts[1]);
+                    String gpuFreqPath = gpuFreqParts.length >= 2
+                            ? gpuFreqParts[1] : "";
+
+                    sample.gpuFreqMHz = parseGpuFrequencyMHz(
+                            gpuFreqBlock, gpuFreqPath);
+
+                    if (!gpuFreqPath.equals("none") && !gpuFreqPath.isEmpty()) {
+                        cachedGpuFreqPath = validateSysfsPath(gpuFreqPath);
                     }
 
-                    // Parse GPU Load
-                    String gpuLoadBlock = between(freqOutput, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
-                    String[] gpuLoadParts = gpuLoadBlock.split("\\s+");
-                    sample.gpuLoadPercent = parseGpuLoadPercent(gpuLoadBlock);
-                    if (gpuLoadParts.length >= 2) {
-                        String path = gpuLoadParts[gpuLoadParts.length - 1];
-                        if (!path.equals("none")) cachedGpuLoadPath = validateSysfsPath(path);
+                    // Parse GPU Load: select the first valid candidate in priority order.
+                    String gpuLoadBlock = between(
+                            freqOutput, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
+
+                    String selectedGpuLoad = firstValidGpuLoadCandidate(gpuLoadBlock);
+
+                    sample.gpuLoadPercent = -1;
+                    cachedGpuLoadPath = "";
+
+                    if (!selectedGpuLoad.isEmpty()) {
+                        String[] gpuLoadParts = selectedGpuLoad.split("\\s+");
+                        String gpuLoadPath = gpuLoadParts[gpuLoadParts.length - 1];
+                        String validatedPath = validateSysfsPath(gpuLoadPath);
+
+                        if (!validatedPath.isEmpty()) {
+                            sample.gpuLoadPercent = parseGpuLoadPercent(selectedGpuLoad);
+                            cachedGpuLoadPath = validatedPath;
+                        }
                     }
 
                     parseThermalTemperatures(
@@ -719,6 +842,7 @@ private double[] parseCpu(String raw) {
 
     static double parseGpuFrequencyMHz(String raw) {
         if (raw == null || raw.trim().isEmpty()) return -1;
+
         String[] parts = raw.trim().split("\\s+");
         try {
             double value = Double.parseDouble(parts[0]);
@@ -731,27 +855,128 @@ private double[] parseCpu(String raw) {
         }
     }
 
+    static double parseGpuFrequencyMHz(String raw, String sourcePath) {
+        if (raw == null || raw.trim().isEmpty()) return -1;
+
+        if (sourcePath != null
+                && sourcePath.startsWith("/sys/")
+                && sourcePath.contains("/devfreq/")
+                && sourcePath.endsWith("/cur_freq")) {
+
+            String[] parts = raw.trim().split("\\s+");
+
+            // Accept a frequency alone or a frequency followed by its source path.
+            if (parts.length < 1 || parts.length > 2) return -1;
+
+            if (parts.length == 2 && !parts[1].equals(sourcePath)) {
+                return -1;
+            }
+
+            try {
+                double hz = Double.parseDouble(parts[0]);
+
+                if (!Double.isFinite(hz) || hz <= 0) return -1;
+
+                return hz / 1_000_000.0;
+
+            } catch (NumberFormatException ignored) {
+                return -1;
+            }
+        }
+
+        return parseGpuFrequencyMHz(raw);
+    }
+
+
+
+
+
     static double parseGpuLoadPercent(String raw) {
         if (raw == null || raw.trim().isEmpty()) return -1;
+
         String[] parts = raw.trim().split("\\s+");
+
         try {
-            if (parts.length == 3) {
+            if (parts.length == 3 && "%".equals(parts[1])) {
+                // Direct percentage followed by a separate percent symbol and source path.
+                double load = Double.parseDouble(parts[0]);
+                if (Double.isFinite(load) && load >= 0 && load <= 100) {
+                    return load;
+                }
+            } else if (parts.length == 3) {
+                // Busy/total counters followed by source path.
                 double busy = Double.parseDouble(parts[0]);
                 double total = Double.parseDouble(parts[1]);
-                if (!Double.isFinite(busy) || !Double.isFinite(total) || busy < 0) return -1;
+
+                if (!Double.isFinite(busy) || !Double.isFinite(total) || busy < 0) {
+                    return -1;
+                }
+
                 if (total == -1 && busy <= 100) return busy;
                 if (total > 0) return Math.max(0, Math.min(100, busy / total * 100.0));
+
             } else if (parts.length == 2) {
-                double load = Double.parseDouble(parts[0]);
-                if (Double.isFinite(load) && load >= 0 && load <= 100) return load;
+                // Direct percentage followed by source path.
+                String value = parts[0];
+                if (value.endsWith("%")) {
+                    value = value.substring(0, value.length() - 1);
+                }
+
+                double load = Double.parseDouble(value);
+                if (Double.isFinite(load) && load >= 0 && load <= 100) {
+                    return load;
+                }
+
+            } else if (parts.length == 1 && parts[0].endsWith("%")) {
+                // Standalone percentage with an explicit percent symbol.
+                double load = Double.parseDouble(
+                        parts[0].substring(0, parts[0].length() - 1));
+
+                if (Double.isFinite(load) && load >= 0 && load <= 100) {
+                    return load;
+                }
             }
         } catch (NumberFormatException ignored) {
             // Unsupported or malformed driver output.
         }
+
         return -1;
     }
 
-private String validateSysfsPath(String path) {
+    static String firstValidGpuLoadCandidate(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return "";
+        }
+
+        for (String line : raw.split("\\R")) {
+            String candidate = line.trim();
+
+            if (candidate.isEmpty()) {
+                continue;
+            }
+
+            String[] parts = candidate.split("\\s+");
+
+            // A candidate must contain its reading and its sysfs source path.
+            if (parts.length < 2) {
+                continue;
+            }
+
+            String path = parts[parts.length - 1];
+
+            if (!path.startsWith("/sys/")) {
+                continue;
+            }
+
+            if (parseGpuLoadPercent(candidate) >= 0) {
+                return candidate;
+            }
+        }
+
+        return "";
+    }
+
+    private String validateSysfsPath(String path) {
         if (path == null || path.isEmpty() ||
                 !path.startsWith("/sys/") ||
                 !path.matches("[A-Za-z0-9_./,-]+") ||

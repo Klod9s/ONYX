@@ -55,12 +55,18 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 "if [ -z \"$MALI_PATH\" ] && { " +
                                 (searchMali ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
                                 " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
-                                " MALI_PATH=$(find /sys/devices/platform/soc -name '*.mali' -type d 2>/dev/null | head -n 1); " +
+                                " if [ -d /sys/class/misc/mali0/device ]; then " +
+                                "  MALI_PATH='/sys/class/misc/mali0/device'; " +
+                                " else " +
+                                "  MALI_PATH=$(find /sys/devices/platform -name '*.mali' -type d 2>/dev/null | head -n 1); " +
+                                " fi; " +
                                 "fi; " +
+
+                                // GPU Frequency
                                 "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
-                                "  GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
+                                " GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
                                 "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then " +
-                                "  GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
+                                " GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
                                 "elif [ -n \"$MALI_PATH\" ]; then " +
                                 " for F in \"$MALI_PATH\"/devfreq/cur_freq \"$MALI_PATH\"/devfreq/*/cur_freq; do " +
                                 "  if [ -r \"$F\" ]; then " +
@@ -69,24 +75,105 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 " done; " +
                                 " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then " +
                                 "  GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
+                                " elif [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/clock\" ]; then " +
+                                "  GPU_FREQ=$(cat \"$MALI_PATH/clock\"); FOUND_FREQ=\"$MALI_PATH/clock\"; " +
                                 " fi; " +
                                 "fi; " +
-                                "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
-                                "if [ -r /sys/class/kgsl/kgsl-3d0/gpubusy ]; then " +
-                                "  GPU_LOAD=$(cat /sys/class/kgsl/kgsl-3d0/gpubusy); FOUND_LOAD='/sys/class/kgsl/kgsl-3d0/gpubusy'; " +
-                                "elif [ -n \"$CACHED_LOAD\" ] && [ -r \"$CACHED_LOAD\" ]; then " +
-                                "  GPU_LOAD=$(cat \"$CACHED_LOAD\"); FOUND_LOAD=\"$CACHED_LOAD\"; " +
-                                "elif [ -n \"$MALI_PATH\" ]; then " +
-                                " for F in \"$MALI_PATH\"/devfreq/load \"$MALI_PATH\"/devfreq/*/load; do " +
-                                "  if [ -r \"$F\" ]; then " +
-                                "   GPU_LOAD=$(cat \"$F\"); FOUND_LOAD=\"$F\"; break; " +
+                                "if [ \"$FOUND_FREQ\" = 'none' ]; then " +
+                                " for D in /sys/class/devfreq/*; do " +
+                                "  [ -d \"$D\" ] || continue; " +
+                                "  N=${D##*/}; " +
+                                "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                "  if [ -r \"$D/cur_freq\" ]; then " +
+                                "   GPU_FREQ=$(cat \"$D/cur_freq\"); FOUND_FREQ=\"$D/cur_freq\"; break; " +
                                 "  fi; " +
                                 " done; " +
-                                " if [ \"$FOUND_LOAD\" = 'none' ] && [ -r \"$MALI_PATH/device/utilisation\" ]; then " +
-                                "  GPU_LOAD=$(cat \"$MALI_PATH/device/utilisation\"); FOUND_LOAD=\"$MALI_PATH/device/utilisation\"; " +
-                                " fi; " +
                                 "fi; " +
-                                "echo __GPU_LOAD_BLOCK__; echo $GPU_LOAD; echo $FOUND_LOAD; " +
+
+                                // One-time fallback for device-level devfreq nodes.
+                                "if [ \"$FOUND_FREQ\" = 'none' ] && " +
+                                (searchMali ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
+                                "; then " +
+                                " for F in $(find /sys/devices -type f \\( -path '*/devfreq/cur_freq' -o -path '*/devfreq/*/cur_freq' \\) -print 2>/dev/null); do " +
+                                "  [ -r \"$F\" ] || continue; " +
+                                "  D=${F%/cur_freq}; N=${D##*/}; " +
+                                "  if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
+                                "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                "  case \"$N\" in *busmon*) continue;; esac; " +
+                                "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; " +
+                                " done; " +
+                                "fi; " +
+
+                                "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
+
+                                // GPU Load: collect candidates in priority order.
+                                // Java will select the first candidate with a valid reading.
+                                "GPU_LOAD_CANDIDATES=''; " +
+                                "add_gpu_load_candidate() { " +
+                                " F=\"$1\"; " +
+                                " [ -r \"$F\" ] || return; " +
+                                " V=$(cat \"$F\" 2>/dev/null) || return; " +
+                                " [ -n \"$V\" ] || return; " +
+                                " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
+                                "  GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; " +
+                                " fi; " +
+                                " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; " +
+                                "}; " +
+                                "add_gpu_load_candidate /sys/class/kgsl/kgsl-3d0/gpubusy; " +
+                                "for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do " +
+                                " add_gpu_load_candidate \"$F\"; " +
+                                "done; " +
+                                "if [ -n \"$CACHED_LOAD\" ]; then " +
+                                " add_gpu_load_candidate \"$CACHED_LOAD\"; " +
+                                "fi; " +
+                                "if [ -n \"$MALI_PATH\" ]; then " +
+                                " for F in " +
+                                "  \"$MALI_PATH\"/devfreq/load " +
+                                "  \"$MALI_PATH\"/devfreq/*/load " +
+                                "  \"$MALI_PATH\"/devfreq/utilisation " +
+                                "  \"$MALI_PATH\"/devfreq/*/utilisation " +
+                                "  \"$MALI_PATH\"/devfreq/utilization " +
+                                "  \"$MALI_PATH\"/devfreq/*/utilization " +
+                                "  \"$MALI_PATH\"/device/utilisation " +
+                                "  \"$MALI_PATH\"/device/utilization; do " +
+                                "  add_gpu_load_candidate \"$F\"; " +
+                                " done; " +
+                                "fi; " +
+                                "for D in /sys/class/devfreq/*; do " +
+                                " [ -d \"$D\" ] || continue; " +
+                                " N=${D##*/}; " +
+                                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                " case \"$N\" in *busmon*) continue;; esac; " +
+                                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do " +
+                                "  add_gpu_load_candidate \"$F\"; " +
+                                " done; " +
+                                "done; " +
+                                "for F in $(find /sys/devices -type f \\( " +
+                                " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
+                                " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
+                                " \\) -print 2>/dev/null); do " +
+                                " [ -r \"$F\" ] || continue; " +
+                                " D=${F%/*}; N=${D##*/}; " +
+                                " if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
+                                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                " case \"$N\" in *busmon*) continue;; esac; " +
+                                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                " add_gpu_load_candidate \"$F\"; " +
+                                "done; " +
+                                "echo __GPU_LOAD_BLOCK__; " +
+                                "printf '%s\\n' \"$GPU_LOAD_CANDIDATES\"; " +
+
                                 "echo __THERMAL_BLOCK__; " +
                                 "for Z in /sys/class/thermal/thermal_zone*; do " +
                                 " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +

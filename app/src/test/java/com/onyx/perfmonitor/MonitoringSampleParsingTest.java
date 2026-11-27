@@ -20,6 +20,123 @@ public class MonitoringSampleParsingTest {
         assertEquals(50.125, sample.gpuTemperatureC, 0.0001);
     }
 
+
+    @Test
+    public void parsesDevfreqGpuFrequencyAsHertz() {
+        assertEquals(587.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "587000000 /sys/class/devfreq/13000000.gpu/cur_freq",
+                        "/sys/class/devfreq/13000000.gpu/cur_freq"),
+                0.0001);
+
+        assertEquals(450.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "450000000 /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq",
+                        "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq"),
+                0.0001);
+
+        assertEquals(800.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "800000000 /sys/class/misc/mali0/device/devfreq/gpu/cur_freq",
+                        "/sys/class/misc/mali0/device/devfreq/gpu/cur_freq"),
+                0.0001);
+    }
+
+    @Test
+    public void preservesLegacyConversionForUnknownGpuFrequencySources() {
+        assertEquals(0.587,
+                MonitoringEngine.parseGpuFrequencyMHz("587", "/sys/vendor/gpu/clock"),
+                0.0001);
+    }
+
+    @Test
+    public void rejectsInvalidDevfreqGpuFrequencyValues() {
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "-1", "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "NaN", "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "unknown", "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+    }
+
+
+    @Test
+    public void rejectsMalformedDevfreqGpuFrequencyBlocks() {
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "587000000 invalid",
+                        "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "587000000 450000000",
+                        "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+    }
+
+    @Test
+    public void doesNotTreatNonDevfreqPathsAsHertz() {
+        assertEquals(587.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "587000000", "/sys/vendor/gpu/clock"),
+                0.0001);
+    }
+
+    @Test
+    public void acceptsWhitespaceAroundDevfreqFrequency() {
+        assertEquals(587.0,
+                MonitoringEngine.parseGpuFrequencyMHz(
+                        "  587000000  ",
+                        "/sys/class/devfreq/gpu/cur_freq"),
+                0.0001);
+    }
+
+
+    @Test
+    public void parsesPercentageValuesWithPercentSuffix() {
+        assertEquals(58.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "58 % /sys/devices/gpu/utilisation"),
+                0.0001);
+
+        assertEquals(56.5,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "56.5% /sys/devices/gpu/load"),
+                0.0001);
+
+        assertEquals(73.0,
+                MonitoringEngine.parseGpuLoadPercent("73%"),
+                0.0001);
+    }
+
+    @Test
+    public void rejectsInvalidPercentageSuffixValues() {
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "101 % /sys/devices/gpu/utilisation"),
+                0.0001);
+
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "-1 % /sys/devices/gpu/utilisation"),
+                0.0001);
+
+        assertEquals(-1.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "NaN % /sys/devices/gpu/utilisation"),
+                0.0001);
+    }
+
+
     @Test
     public void missingThermalBlocksSetTemperaturesUnavailable() {
         Sample sample = new Sample();
@@ -104,6 +221,86 @@ public class MonitoringSampleParsingTest {
         assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("20 0 /sys/class/kgsl/gpubusy"), 0.0001);
         assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("NaN /sys/devices/gpu/load"), 0.0001);
         assertEquals(-1.0, MonitoringEngine.parseGpuLoadPercent("broken output"), 0.0001);
+    }
+
+    @Test
+    public void parsesDecimalGpuBusyCounters() {
+        assertEquals(
+                56.55,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "565.5 1000 /sys/devices/gpu/gpubusy"),
+                0.0001);
+
+        assertEquals(
+                12.5,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "125 1000 /sys/devices/gpu/gpubusy"),
+                0.0001);
+        assertEquals(
+                50.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "250.5 501.0 /sys/devices/gpu/gpubusy"),
+                0.0001);
+
+        assertEquals(
+                100.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "1000 1000 /sys/devices/gpu/gpubusy"),
+                0.0001);
+    }
+
+    @Test
+    public void selectsFirstValidGpuLoadCandidate() {
+        String candidates =
+                "0 0 /sys/devices/gpu/invalid\n"
+                        + "not-a-number /sys/devices/gpu/bad\n"
+                        + "250 500 /sys/devices/gpu/gpubusy\n"
+                        + "600 1000 /sys/devices/gpu/another";
+
+        assertEquals(
+                "250 500 /sys/devices/gpu/gpubusy",
+                MonitoringEngine.firstValidGpuLoadCandidate(candidates)
+        );
+    }
+
+    @Test
+    public void skipsInvalidGpuLoadCandidatesAndReturnsEmptyWhenNoneAreValid() {
+        String candidates =
+                "0 0 /sys/devices/gpu/invalid\n"
+                        + "not-a-number /sys/devices/gpu/bad\n"
+                        + "55 100 /not-sys/gpu/load";
+
+        assertEquals(
+                "",
+                MonitoringEngine.firstValidGpuLoadCandidate(candidates)
+        );
+    }
+
+    @Test
+    public void selectsValidDirectPercentageCandidate() {
+        String candidates =
+                "invalid /sys/devices/gpu/bad\n"
+                        + "55 % /sys/devices/gpu/utilisation";
+
+        assertEquals(
+                "55 % /sys/devices/gpu/utilisation",
+                MonitoringEngine.firstValidGpuLoadCandidate(candidates)
+        );
+    }
+
+    @Test
+    public void rejectsInvalidGpuBusyCounterValues() {
+        assertEquals(
+                -1.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "-1 1000 /sys/devices/gpu/gpubusy"),
+                0.0001);
+
+        assertEquals(
+                -1.0,
+                MonitoringEngine.parseGpuLoadPercent(
+                        "100 0 /sys/devices/gpu/gpubusy"),
+                0.0001);
     }
 
     @Test
