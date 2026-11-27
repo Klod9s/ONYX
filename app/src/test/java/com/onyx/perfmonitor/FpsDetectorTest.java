@@ -28,6 +28,21 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void defaultTimeStatsSnapshotKeepsLayerAndStatsSectionsSeparate() throws Exception {
+        FpsDetector.Shell shell = shell(
+                () -> "",
+                () -> "SurfaceView com.example.game\\n",
+                layer -> "",
+                () -> "layerName = SurfaceView com.example.game\\ntotalFrames = 120\\n");
+
+        assertEquals("__ONYX_LAYERS__\\nSurfaceView com.example.game\\n"
+                        + "__ONYX_TIMESTATS__\\n"
+                        + "layerName = SurfaceView com.example.game\\n"
+                        + "totalFrames = 120\\n",
+                shell.surfaceFlingerTimeStatsSnapshot());
+    }
+
+    @Test
     public void capturesOnlyNewSurfaceFlingerIntervalsAcrossOverlappingPolls() {
         AtomicLong clock = new AtomicLong(1000);
         AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
