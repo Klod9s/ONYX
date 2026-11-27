@@ -208,6 +208,8 @@ public class FpsDetectorTest {
         // the next sample reaches the still-active SF Counter fallback.
         FpsDetector.Result blastRetry = detector.detect(shell, "com.example.game");
         assertFalse(blastRetry.valid());
+        FpsDetector.Result latencyRetry = detector.detect(shell, "com.example.game");
+        assertFalse(latencyRetry.valid());
 
         FpsDetector.Result resumed = detector.detect(shell, "com.example.game");
         assertTrue(resumed.valid());
