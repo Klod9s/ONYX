@@ -59,6 +59,11 @@ android {
     }
 }
 
+// Keep resolved direct and transitive versions stable once lockfiles are generated.
+configurations.configureEach {
+    resolutionStrategy.activateDependencyLocking()
+}
+
 dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("dev.rikka.shizuku:api:13.1.5")
