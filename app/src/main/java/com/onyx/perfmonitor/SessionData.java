@@ -136,6 +136,7 @@ public class SessionData {
             String line;
             boolean inReadings = false;
             boolean skipHeader = false;
+            boolean hasSecondsPerPercentColumn = true;
 
             while ((line = reader.readLine()) != null) {
 
@@ -158,11 +159,13 @@ public class SessionData {
 
                 // The first line after the marker is the column header row.
                 if (skipHeader) {
+                    hasSecondsPerPercentColumn =
+                            line.contains("Seconds per 1% drain");
                     skipHeader = false;
                     continue;
                 }
 
-                data.addRow(parseCsvLine(line));
+                data.addRow(parseCsvLine(line), hasSecondsPerPercentColumn);
             }
 
             return data;
@@ -172,39 +175,40 @@ public class SessionData {
         }
     }
 
-    private void addRow(List<String> columns) {
-        if (columns.size() < 9) return;
+    private void addRow(List<String> columns, boolean hasSecondsPerPercentColumn) {
+        if (columns.size() < 8) return;
 
+        int offset = hasSecondsPerPercentColumn ? 0 : -1;
         times.add(parseTime(columns.get(0)));
         fps.add(number(columns, 2));
-        fpsSource.add(columns.size() > 30 ? columns.get(30) : "");
+        fpsSource.add(columns.size() > 30 + offset ? columns.get(30 + offset) : "");
         current.add(number(columns, 3));
         voltage.add(number(columns, 4));
         power.add(number(columns, 5));
         battery.add(number(columns, 6));
-        secondsPerPercent.add(number(columns, 7));
-        temperature.add(number(columns, 8));
+        secondsPerPercent.add(hasSecondsPerPercentColumn ? number(columns, 7) : -1);
+        temperature.add(number(columns, 8 + offset));
 
         for (int i = 0; i < 8; i++) {
-            cpu.get(i).add(number(columns, 9 + i));
+            cpu.get(i).add(number(columns, 9 + offset + i));
         }
         for (int i = 0; i < 8; i++) {
-            cpuFreq.get(i).add(number(columns, 17 + i));
+            cpuFreq.get(i).add(number(columns, 17 + offset + i));
         }
 
-        gpuFreq.add(number(columns, 25));
-        gpuLoad.add(number(columns, 26));
-        averageFrameTime.add(number(columns, 27));
-        frameTimeStdDev.add(number(columns, 28));
-        stutterCount.add(number(columns, 29));
-        if (columns.size() > 31) {
-            addFrameIntervals(columns.get(31));
+        gpuFreq.add(number(columns, 25 + offset));
+        gpuLoad.add(number(columns, 26 + offset));
+        averageFrameTime.add(number(columns, 27 + offset));
+        frameTimeStdDev.add(number(columns, 28 + offset));
+        stutterCount.add(number(columns, 29 + offset));
+        if (columns.size() > 31 + offset) {
+            addFrameIntervals(columns.get(31 + offset));
         }
-        ramUsage.add(number(columns, 32));
-        cpuTemperature.add(number(columns, 33));
-        gpuTemperature.add(number(columns, 34));
-        thermalStatus.add(number(columns, 35));
-        coolingDeviceActive.add(number(columns, 36));
+        ramUsage.add(number(columns, 32 + offset));
+        cpuTemperature.add(number(columns, 33 + offset));
+        gpuTemperature.add(number(columns, 34 + offset));
+        thermalStatus.add(number(columns, 35 + offset));
+        coolingDeviceActive.add(number(columns, 36 + offset));
     }
 
     private void addFrameIntervals(String encoded) {
