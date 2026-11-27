@@ -26,6 +26,13 @@ public class FpsDetector {
         String surfaceFlingerLatency(String layerName) throws Exception;
         String surfaceFlingerTimeStatsDump() throws Exception;
 
+        // Production shells can discover the layer and read its latency in one
+        // shell process. Null means the implementation does not support batching.
+        default String surfaceFlingerLayerLatencySnapshot(
+                String packageName, boolean blastOnly) throws Exception {
+            return null;
+        }
+
         // Compatibility fallback for test shells and alternate implementations.
         // Production ROOT/Shizuku shells override this with one batched command.
         default String surfaceFlingerTimeStatsSnapshot() throws Exception {
@@ -411,12 +418,21 @@ public class FpsDetector {
 
         String selectedLayer;
         String source;
+        String out = null;
+        boolean refreshedLayer;
 
         if (blastOnly) {
-            if (blastLayerName.isEmpty()
-                    || now - blastLayerCheckMs >= LAYER_CACHE_MS) {
-
-                blastLayerName = findLayer(shell, true);
+            refreshedLayer = blastLayerName.isEmpty()
+                    || now - blastLayerCheckMs >= LAYER_CACHE_MS;
+            if (refreshedLayer) {
+                LayerLatencySnapshot snapshot =
+                        readLayerLatencySnapshot(shell, pkg, true);
+                if (snapshot != null) {
+                    blastLayerName = snapshot.layerName;
+                    out = snapshot.latencyDump;
+                } else {
+                    blastLayerName = findLayer(shell, true);
+                }
                 blastLayerCheckMs = now;
             }
 
@@ -424,10 +440,17 @@ public class FpsDetector {
             source = "BLAST SF latency";
 
         } else {
-            if (otherLayerName.isEmpty()
-                    || now - otherLayerCheckMs >= LAYER_CACHE_MS) {
-
-                otherLayerName = findLayer(shell, false);
+            refreshedLayer = otherLayerName.isEmpty()
+                    || now - otherLayerCheckMs >= LAYER_CACHE_MS;
+            if (refreshedLayer) {
+                LayerLatencySnapshot snapshot =
+                        readLayerLatencySnapshot(shell, pkg, false);
+                if (snapshot != null) {
+                    otherLayerName = snapshot.layerName;
+                    out = snapshot.latencyDump;
+                } else {
+                    otherLayerName = findLayer(shell, false);
+                }
                 otherLayerCheckMs = now;
             }
 
@@ -439,7 +462,9 @@ public class FpsDetector {
             return NONE;
         }
 
-        String out = shell.surfaceFlingerLatency(selectedLayer);
+        if (out == null) {
+            out = shell.surfaceFlingerLatency(selectedLayer);
+        }
 
         if (out == null || out.isEmpty()
                 || out.contains("permission")
@@ -666,6 +691,67 @@ public class FpsDetector {
 
         lastCapturedPresentationNs = latest;
         return intervals;
+    }
+
+    private static final class LayerLatencySnapshot {
+        final String layerName;
+        final String latencyDump;
+
+        LayerLatencySnapshot(String layerName, String latencyDump) {
+            this.layerName = layerName;
+            this.latencyDump = latencyDump;
+        }
+    }
+
+    private static LayerLatencySnapshot readLayerLatencySnapshot(
+            Shell shell, String packageName, boolean blastOnly) throws Exception {
+        String snapshot = shell.surfaceFlingerLayerLatencySnapshot(
+                packageName, blastOnly);
+        if (snapshot == null) {
+            return null;
+        }
+
+        String layerMarker = "__ONYX_SELECTED_LAYER__";
+        String latencyMarker = "__ONYX_LATENCY__";
+        int layerStart = snapshot.indexOf(layerMarker);
+        int latencyStart = snapshot.indexOf(latencyMarker);
+        if (layerStart < 0 || latencyStart <= layerStart) {
+            return new LayerLatencySnapshot("", "");
+        }
+
+        String layer = snapshot.substring(
+                layerStart + layerMarker.length(), latencyStart).trim();
+        String latency = snapshot.substring(
+                latencyStart + latencyMarker.length()).trim();
+        return new LayerLatencySnapshot(layer, latency);
+    }
+
+    /**
+     * Builds a single-shell script that selects the same SurfaceView layer
+     * as findLayer() and immediately reads its latency buffer.
+     */
+    static String buildSurfaceFlingerLayerLatencyScript(
+            String packageName, boolean blastOnly) {
+        if (packageName == null || !PKG_RE.matcher(packageName).matches()) {
+            throw new IllegalArgumentException("Invalid package name");
+        }
+
+        return "LAYERS=$(dumpsys SurfaceFlinger --list 2>/dev/null); " +
+                "SELECTED=$(printf '%s\\n' \"$LAYERS\" | " +
+                "awk -v pkg='" + packageName + "' -v blast=" +
+                (blastOnly ? "1" : "0") + " '" +
+                "index($0,pkg) && index($0,\"SurfaceView\") {" +
+                " isBlast=(index($0,\"BLAST\") > 0);" +
+                " if ((blast && isBlast) || (!blast && !isBlast)) {" +
+                " line=$0; start=index(line,\"{\");" +
+                " end=index(line,\" parentId=\");" +
+                " if (start > 0 && end > start)" +
+                " line=substr(line,start+1,end-start-1);" +
+                " print line; exit; } }'); " +
+                "echo __ONYX_SELECTED_LAYER__; echo \"$SELECTED\"; " +
+                "echo __ONYX_LATENCY__; " +
+                "if [ -n \"$SELECTED\" ]; then " +
+                "dumpsys SurfaceFlinger --latency \"$SELECTED\" 2>/dev/null; fi";
     }
 
     private String findLayer(
