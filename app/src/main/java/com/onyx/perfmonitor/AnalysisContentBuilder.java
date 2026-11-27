@@ -292,7 +292,7 @@ public class AnalysisContentBuilder {
         if (hasAny(d.battery)) addChart(layout, "BATTERY LEVEL", d.battery, "%");
         if (hasAnySigned(d.current)) addChart(layout, "BATTERY CURRENT", d.current, "mA");
         if (hasAny(d.voltage)) addChart(layout, "BATTERY VOLTAGE", d.voltage, "V");
-        if (hasAny(d.power)) addChart(layout, "BATTERY POWER", d.power, "W");
+        if (hasAnySigned(d.power)) addChart(layout, "BATTERY POWER", d.power, "W");
         // Seconds per 1% Drain chart removed from analysis and comparison.
         if (hasAny(d.battery)) addBatteryDrain(layout, green, white, muted);
 
