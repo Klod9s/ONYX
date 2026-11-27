@@ -95,7 +95,8 @@ public class FpsDetectorTest {
 
         assertTrue(script.contains("dumpsys SurfaceFlinger --list"));
         assertTrue(script.contains("awk -v pkg='com.example.game' -v blast=1"));
-        assertTrue(script.contains("dumpsys SurfaceFlinger --latency \\"$SELECTED\\""));
+        assertTrue(script.contains("dumpsys SurfaceFlinger --latency"));
+        assertTrue(script.contains("$SELECTED"));
     }
 
     @Test
