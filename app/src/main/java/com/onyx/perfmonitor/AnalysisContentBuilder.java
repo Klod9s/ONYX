@@ -776,11 +776,23 @@ public class AnalysisContentBuilder {
             infoBackground.setColor(Color.TRANSPARENT);
             infoBackground.setStroke(dp(1), muted);
             infoIcon.setBackground(infoBackground);
-            infoIcon.setLayoutParams(new LinearLayout.LayoutParams(dp(17), dp(17)));
-            infoIcon.setContentDescription("Thermal throttling information");
-            infoIcon.setClickable(true);
-            infoIcon.setFocusable(true);
-            infoIcon.setOnClickListener(v -> {
+            android.widget.FrameLayout infoTouchTarget =
+                    new android.widget.FrameLayout(context);
+            LinearLayout.LayoutParams touchTargetParams =
+                    new LinearLayout.LayoutParams(dp(40), dp(40));
+            infoTouchTarget.setLayoutParams(touchTargetParams);
+            infoTouchTarget.setForeground(
+                    android.graphics.drawable.Drawable.createRippleDrawable(
+                            android.content.res.ColorStateList.valueOf(
+                                    Color.argb(35, 255, 255, 255)),
+                            null, null));
+            infoIcon.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
+                    dp(17), dp(17), Gravity.CENTER));
+            infoTouchTarget.addView(infoIcon);
+            infoTouchTarget.setContentDescription("Thermal throttling information");
+            infoTouchTarget.setClickable(true);
+            infoTouchTarget.setFocusable(true);
+            infoTouchTarget.setOnClickListener(v -> {
                 AlertDialog dialog = new AlertDialog.Builder(
                         context, AlertDialog.THEME_DEVICE_DEFAULT_DARK)
                         .setTitle("Thermal throttling")
@@ -814,7 +826,7 @@ public class AnalysisContentBuilder {
                 });
                 dialog.show();
             });
-            headingRow.addView(infoIcon);
+            headingRow.addView(infoTouchTarget);
             card.addView(headingRow);
         } else {
             card.addView(heading);
