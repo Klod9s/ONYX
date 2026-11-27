@@ -603,10 +603,20 @@ public class FpsDetector {
             previousIndex = Collections.binarySearch(
                     presents, lastCapturedPresentationNs);
             if (previousIndex < 0) {
-                // The layer changed or the rolling buffer no longer contains
-                // our cursor. Re-baseline rather than inventing a long interval.
-                lastCapturedPresentationNs = latest;
-                return Collections.emptyList();
+                // The rolling buffer may have overwritten the previous cursor
+                // while sampling was delayed. Resume at the first timestamp
+                // newer than the cursor. The interval ending at that first
+                // timestamp is unknowable, but all following intervals are
+                // valid and have not yet been consumed.
+                int insertionPoint = -previousIndex - 1;
+                if (insertionPoint >= presents.size()) {
+                    // All timestamps are older than the cursor: likely a
+                    // layer recreation or timestamp reset. Establish a fresh
+                    // baseline without emitting intervals.
+                    lastCapturedPresentationNs = latest;
+                    return Collections.emptyList();
+                }
+                previousIndex = insertionPoint;
             }
         }
 
