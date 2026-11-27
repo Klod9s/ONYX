@@ -259,15 +259,97 @@ final class GlassStyle {
         }
     }
 
-    /** START SESSION button: muted steel-blue glass gradient. */
-    static GradientDrawable primaryButton(int accent, float radiusPx, float strokePx) {
-        GradientDrawable d = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(43, 68, 94), Color.rgb(30, 53, 77)});
-        d.setCornerRadius(radiusPx);
-        d.setStroke(Math.max(1, Math.round(strokePx)),
-                Color.argb(175, 112, 143, 171));
-        return d;
+    /** START SESSION button: translucent blue glass with a reflective top sheen. */
+    static Drawable primaryButton(int accent, float radiusPx, float strokePx) {
+        return new GlassButtonDrawable(accent, radiusPx, strokePx);
+    }
+
+    private static final class GlassButtonDrawable extends Drawable {
+        private final float radius;
+        private final float strokeWidth;
+        private final int accent;
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint sheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF bounds = new RectF();
+        private final RectF innerBounds = new RectF();
+
+        GlassButtonDrawable(int accent, float radiusPx, float strokePx) {
+            this.accent = accent;
+            radius = radiusPx;
+            strokeWidth = Math.max(1f, strokePx);
+            border.setStyle(Paint.Style.STROKE);
+            border.setStrokeWidth(strokeWidth);
+            inner.setStyle(Paint.Style.STROKE);
+            inner.setStrokeWidth(1f);
+        }
+
+        @Override
+        protected void onBoundsChange(android.graphics.Rect b) {
+            bounds.set(b);
+            float inset = Math.max(1f, strokeWidth);
+            innerBounds.set(b.left + inset, b.top + inset,
+                    b.right - inset, b.bottom - inset);
+            float w = bounds.width();
+            float h = bounds.height();
+
+            fill.setShader(new LinearGradient(0, 0, 0, h,
+                    new int[]{Color.argb(218, 91, 126, 158),
+                            Color.argb(188, 48, 78, 109),
+                            Color.argb(205, 25, 48, 73)},
+                    new float[]{0f, 0.38f, 1f}, Shader.TileMode.CLAMP));
+            sheen.setShader(new LinearGradient(0, 0, 0, h * 0.72f,
+                    new int[]{Color.argb(82, 225, 241, 255),
+                            Color.argb(24, 190, 220, 246),
+                            Color.argb(0, 190, 220, 246)},
+                    new float[]{0f, 0.28f, 1f}, Shader.TileMode.CLAMP));
+            glow.setShader(new RadialGradient(w * 0.5f, h * 0.08f,
+                    Math.max(w * 0.75f, h),
+                    Color.argb(35, 180, 218, 255),
+                    Color.argb(0, 180, 218, 255), Shader.TileMode.CLAMP));
+            border.setShader(new LinearGradient(0, 0, w, h,
+                    new int[]{Color.argb(190, 190, 220, 246),
+                            Color.argb(105, 117, 157, 194),
+                            Color.argb(145, 155, 194, 226)},
+                    null, Shader.TileMode.CLAMP));
+            inner.setColor(Color.argb(38, 238, 247, 255));
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            if (bounds.isEmpty()) return;
+            float r = Math.min(radius, bounds.height() / 2f);
+            canvas.drawRoundRect(bounds, r, r, fill);
+            canvas.drawRoundRect(bounds, r, r, glow);
+            canvas.drawRoundRect(bounds, r, r, sheen);
+            canvas.drawRoundRect(bounds, r, r, border);
+            if (!innerBounds.isEmpty()) {
+                canvas.drawRoundRect(innerBounds, Math.max(0f, r - strokeWidth),
+                        Math.max(0f, r - strokeWidth), inner);
+            }
+        }
+
+        @Override public void setAlpha(int alpha) {
+            fill.setAlpha(alpha);
+            sheen.setAlpha(alpha);
+            glow.setAlpha(alpha);
+            border.setAlpha(alpha);
+            inner.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override public void setColorFilter(ColorFilter filter) {
+            fill.setColorFilter(filter);
+            sheen.setColorFilter(filter);
+            glow.setColorFilter(filter);
+            border.setColorFilter(filter);
+            inner.setColorFilter(filter);
+            invalidateSelf();
+        }
+
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
     /** STOP SESSION button (recording). */
