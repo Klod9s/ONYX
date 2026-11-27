@@ -37,7 +37,7 @@ final class SessionCsvFormatter {
     static void appendHeader(StringBuilder csv) {
         csv.append(
                 "Time,App,FPS,Current (mA),Voltage (V),Power (W)," +
-                        "Battery (%),Seconds per 1% drain,Temperature (°C)," +
+                        "Battery (%),Temperature (°C)," +
                         "CPU 0 (%),CPU 1 (%),CPU 2 (%),CPU 3 (%)," +
                         "CPU 4 (%),CPU 5 (%),CPU 6 (%),CPU 7 (%)," +
                         "CPU 0 Frequency (MHz),CPU 1 Frequency (MHz)," +
@@ -68,11 +68,6 @@ final class SessionCsvFormatter {
                         "%.0f,%.3f,%.2f,%d,",
                         sample.currentMa, sample.voltage, sample.power,
                         sample.battery));
-
-        if (sample.secondsPerPercent >= 0) {
-            row.append(String.format(Locale.US,
-                    "%.1f", sample.secondsPerPercent));
-        }
 
         row.append(',')
                 .append(String.format(Locale.US,
