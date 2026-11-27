@@ -351,9 +351,13 @@ public class FpsDetector {
             return new Result(-1, "SF Counter", true);
         }
 
-        // No new frames yet.
+        // No new frames means the tracked layer is idle, not that the
+        // SF Counter source disappeared. Advance the baseline on every poll
+        // so resumed rendering is measured only over the new interval.
         if (frameDelta == 0) {
-            return new Result(-1, "SF Counter", true);
+            lastSfTime = now;
+            lastSfFrames = totalFrames;
+            return new Result(0, "SF Counter", false);
         }
 
         double fps = (frameDelta * 1000.0) / elapsedMs;
