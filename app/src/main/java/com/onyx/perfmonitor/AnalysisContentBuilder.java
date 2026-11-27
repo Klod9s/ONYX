@@ -781,11 +781,6 @@ public class AnalysisContentBuilder {
             LinearLayout.LayoutParams touchTargetParams =
                     new LinearLayout.LayoutParams(dp(40), dp(40));
             infoTouchTarget.setLayoutParams(touchTargetParams);
-            infoTouchTarget.setForeground(
-                    android.graphics.drawable.Drawable.createRippleDrawable(
-                            android.content.res.ColorStateList.valueOf(
-                                    Color.argb(35, 255, 255, 255)),
-                            null, null));
             infoIcon.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
                     dp(17), dp(17), Gravity.CENTER));
             infoTouchTarget.addView(infoIcon);
