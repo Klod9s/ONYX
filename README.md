@@ -164,6 +164,8 @@ When all four are present, Gradle signs the release APK with that key. Without t
 the release build remains unsigned. Keep the keystore and passwords backed up securely
 outside the repository.
 
+**Maintainer note:** The key-generation command below is an example for developers creating their own local signing key. Official GitHub releases must use the maintainer's established release signing key and must match the published SHA-256 fingerprint in the Official Release Signing Certificate section.
+
 Generate a release key once (do not repeat this for subsequent releases):
 
 ```bash
