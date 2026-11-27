@@ -86,7 +86,7 @@ final class MonitorPageBuilder {
         
         // Start Session: full width, on top
                 LinearLayout.LayoutParams startParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, activity.dp(48));
+                        LinearLayout.LayoutParams.MATCH_PARENT, activity.dp(52));
                 startParams.bottomMargin = activity.dp(8);
                 page.addView(activity.startButton, startParams);
         
