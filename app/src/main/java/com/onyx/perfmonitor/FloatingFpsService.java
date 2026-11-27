@@ -1640,7 +1640,11 @@ public class FloatingFpsService extends Service {
         overlayExecutor.shutdownNow();
         samplingExecutor.shutdownNow();
         if (monitoringEngine != null) {
-            monitoringEngine.closeRootShell();
+            final MonitoringEngine engine = monitoringEngine;
+            Thread cleanup = new Thread(engine::closeRootShell,
+                    "OnyxRootShellCleanup");
+            cleanup.setDaemon(true);
+            cleanup.start();
         }
         Shizuku.removeBinderDeadListener(backgroundBinderDeadListener);
         if ((backgroundShizukuBindRequested || backgroundShizukuBound)
