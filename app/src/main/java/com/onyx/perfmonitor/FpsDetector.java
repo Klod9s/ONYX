@@ -25,6 +25,13 @@ public class FpsDetector {
         String surfaceFlingerLayers() throws Exception;
         String surfaceFlingerLatency(String layerName) throws Exception;
         String surfaceFlingerTimeStatsDump() throws Exception;
+
+        // Compatibility fallback for test shells and alternate implementations.
+        // Production ROOT/Shizuku shells override this with one batched command.
+        default String surfaceFlingerTimeStatsSnapshot() throws Exception {
+            return "__ONYX_LAYERS__\\n" + surfaceFlingerLayers()
+                    + "\\n__ONYX_TIMESTATS__\\n" + surfaceFlingerTimeStatsDump();
+        }
     }
 
     public static final class Result {
@@ -700,9 +707,23 @@ public class FpsDetector {
 
     private Result byTimeStats(Shell shell) throws Exception {
 
-        String layers = shell.surfaceFlingerLayers();
+        String snapshot = shell.surfaceFlingerTimeStatsSnapshot();
+        if (snapshot == null || snapshot.isEmpty()) {
+            return NONE;
+        }
 
-        if (layers == null || layers.isEmpty()) {
+        int layersStart = snapshot.indexOf("__ONYX_LAYERS__");
+        int statsStart = snapshot.indexOf("__ONYX_TIMESTATS__");
+        if (layersStart < 0 || statsStart <= layersStart) {
+            return NONE;
+        }
+
+        String layers = snapshot.substring(
+                layersStart + "__ONYX_LAYERS__".length(), statsStart).trim();
+        String dump = snapshot.substring(
+                statsStart + "__ONYX_TIMESTATS__".length()).trim();
+
+        if (layers.isEmpty() || dump.isEmpty()) {
             return NONE;
         }
 
@@ -718,12 +739,6 @@ public class FpsDetector {
         }
 
         if (liveLayers.isEmpty()) {
-            return NONE;
-        }
-
-        String dump = shell.surfaceFlingerTimeStatsDump();
-
-        if (dump == null || dump.isEmpty()) {
             return NONE;
         }
 
