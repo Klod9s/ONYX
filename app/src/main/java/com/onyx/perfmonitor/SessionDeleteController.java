@@ -110,13 +110,19 @@ final class SessionDeleteController {
     /** Permanently deletes all pending files. Safe to call at any time. */
     void finalizePendingDeletes() {
         activity.handler.removeCallbacks(finalizeRunnable);
-        SessionFileManager.finalizePendingDeletes(
-                activity.getFilesDir(),
-                activity.getSharedPreferences("session_meta", MainActivity.MODE_PRIVATE),
-                pendingDeletes,
-                historyFileDeleteRequested);
+
+        // Snapshot UI-owned state, then perform filesystem deletion on the
+        // shared file worker so tab changes never block the main thread.
+        Set<String> deleting = new LinkedHashSet<>(pendingDeletes);
+        boolean deleteHistory = historyFileDeleteRequested;
         pendingDeletes.clear();
         historyFileDeleteRequested = false;
         hideUndoBar();
+
+        activity.executeFileTask(() -> SessionFileManager.finalizePendingDeletes(
+                activity.getFilesDir(),
+                activity.getSharedPreferences("session_meta", MainActivity.MODE_PRIVATE),
+                deleting,
+                deleteHistory));
     }
 }
