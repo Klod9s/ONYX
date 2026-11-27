@@ -1189,8 +1189,11 @@ new MonitorPageBuilder(this).build(page);
     }
 
     java.util.List<String> visibleSessionNames() {
-        return SessionFileManager.listVisibleSessionNames(
-                getFilesDir(), sessionDeleteController.getPendingDeletes());
+        // The adapter is populated by the background history loader. Reuse
+        // that in-memory snapshot instead of listing files on the UI thread.
+        return sessionsAdapter != null
+                ? sessionsAdapter.fileNames()
+                : new java.util.ArrayList<>();
     }
 
     void finalizePendingDeletes() {
