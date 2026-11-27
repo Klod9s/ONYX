@@ -79,6 +79,7 @@ licenseReport {
         .dir("reports/dependency-license/$licenseAuditConfiguration")
         .get()
         .asFile
+        .absolutePath
 }
 
 dependencies {
