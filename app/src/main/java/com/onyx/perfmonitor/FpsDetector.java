@@ -214,7 +214,19 @@ public class FpsDetector {
             }
 
             Result result = attempt(method, shell, now);
-            return result.valid() ? result : NONE;
+            if (result.valid()) {
+                return result;
+            }
+
+            // Once SF Counter has proven reliable, a failed higher-priority
+            // probe must not create a "none" sample. Retry the counter in the
+            // same cycle so CSV/live readings retain a real measurement.
+            if (method < M_COUNTER && lastAliveMs[M_COUNTER] != 0) {
+                Result fallback = attempt(M_COUNTER, shell, now);
+                return fallback.valid() ? fallback : NONE;
+            }
+
+            return NONE;
         }
 
         return NONE;
