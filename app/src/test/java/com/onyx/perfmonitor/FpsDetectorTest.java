@@ -81,14 +81,14 @@ public class FpsDetectorTest {
 
         FpsDetector.Shell shell = shell(
                 () -> "",
-                () -> "BLAST SurfaceView com.example.game\\n",
+                () -> "BLAST SurfaceView com.example.game\n",
                 layerName -> {
                     long end = latest.get();
-                    StringBuilder dump = new StringBuilder("8333333\\n");
+                    StringBuilder dump = new StringBuilder("8333333\n");
                     // Model a rolling 100-frame SurfaceFlinger buffer.
                     for (int i = 99; i >= 0; i--) {
                         long timestamp = end - i * 8_333_333L;
-                        dump.append("0 ").append(timestamp).append(" 0\\n");
+                        dump.append("0 ").append(timestamp).append(" 0\n");
                     }
                     return dump.toString();
                 },
