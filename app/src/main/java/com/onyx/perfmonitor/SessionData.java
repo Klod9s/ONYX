@@ -48,7 +48,10 @@ public class SessionData {
     public final List<Double> averageFrameTime = new ArrayList<>();
     public final List<Double> frameTimeStdDev = new ArrayList<>();
     public final List<Double> stutterCount = new ArrayList<>();
+    boolean legacyStutterCountColumn = false;
     public final List<Double> frameIntervalsMs = new ArrayList<>();
+    /** Refresh period (ms) captured with each frame interval; -1 when unavailable. */
+    public final List<Double> frameIntervalRefreshPeriodsMs = new ArrayList<>();
     public final List<Double> ramUsage = new ArrayList<>();
     public final List<Double> cpuTemperature = new ArrayList<>();
     public final List<Double> gpuTemperature = new ArrayList<>();
@@ -137,6 +140,7 @@ public class SessionData {
             boolean inReadings = false;
             boolean skipHeader = false;
             boolean hasSecondsPerPercentColumn = true;
+            int frameRefreshPeriodColumn = -1;
 
             while ((line = reader.readLine()) != null) {
 
@@ -161,11 +165,23 @@ public class SessionData {
                 if (skipHeader) {
                     hasSecondsPerPercentColumn =
                             line.contains("Seconds per 1% drain");
+                    String normalizedHeader = line.toLowerCase(Locale.US);
+                    data.legacyStutterCountColumn = normalizedHeader.contains("stutter count")
+                            || normalizedHeader.contains("stuttercount");
+                    List<String> headerColumns = parseCsvLine(line);
+                    for (int i = 0; i < headerColumns.size(); i++) {
+                        if ("Frame Refresh Period (ms)".equals(
+                                headerColumns.get(i).trim())) {
+                            frameRefreshPeriodColumn = i;
+                            break;
+                        }
+                    }
                     skipHeader = false;
                     continue;
                 }
 
-                data.addRow(parseCsvLine(line), hasSecondsPerPercentColumn);
+                data.addRow(parseCsvLine(line), hasSecondsPerPercentColumn,
+                        frameRefreshPeriodColumn);
             }
 
             return data;
@@ -175,7 +191,8 @@ public class SessionData {
         }
     }
 
-    private void addRow(List<String> columns, boolean hasSecondsPerPercentColumn) {
+    private void addRow(List<String> columns, boolean hasSecondsPerPercentColumn,
+                        int frameRefreshPeriodColumn) {
         if (columns.size() < 8) return;
 
         int offset = hasSecondsPerPercentColumn ? 0 : -1;
@@ -202,7 +219,9 @@ public class SessionData {
         frameTimeStdDev.add(number(columns, 28 + offset));
         stutterCount.add(number(columns, 29 + offset));
         if (columns.size() > 31 + offset) {
-            addFrameIntervals(columns.get(31 + offset));
+            double refreshPeriod = frameRefreshPeriodColumn >= 0
+                    ? number(columns, frameRefreshPeriodColumn) : -1;
+            addFrameIntervals(columns.get(31 + offset), refreshPeriod);
         }
         ramUsage.add(number(columns, 32 + offset));
         cpuTemperature.add(number(columns, 33 + offset));
@@ -211,14 +230,15 @@ public class SessionData {
         coolingDeviceActive.add(number(columns, 36 + offset));
     }
 
-    private void addFrameIntervals(String encoded) {
+    private void addFrameIntervals(String encoded, double refreshPeriodMs) {
         if (encoded == null || encoded.isEmpty()) return;
 
         for (String part : encoded.split(";")) {
             try {
                 double interval = Double.parseDouble(part.trim());
-                if (Double.isFinite(interval) && interval > 0 && interval <= 10_000) {
+                if (Double.isFinite(interval) && interval > 0) {
                     frameIntervalsMs.add(interval);
+                    frameIntervalRefreshPeriodsMs.add(refreshPeriodMs);
                 }
             } catch (NumberFormatException ignored) {
                 // Ignore malformed interval values in imported or edited CSVs.

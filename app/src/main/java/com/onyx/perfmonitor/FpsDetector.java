@@ -60,10 +60,11 @@ public class FpsDetector {
         public final double averageFrameTimeMs;
         public final double frameTimeStdDevMs;
         public final int stutterCount;
+        public final double frameRefreshPeriodMs;
         public final List<Double> frameIntervalsMs;
 
         Result(double fps, String source, boolean pending) {
-            this(fps, source, pending, -1, -1, -1, Collections.emptyList());
+            this(fps, source, pending, -1, -1, -1, -1, Collections.emptyList());
         }
 
         Result(
@@ -74,7 +75,7 @@ public class FpsDetector {
                 double frameTimeStdDevMs,
                 int stutterCount) {
             this(fps, source, pending, averageFrameTimeMs,
-                    frameTimeStdDevMs, stutterCount, Collections.emptyList());
+                    frameTimeStdDevMs, stutterCount, -1, Collections.emptyList());
         }
 
         Result(
@@ -85,6 +86,15 @@ public class FpsDetector {
                 double frameTimeStdDevMs,
                 int stutterCount,
                 List<Double> frameIntervalsMs) {
+            this(fps, source, pending, averageFrameTimeMs, frameTimeStdDevMs,
+                    stutterCount, -1, frameIntervalsMs);
+        }
+
+        Result(
+                double fps, String source, boolean pending,
+                double averageFrameTimeMs, double frameTimeStdDevMs,
+                int stutterCount, double frameRefreshPeriodMs,
+                List<Double> frameIntervalsMs) {
 
             this.fps = fps;
             this.source = source;
@@ -92,6 +102,7 @@ public class FpsDetector {
             this.averageFrameTimeMs = averageFrameTimeMs;
             this.frameTimeStdDevMs = frameTimeStdDevMs;
             this.stutterCount = stutterCount;
+            this.frameRefreshPeriodMs = frameRefreshPeriodMs;
             this.frameIntervalsMs = Collections.unmodifiableList(
                     new ArrayList<>(frameIntervalsMs));
         }
@@ -480,6 +491,20 @@ public class FpsDetector {
         }
 
         String[] lines = out.split("\n");
+        double refreshPeriodMs = -1;
+        if (lines.length > 0) {
+            try {
+                String first = lines[0].trim().split("\\s+")[0];
+                double refreshNs = Double.parseDouble(first);
+                if (Double.isFinite(refreshNs)
+                        && refreshNs >= 1_000_000.0
+                        && refreshNs <= 100_000_000.0) {
+                    refreshPeriodMs = refreshNs / 1_000_000.0;
+                }
+            } catch (Exception ignored) {
+                // Older or malformed dumps may not expose a refresh period.
+            }
+        }
         List<Long> presents = new ArrayList<>();
 
         // First line is the refresh period.
@@ -571,47 +596,21 @@ public class FpsDetector {
             if (fast > 0 && fast <= 360) shownFps = fast;
         }
 
-// Calculate individual frame intervals.
-        double totalFrameTime = 0;
-        double expectedFrameTime = 1000.0 / fps;
-
+// Use the same median/refresh-period calculator as session analysis so
+        // live and recorded frame-pacing thresholds cannot drift apart.
         List<Double> frameTimes = new ArrayList<>();
-
+        List<Double> refreshPeriods = new ArrayList<>();
         for (int i = 1; i < windowPresents.size(); i++) {
-
-            double intervalMs =
-                    (windowPresents.get(i) - windowPresents.get(i - 1))
-                            / 1_000_000.0;
-
+            double intervalMs = (windowPresents.get(i) - windowPresents.get(i - 1))
+                    / 1_000_000.0;
             frameTimes.add(intervalMs);
-            totalFrameTime += intervalMs;
+            refreshPeriods.add(refreshPeriodMs);
         }
-
-        double averageFrameTime =
-                totalFrameTime / frameTimes.size();
-
-// Calculate frame-time standard deviation.
-        double variance = 0;
-
-        for (double frameTime : frameTimes) {
-            double difference = frameTime - averageFrameTime;
-            variance += difference * difference;
-        }
-
-        variance /= frameTimes.size();
-
-        double standardDeviation = Math.sqrt(variance);
-
-// Count unusually long frame intervals.
-        int stutterCount = 0;
-
-        double stutterThreshold = expectedFrameTime * 1.5;
-
-        for (double frameTime : frameTimes) {
-            if (frameTime > stutterThreshold) {
-                stutterCount++;
-            }
-        }
+        FramePacingSummaryCalculator.Result livePacing =
+                FramePacingSummaryCalculator.calculate(frameTimes, refreshPeriods);
+        double averageFrameTime = livePacing.averageFrameTimeMs;
+        double standardDeviation = livePacing.standardDeviationMs;
+        int stutterCount = livePacing.hitchCount;
 
         return new Result(
                 shownFps,
@@ -620,6 +619,7 @@ public class FpsDetector {
                 averageFrameTime,
                 standardDeviation,
                 stutterCount,
+                refreshPeriodMs,
                 capturedFrameIntervals
         );
     }
@@ -684,7 +684,7 @@ public class FpsDetector {
             long deltaNs = presents.get(i) - presents.get(i - 1);
             double intervalMs = deltaNs / 1_000_000.0;
             if (deltaNs > 0 && Double.isFinite(intervalMs)
-                    && intervalMs > 0 && intervalMs <= 10_000) {
+                    && intervalMs > 0) {
                 intervals.add(intervalMs);
             }
         }

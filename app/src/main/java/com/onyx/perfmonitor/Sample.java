@@ -47,7 +47,8 @@ final class Sample {
     // Frame pacing (-1 means unavailable)
     double averageFrameTimeMs = -1;
     double frameTimeStdDevMs = -1;
-    int stutterCount = -1;
+    int stutterCount = -1; // Sampled median-based hitch count; legacy CSV column position.
+    double frameRefreshPeriodMs = -1;
     final List<Double> frameIntervalsMs = new ArrayList<>();
 
     Sample() {

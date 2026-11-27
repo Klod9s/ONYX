@@ -61,7 +61,7 @@ final class AboutContentBuilder {
         activity.add(infoCard, titleRow, 0, 8);
 
         TextView desc = activity.text(
-                "A comprehensive, lightweight performance analysis overlay. Measures FPS, frametime, 1% lows, stutters, and hardware telemetry with smart foreground-only refreshing.",
+                "A comprehensive, lightweight performance analysis overlay. Measures FPS, frametime, 1% lows, hitches, refresh-rate-based jank, and hardware telemetry with smart foreground-only refreshing.",
                 12, false, Color.rgb(145, 158, 175));
         desc.setLineSpacing(activity.dp(2), 1f);
         activity.add(infoCard, desc, 0, 12);
@@ -122,7 +122,7 @@ final class AboutContentBuilder {
         activity.add(metricsCard, activity.section("HOW METRICS WORK"), 0, 10);
 
         addAboutBullet(metricsCard, "Frame Pacing & Analysis",
-                "Real-time FPS, frametime graph, 1% and 0.1% lows, and stutter counts for deep performance analysis.", 10);
+                "Real-time FPS, frametime graph, 1% and 0.1% lows, hitches, jank, and recording-gap counts for deep performance analysis.", 10);
         addAboutBullet(metricsCard, "Hardware Telemetry",
                 "Live CPU and GPU utilization percentages fetched directly from hardware performance counters.", 10);
         addAboutBullet(metricsCard, "Thermal & Power",

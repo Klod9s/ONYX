@@ -27,7 +27,7 @@ final class FramePercentileCalculator {
         List<Double> frameFps = new ArrayList<>();
         for (Double interval : frameIntervalsMs) {
             if (interval == null || !Double.isFinite(interval)
-                    || interval <= 0 || interval > 10_000) {
+                    || interval <= 0 || interval > FramePacingSummaryCalculator.RECORDING_GAP_THRESHOLD_MS) {
                 continue;
             }
             frameFps.add(1000.0 / interval);

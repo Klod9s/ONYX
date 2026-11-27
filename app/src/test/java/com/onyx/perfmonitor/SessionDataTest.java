@@ -156,6 +156,30 @@ public class SessionDataTest {
         assertEquals(Arrays.asList(5.0, 6.0, 8.0, 9.0), data.times);
     }
 
+
+    @Test
+    public void legacyCsvFrameIntervalsRemainReadableWithoutRefreshMetadata() throws Exception {
+        String[] columns = new String[35];
+        Arrays.fill(columns, "");
+        columns[0] = "00:00:01";
+        columns[2] = "60";
+        columns[31] = "16.667;10001.000";
+        File file = writeSession("Device,Test device", String.join(",", columns));
+
+        SessionData data = SessionData.load(file);
+
+        assertNotNull(data);
+        assertTrue(data.legacyStutterCountColumn);
+        assertEquals(Arrays.asList(16.667, 10001.0), data.frameIntervalsMs);
+        assertEquals(Arrays.asList(-1.0, -1.0), data.frameIntervalRefreshPeriodsMs);
+        FramePacingSummaryCalculator.Result summary =
+                FramePacingSummaryCalculator.calculate(
+                        data.frameIntervalsMs, data.frameIntervalRefreshPeriodsMs);
+        assertEquals(1, summary.recordingGapCount);
+        assertEquals(1, summary.validIntervalCount);
+        assertEquals(-1, summary.jankCount);
+    }
+
     @Test
     public void loadReturnsNullWhenReadingsMarkerOrRowsAreMissing() throws Exception {
         File noMarker = temporaryFolder.newFile("no_marker.csv");

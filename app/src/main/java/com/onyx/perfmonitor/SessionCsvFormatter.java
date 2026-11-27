@@ -46,9 +46,9 @@ final class SessionCsvFormatter {
                         "CPU 6 Frequency (MHz),CPU 7 Frequency (MHz)," +
                         "GPU Frequency (MHz),GPU Load (%)," +
                         "Average Frame Time (ms),Frame Time Std Dev (ms)," +
-                        "Stutter Count,FPS Source,Frame Intervals (ms)," +
+                        "Hitch Count (sampled window),FPS Source,Frame Intervals (ms)," +
                         "RAM Usage (%),CPU Temperature (°C),GPU Temperature (°C)," +
-                        "Thermal Status,Cooling Device Active\n"
+                        "Thermal Status,Cooling Device Active,Frame Refresh Period (ms)\n"
         );
     }
 
@@ -138,6 +138,10 @@ final class SessionCsvFormatter {
                 ? Integer.toString(sample.thermalStatus) : "");
         row.append(',').append(sample.coolingDeviceActive >= 0
                 ? Integer.toString(sample.coolingDeviceActive) : "");
+        row.append(',');
+        if (sample.frameRefreshPeriodMs > 0) {
+            row.append(String.format(Locale.US, "%.6f", sample.frameRefreshPeriodMs));
+        }
 
         csv.append(row).append('\n');
     }

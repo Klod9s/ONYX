@@ -452,8 +452,9 @@ final class SettingsContentBuilder {
                     "Requires BLAST or regular SurfaceFlinger latency access. "
                             + "Without it, ONYX can still show FPS using fallback "
                             + "methods, but frame intervals, average frame time, "
-                            + "frame-time variation, stutter count, and other "
-                            + "frame-pacing metrics may be unavailable. ROOT or "
+                            + "frame-time variation, hitch counts, recording gaps, and other "
+                            + "frame-pacing metrics may be unavailable. Jank and big-jank "
+                            + "counts also require a valid refresh period. ROOT or "
                             + "Shizuku may help on some devices, but cannot guarantee access.",
                     11, false, Color.rgb(145, 158, 175));
             note.setPadding(activity.dp(32), 0, activity.dp(8), activity.dp(6));

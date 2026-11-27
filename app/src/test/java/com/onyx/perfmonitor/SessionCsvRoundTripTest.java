@@ -1,6 +1,7 @@
 package com.onyx.perfmonitor;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
@@ -35,9 +36,11 @@ public class SessionCsvRoundTripTest {
         sample.averageFrameTimeMs = 16.72;
         sample.frameTimeStdDevMs = 1.25;
         sample.stutterCount = 3;
+        sample.frameRefreshPeriodMs = 8.333333;
         sample.fpsSource = "SURFACE_FLINGER";
         sample.frameIntervalsMs.add(16.667);
         sample.frameIntervalsMs.add(33.333);
+        sample.frameIntervalsMs.add(10_001.0);
         sample.ramUsagePercent = 64.2;
         sample.cpuTemperatureC = 52.1;
         sample.gpuTemperatureC = 46.7;
@@ -50,7 +53,8 @@ public class SessionCsvRoundTripTest {
 
         String[] lines = csv.toString().split("\\n");
         assertEquals(2, lines.length);
-        assertEquals(36, lines[0].split(",", -1).length);
+        assertEquals(37, lines[0].split(",", -1).length);
+        org.junit.Assert.assertTrue(lines[0].contains("Hitch Count (sampled window)"));
 
         File file = temporaryFolder.newFile("round_trip.csv");
         try (FileWriter writer = new FileWriter(file)) {
@@ -63,6 +67,7 @@ public class SessionCsvRoundTripTest {
         SessionData data = SessionData.load(file);
 
         assertNotNull(data);
+        assertFalse(data.legacyStutterCountColumn);
         assertEquals(1, data.times.size());
         assertEquals(125.0, data.times.get(0), 0.0001);
         assertEquals(60.0, data.fps.get(0), 0.0001);
@@ -79,7 +84,9 @@ public class SessionCsvRoundTripTest {
         assertEquals(16.72, data.averageFrameTime.get(0), 0.0001);
         assertEquals(1.25, data.frameTimeStdDev.get(0), 0.0001);
         assertEquals(3.0, data.stutterCount.get(0), 0.0001);
-        assertEquals(Arrays.asList(16.667, 33.333), data.frameIntervalsMs);
+        assertEquals(Arrays.asList(16.667, 33.333, 10_001.0), data.frameIntervalsMs);
+        assertEquals(Arrays.asList(8.333333, 8.333333, 8.333333),
+                data.frameIntervalRefreshPeriodsMs);
         assertEquals(64.2, data.ramUsage.get(0), 0.0001);
         assertEquals(52.1, data.cpuTemperature.get(0), 0.0001);
         assertEquals(46.7, data.gpuTemperature.get(0), 0.0001);
@@ -101,9 +108,10 @@ public class SessionCsvRoundTripTest {
         String[] lines = csv.toString().split("\\n");
         String[] columns = lines[1].split(",", -1);
 
-        assertEquals(36, columns.length);
+        assertEquals(37, columns.length);
         assertEquals("", columns[34]);
         assertEquals("", columns[35]);
+        assertEquals("", columns[36]);
     }
 
     @Test

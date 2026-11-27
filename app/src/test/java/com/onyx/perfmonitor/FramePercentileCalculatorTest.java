@@ -46,6 +46,19 @@ public class FramePercentileCalculatorTest {
                 0.0001);
     }
 
+
+    @Test
+    public void excludesRecordingGapsFromFramePercentiles() {
+        List<Double> intervals = new ArrayList<>();
+        intervals.add(1000.0 / 60.0);
+        intervals.add(10_001.0);
+        intervals.add(20.0);
+
+        assertEquals(50.0,
+                FramePercentileCalculator.averageLowFps(intervals, 0.01),
+                0.0001);
+    }
+
     @Test
     public void returnsUnavailableWhenNoValidFrameIntervalsExist() {
         assertEquals(-1.0,

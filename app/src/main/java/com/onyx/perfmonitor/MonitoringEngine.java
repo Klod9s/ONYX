@@ -277,6 +277,7 @@ private Sample readSample(boolean recording) {
                 sample.averageFrameTimeMs = r.averageFrameTimeMs;
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
+                sample.frameRefreshPeriodMs = r.frameRefreshPeriodMs;
                 sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
             } else {
                 sample.fps = -1;
@@ -517,6 +518,7 @@ private Sample readShizukuSample(boolean recording) {
                 sample.averageFrameTimeMs = r.averageFrameTimeMs;
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
+                sample.frameRefreshPeriodMs = r.frameRefreshPeriodMs;
                 sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
 
             } else {
@@ -838,6 +840,7 @@ private FpsDetector.Shell rootFpsShell() {
         sample.averageFrameTimeMs = -1;
         sample.frameTimeStdDevMs = -1;
         sample.stutterCount = -1;
+        sample.frameRefreshPeriodMs = -1;
     }
 
     private static final int ROOT_OUTPUT_LIMIT = 2_000_000;

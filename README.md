@@ -32,7 +32,7 @@ ONYX is a free, open-source Android performance monitor with **no ads and no use
 
 ### Live performance monitoring
 - **FPS monitoring** with multiple detection methods and fallbacks: SurfaceFlinger BLAST/frame latency, display FPS, SurfaceFlinger frame counters, and TimeStats.
-- **Frame pacing metrics** when frame presentation timestamps are available: average frame time, frame-time variation, stutter count, and 1% / 0.1% frame lows.
+- **Frame pacing metrics** when frame presentation timestamps are available: average frame time, frame-time variation, median-based hitches, refresh-rate-based jank and big jank, recording gaps, and 1% / 0.1% frame lows.
 - **CPU telemetry** including per-core utilization and frequency, plus CPU temperature when exposed by the device.
 - **GPU telemetry** including utilization, frequency, and temperature when exposed by the device.
 - **Memory monitoring** with RAM usage.
@@ -50,7 +50,7 @@ ONYX is a free, open-source Android performance monitor with **no ads and no use
 - Record performance sessions from the app or floating overlay.
 - Save sessions as CSV files, with device and Android information where available.
 - Browse, import, export, compare, and delete saved sessions.
-- View a frame-pacing summary with average frame time, frame-time variation, stutters, FPS stability, and 1% / 0.1% frame lows when the required frame data is available.
+- View a frame-pacing summary with average frame time, frame-time variation, hitches, jank, big jank, recording gaps, FPS stability, and 1% / 0.1% frame lows when the required frame data is available.
 - Explore session charts for FPS, RAM, CPU core load and frequency, GPU load and frequency, CPU/GPU temperatures, and battery metrics.
 - Review battery drain intervals and recorded thermal-throttling periods.
 - Export a complete session analysis as a PNG image.
@@ -70,6 +70,15 @@ ONYX avoids unnecessary continuous sampling while idle. Monitoring is active whe
 - **Android 8.0 (API 26) or higher.**
 - **Android 14 or higher recommended.**
 - [Shizuku](https://shizuku.rikka.app/) installed, running, and authorized for ONYX, **or** a rooted device with root access granted.
+
+### Frame-pacing metric definitions
+
+- **Hitch:** a frame interval greater than 1.5× the session median frame interval. This highlights irregular frame delivery rather than a consistently low frame rate.
+- **Jank:** a frame interval greater than 1.5× the refresh period reported with the SurfaceFlinger latency batch that captured it.
+- **Big jank:** a frame interval greater than 3× that batch's refresh period.
+- **Recording gap:** a discontinuity longer than 10 seconds. Gaps are preserved and counted separately, but excluded from frame-time averages, variation, hitches, jank, big jank, and frame-percentile lows.
+
+Refresh periods are stored per captured batch so analysis can account for display refresh-rate changes during a session. If a frame source does not provide a valid refresh period, FPS and hitch metrics can still be available, while jank and big-jank counts remain unavailable. A stable low frame rate can therefore register jank without registering hitches (for example, steady 20 FPS on a 60 Hz display).
 
 > **Device compatibility:** Available metrics depend on the device, Android version, kernel, vendor implementation, and access permissions. Some devices may not expose particular CPU/GPU temperatures, frequencies, utilization values, thermal diagnostics, or frame-level timestamps. When a frame-timestamp source is unavailable, ONYX may fall back to a panel / composition-rate FPS source. This is a device-wide display reading and may not represent the foreground app; frame-pacing statistics that require individual frame intervals remain unavailable.
 

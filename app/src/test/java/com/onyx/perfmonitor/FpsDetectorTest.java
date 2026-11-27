@@ -83,6 +83,7 @@ public class FpsDetectorTest {
 
         assertTrue(result.valid());
         assertEquals("BLAST SF latency", result.source);
+        assertEquals(10.0, result.frameRefreshPeriodMs, 0.0001);
         assertEquals(1, snapshotCalls.get());
         assertEquals(0, separateLayerCalls.get());
         assertEquals(0, separateLatencyCalls.get());
@@ -184,6 +185,49 @@ public class FpsDetectorTest {
         assertTrue(third.valid());
         assertTrue(third.frameIntervalsMs.size() > 0);
         assertTrue(third.frameIntervalsMs.size() <= 51);
+    }
+
+
+    @Test
+    public void preservesLongPresentationDiscontinuitiesForGapClassification() {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
+        AtomicLong reads = new AtomicLong();
+        FpsDetector detector = new FpsDetector(clock::get);
+        detector.beginFrameCapture(latest.get() - 500_000_000L);
+
+        FpsDetector.Shell shell = shell(
+                () -> "",
+                () -> "BLAST SurfaceView com.example.game\n",
+                layerName -> {
+                    long end = latest.get();
+                    StringBuilder dump = new StringBuilder("10000000\n");
+                    if (reads.getAndIncrement() == 0) {
+                        for (int i = 99; i >= 0; i--) {
+                            dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
+                        }
+                    } else {
+                        long previous = end - 20_980_000_000L;
+                        dump.append("0 ").append(previous).append(" 0\n");
+                        dump.append("0 ").append(previous + 20_000_000_000L).append(" 0\n");
+                        for (int i = 1; i <= 98; i++) {
+                            dump.append("0 ").append(previous + 20_000_000_000L
+                                    + i * 10_000_000L).append(" 0\n");
+                        }
+                    }
+                    return dump.toString();
+                },
+                () -> "");
+
+        FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
+        assertTrue(baseline.valid());
+
+        latest.addAndGet(20_980_000_000L);
+        clock.addAndGet(500);
+        FpsDetector.Result afterGap = detector.detect(shell, "com.example.game");
+
+        assertTrue(afterGap.valid());
+        assertTrue(afterGap.frameIntervalsMs.contains(20_000.0));
     }
 
     @Test

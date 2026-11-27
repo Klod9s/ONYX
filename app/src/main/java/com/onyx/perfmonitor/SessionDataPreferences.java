@@ -96,6 +96,7 @@ final class SessionDataPreferences {
             s.averageFrameTimeMs = source.averageFrameTimeMs;
             s.frameTimeStdDevMs = source.frameTimeStdDevMs;
             s.stutterCount = source.stutterCount;
+            s.frameRefreshPeriodMs = source.frameRefreshPeriodMs;
             s.frameIntervalsMs.addAll(source.frameIntervalsMs);
         }
 

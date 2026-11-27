@@ -215,13 +215,17 @@ public class AnalysisContentBuilder {
         // collection categories out of both Analysis and Comparison.
         boolean hasFps = hasAny(d.fps);
         FramePacingSummaryCalculator.Result capturedFrameSummary =
-                FramePacingSummaryCalculator.calculate(d.frameIntervalsMs);
+                FramePacingSummaryCalculator.calculate(
+                        d.frameIntervalsMs, d.frameIntervalRefreshPeriodsMs);
         boolean hasAverageFrameTime = capturedFrameSummary.valid()
                 || hasAny(d.averageFrameTime);
         boolean hasFrameTimeVariation = capturedFrameSummary.valid()
                 || hasAny(d.frameTimeStdDev);
         boolean hasStutterData = capturedFrameSummary.valid()
-                || hasAny(d.stutterCount);
+                || (d.frameIntervalsMs.isEmpty()
+                && d.legacyStutterCountColumn && hasAny(d.stutterCount));
+        boolean hasJankData = capturedFrameSummary.hasRefreshRateData();
+        boolean hasRecordingGapData = capturedFrameSummary.recordingGapCount > 0;
         // FPS stability belongs to the optional frame-pacing summary, not the FPS chart.
         boolean hasFpsStability = SessionDataPreferences.framePacingEnabled(context) && hasFps;
         boolean hasOnePercentLow = FramePercentileCalculator.averageLowFps(
@@ -229,11 +233,13 @@ public class AnalysisContentBuilder {
         boolean hasPointOnePercentLow = FramePercentileCalculator.averageLowFps(
                 d.frameIntervalsMs, 0.001) >= 0;
 
-        // The summary contains six metrics. Hide the entire card when none
+        // Hide the frame-pacing summary when none
         // of those metrics has any collected data.
         boolean hasFramePacingSummary = hasAverageFrameTime
                 || hasFrameTimeVariation
                 || hasStutterData
+                || hasJankData
+                || hasRecordingGapData
                 || hasFpsStability
                 || hasOnePercentLow
                 || hasPointOnePercentLow;
@@ -500,22 +506,29 @@ public class AnalysisContentBuilder {
 
         // Prefer session-wide calculations from every unique captured frame interval.
         FramePacingSummaryCalculator.Result frameSummary =
-                FramePacingSummaryCalculator.calculate(d.frameIntervalsMs);
+                FramePacingSummaryCalculator.calculate(
+                        d.frameIntervalsMs, d.frameIntervalRefreshPeriodsMs);
 
         double averageFrameTime = frameSummary.averageFrameTimeMs;
         double frameTimeVariation = frameSummary.standardDeviationMs;
-        double stutters = frameSummary.stutterCount;
-        String stutterUnit = "total";
+        double hitches = frameSummary.hitchCount;
+        double janks = frameSummary.jankCount;
+        double bigJanks = frameSummary.bigJankCount;
+        double recordingGaps = frameSummary.recordingGapCount > 0
+                || frameSummary.validIntervalCount > 0
+                ? frameSummary.recordingGapCount : -1;
+        String hitchLabel = "HITCHES";
+        String hitchUnit = "total";
 
-        // Older/imported sessions may contain sampled pacing metrics but no
-        // individual frame intervals. Preserve their previous summary behavior.
-        if (!frameSummary.valid()) {
+        // Older/imported sessions may contain sampled legacy stutter metrics
+        // but no individual intervals. Never relabel those as median-based hitches.
+        if (d.frameIntervalsMs.isEmpty()) {
             double frameTimeTotal = 0;
             double stdDevTotal = 0;
-            double stutterTotal = 0;
+            double legacyStutterTotal = 0;
             int frameTimeCount = 0;
             int stdDevCount = 0;
-            int stutterCountValid = 0;
+            int legacyStutterCount = 0;
 
             for (double value : d.averageFrameTime) {
                 if (Double.isFinite(value) && value >= 0) {
@@ -523,18 +536,18 @@ public class AnalysisContentBuilder {
                     frameTimeCount++;
                 }
             }
-
             for (double value : d.frameTimeStdDev) {
                 if (Double.isFinite(value) && value >= 0) {
                     stdDevTotal += value;
                     stdDevCount++;
                 }
             }
-
-            for (double value : d.stutterCount) {
-                if (Double.isFinite(value) && value >= 0) {
-                    stutterTotal += value;
-                    stutterCountValid++;
+            if (d.legacyStutterCountColumn) {
+                for (double value : d.stutterCount) {
+                    if (Double.isFinite(value) && value >= 0) {
+                        legacyStutterTotal += value;
+                        legacyStutterCount++;
+                    }
                 }
             }
 
@@ -542,9 +555,12 @@ public class AnalysisContentBuilder {
                     ? frameTimeTotal / frameTimeCount : -1;
             frameTimeVariation = stdDevCount > 0
                     ? stdDevTotal / stdDevCount : -1;
-            stutters = stutterCountValid > 0
-                    ? stutterTotal / stutterCountValid : -1;
-            stutterUnit = "avg/1s";
+            hitches = legacyStutterCount > 0
+                    ? legacyStutterTotal / legacyStutterCount : -1;
+            if (d.legacyStutterCountColumn) {
+                hitchLabel = "LEGACY STUTTERS";
+                hitchUnit = "avg/1s";
+            }
         }
 
         // FPS STABILITY: percentage within 5% of median FPS
@@ -595,7 +611,10 @@ public class AnalysisContentBuilder {
         String[] labels = {
                 "AVG FRAME TIME",
                 "FRAME-TIME VARIATION",
-                "STUTTERS",
+                hitchLabel,
+                "JANK",
+                "BIG JANK",
+                "RECORDING GAPS",
                 "FPS STABILITY",
                 "1% FRAME LOW",
                 "0.1% FRAME LOW"
@@ -604,24 +623,25 @@ public class AnalysisContentBuilder {
         String[] values = {
                 averageFrameTime >= 0
                         ? String.format(Locale.US, "%.2f", averageFrameTime) : "--",
-
                 frameTimeVariation >= 0
                         ? String.format(Locale.US, "%.2f", frameTimeVariation) : "--",
-
-                stutters >= 0
-                        ? String.format(Locale.US, "%.1f", stutters) : "--",
-
+                hitches >= 0
+                        ? String.format(Locale.US, "%.1f", hitches) : "--",
+                janks >= 0
+                        ? String.format(Locale.US, "%.0f", janks) : "--",
+                bigJanks >= 0
+                        ? String.format(Locale.US, "%.0f", bigJanks) : "--",
+                recordingGaps >= 0
+                        ? String.format(Locale.US, "%.0f", recordingGaps) : "--",
                 stability >= 0
                         ? String.format(Locale.US, "%.1f%%", stability) : "--",
-
                 onePercentLow >= 0
                         ? String.format(Locale.US, "%.1f", onePercentLow) : "--",
-
                 pointOnePercentLow >= 0
                         ? String.format(Locale.US, "%.1f", pointOnePercentLow) : "--"
         };
 
-        String[] units = {"ms", "ms", stutterUnit, "", "FPS", "FPS"};
+        String[] units = {"ms", "ms", hitchUnit, "total", "total", "total", "", "FPS", "FPS"};
 
         LinearLayout metricsContainer = new LinearLayout(context);
         metricsContainer.setOrientation(LinearLayout.VERTICAL);
@@ -633,9 +653,13 @@ public class AnalysisContentBuilder {
         LinearLayout secondRow = new LinearLayout(context);
         secondRow.setOrientation(LinearLayout.HORIZONTAL);
         secondRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout thirdRow = new LinearLayout(context);
+        thirdRow.setOrientation(LinearLayout.HORIZONTAL);
+        thirdRow.setGravity(Gravity.CENTER_VERTICAL);
 
         metricsContainer.addView(firstRow);
         metricsContainer.addView(secondRow);
+        metricsContainer.addView(thirdRow);
 
         for (int i = 0; i < labels.length; i++) {
 
@@ -676,7 +700,7 @@ public class AnalysisContentBuilder {
             metric.addView(unit, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, dp(18)));
 
-            LinearLayout currentRow = i < 3 ? firstRow : secondRow;
+            LinearLayout currentRow = i < 3 ? firstRow : (i < 6 ? secondRow : thirdRow);
 
             currentRow.addView(metric, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -700,6 +724,14 @@ public class AnalysisContentBuilder {
         horizontalParams.bottomMargin = dp(8);
 
         metricsContainer.addView(horizontalDivider, 1, horizontalParams);
+        View secondHorizontalDivider = new View(context);
+        secondHorizontalDivider.setBackgroundColor(Color.rgb(52, 65, 81));
+        LinearLayout.LayoutParams secondDividerParams =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        secondDividerParams.topMargin = dp(8);
+        secondDividerParams.bottomMargin = dp(8);
+        metricsContainer.addView(secondHorizontalDivider, 3, secondDividerParams);
 
         card.addView(metricsContainer);
 
@@ -713,8 +745,13 @@ public class AnalysisContentBuilder {
             card.addView(unavailable);
         } else {
             TextView frameCount = new TextView(context);
-            frameCount.setText(d.frameIntervalsMs.size()
-                    + " individual frame intervals analyzed");
+            frameCount.setText(frameSummary.validIntervalCount
+                    + " frame intervals analyzed"
+                    + (frameSummary.recordingGapCount > 0
+                    ? String.format(Locale.US,
+                    " · %d recording gaps excluded (%.1f s total)",
+                    frameSummary.recordingGapCount,
+                    frameSummary.recordingGapDurationMs / 1000.0) : ""));
             frameCount.setTextSize(11);
             frameCount.setTextColor(muted);
             frameCount.setPadding(0, dp(10), 0, 0);
