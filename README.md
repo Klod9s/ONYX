@@ -182,14 +182,32 @@ lock state and artifact checksums when intentionally updating dependencies:
 ./gradlew --write-verification-metadata sha256 :app:dependencies
 ```
 
-The dependency report used for the third-party license review can be generated with:
+Generate license inventories for the shipped release runtime and the test-only runtime separately:
 
-```bash
-./gradlew :app:dependencies --configuration releaseRuntimeClasspath
-./gradlew :app:dependencies --configuration debugAndroidTestRuntimeClasspath
+```powershell
+.\gradlew.bat :app:generateLicenseReport -PlicenseAuditConfiguration=releaseRuntimeClasspath --no-configuration-cache --no-parallel --no-build-cache --rerun-tasks
+.\gradlew.bat :app:generateLicenseReport -PlicenseAuditConfiguration=debugAndroidTestRuntimeClasspath --no-configuration-cache --no-parallel --no-build-cache --rerun-tasks
 ```
 
-On Windows, replace `./gradlew` with `.\gradlew.bat`.
+Reports are written under `app/build/reports/dependency-license/`, in separate
+subfolders named for each configuration. Review every dependency marked **Unknown**
+or **No License Found** against its upstream license before creating or publishing
+third-party notices; do not infer a license from a group or artifact name. The
+release-runtime report is the starting point for notices accompanying the APK;
+the Android-test report is kept separate because those dependencies are not part
+of the shipped release runtime.
+
+The license-report plugin supports Gradle 9, but its current release does not
+support Gradle's configuration cache correctly and recommends disabling parallel
+execution on Gradle 9. These flags are therefore intentional. This task only
+generates an inventory; it does not automatically certify license compatibility.
+
+The plain dependency trees can still be inspected with:
+
+```powershell
+.\gradlew.bat :app:dependencies --configuration releaseRuntimeClasspath
+.\gradlew.bat :app:dependencies --configuration debugAndroidTestRuntimeClasspath
+```
 
 Build with:
 
