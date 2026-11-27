@@ -111,6 +111,45 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void cachesSelectedSurfaceFlingerLayerForFiveSeconds() {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
+        AtomicLong layerQueries = new AtomicLong();
+        FpsDetector detector = new FpsDetector(clock::get);
+
+        FpsDetector.Shell shell = shell(
+                () -> "",
+                () -> {
+                    layerQueries.incrementAndGet();
+                    return "BLAST SurfaceView com.example.game\\n";
+                },
+                layerName -> {
+                    long end = latest.get();
+                    StringBuilder dump = new StringBuilder("10000000\\n");
+                    for (int i = 99; i >= 0; i--) {
+                        dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                    }
+                    return dump.toString();
+                },
+                () -> "");
+
+        assertTrue(detector.detect(shell, "com.example.game").valid());
+        assertEquals(1, layerQueries.get());
+
+        clock.addAndGet(4900);
+        latest.addAndGet(4_900_000_000L);
+        assertTrue(detector.detect(shell, "com.example.game").valid());
+        assertEquals("Layer lookup should remain cached before five seconds",
+                1, layerQueries.get());
+
+        clock.addAndGet(100);
+        latest.addAndGet(100_000_000L);
+        assertTrue(detector.detect(shell, "com.example.game").valid());
+        assertEquals("Layer lookup should refresh at five seconds",
+                2, layerQueries.get());
+    }
+
+    @Test
     public void rejectsUnknownPackageWithoutRunningShellCommands() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
