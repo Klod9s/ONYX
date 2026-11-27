@@ -29,7 +29,17 @@ public class FpsDetector {
         // Compatibility fallback for test shells and alternate implementations.
         // Production ROOT/Shizuku shells override this with one batched command.
         default String surfaceFlingerTimeStatsSnapshot() throws Exception {
-            return "__ONYX_LAYERS__\n" + surfaceFlingerLayers()
+            String layers = surfaceFlingerLayers();
+            if (layers == null) {
+                layers = "";
+            }
+            // Layer-list commands commonly include a trailing newline. Remove
+            // only trailing line terminators so the section marker is separated
+            // by exactly one newline without changing layer contents.
+            while (layers.endsWith("\n") || layers.endsWith("\r")) {
+                layers = layers.substring(0, layers.length() - 1);
+            }
+            return "__ONYX_LAYERS__\n" + layers
                     + "\n__ONYX_TIMESTATS__\n" + surfaceFlingerTimeStatsDump();
         }
     }
