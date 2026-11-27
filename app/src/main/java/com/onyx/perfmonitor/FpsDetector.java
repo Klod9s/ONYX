@@ -221,7 +221,8 @@ public class FpsDetector {
             // Once SF Counter has proven reliable, a failed higher-priority
             // probe must not create a "none" sample. Retry the counter in the
             // same cycle so CSV/live readings retain a real measurement.
-            if (method < M_COUNTER && lastAliveMs[M_COUNTER] != 0) {
+            if ((method == M_BLAST || method == M_LATENCY)
+                    && lastAliveMs[M_COUNTER] != 0) {
                 Result fallback = attempt(M_COUNTER, shell, now);
                 return fallback.valid() ? fallback : NONE;
             }
