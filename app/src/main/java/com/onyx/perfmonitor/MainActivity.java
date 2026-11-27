@@ -926,6 +926,10 @@ new MonitorPageBuilder(this).build(page);
 
 
 
+    void executeFileTask(Runnable task) {
+        fileWorker.execute(task);
+    }
+
     void loadHistory() {
         loadHistory(false);
     }
