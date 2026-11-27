@@ -29,8 +29,8 @@ public class FpsDetector {
         // Compatibility fallback for test shells and alternate implementations.
         // Production ROOT/Shizuku shells override this with one batched command.
         default String surfaceFlingerTimeStatsSnapshot() throws Exception {
-            return "__ONYX_LAYERS__\\n" + surfaceFlingerLayers()
-                    + "\\n__ONYX_TIMESTATS__\\n" + surfaceFlingerTimeStatsDump();
+            return "__ONYX_LAYERS__\n" + surfaceFlingerLayers()
+                    + "\n__ONYX_TIMESTATS__\n" + surfaceFlingerTimeStatsDump();
         }
     }
 
