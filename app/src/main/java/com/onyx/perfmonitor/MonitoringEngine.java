@@ -776,6 +776,13 @@ private FpsDetector.Shell rootFpsShell() {
                 String out = rootCommand("dumpsys SurfaceFlinger --latency " + shellQuote(layerName));
                 return out == null ? "" : out;
             }
+            @Override public String surfaceFlingerLayerLatencySnapshot(
+                    String packageName, boolean blastOnly) {
+                String out = rootCommand(
+                        FpsDetector.buildSurfaceFlingerLayerLatencyScript(
+                                packageName, blastOnly));
+                return out == null ? "" : out;
+            }
             @Override public String surfaceFlingerTimeStatsDump() {
                 String out = rootCommand(
                         "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
@@ -802,6 +809,11 @@ private FpsDetector.Shell rootFpsShell() {
             }
             @Override public String surfaceFlingerLatency(String layerName) throws Exception {
                 return service.getSurfaceFlingerLatency(layerName);
+            }
+            @Override public String surfaceFlingerLayerLatencySnapshot(
+                    String packageName, boolean blastOnly) throws Exception {
+                return service.getSurfaceFlingerLayerLatencySnapshot(
+                        packageName, blastOnly);
             }
             @Override public String surfaceFlingerTimeStatsDump() throws Exception {
                 return service.getSurfaceFlingerTimeStatsDump();
