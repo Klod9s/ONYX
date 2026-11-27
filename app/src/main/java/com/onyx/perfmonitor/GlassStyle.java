@@ -259,15 +259,14 @@ final class GlassStyle {
         }
     }
 
-    /** START SESSION button: accent gradient left to right. */
+    /** START SESSION button: muted steel-blue glass gradient. */
     static GradientDrawable primaryButton(int accent, float radiusPx, float strokePx) {
-        float[] hsv = new float[3];
-        Color.colorToHSV(accent, hsv);
-        float[] right = {(hsv[0] + 18f) % 360f, hsv[1], hsv[2] * 0.72f};
-        float[] left = {hsv[0], hsv[1] * 0.92f, hsv[2]};
-        GradientDrawable d = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.HSVToColor(left), Color.HSVToColor(right)});
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(43, 68, 94), Color.rgb(30, 53, 77)});
         d.setCornerRadius(radiusPx);
+        d.setStroke(Math.max(1, Math.round(strokePx)),
+                Color.argb(175, 112, 143, 171));
         return d;
     }
 
