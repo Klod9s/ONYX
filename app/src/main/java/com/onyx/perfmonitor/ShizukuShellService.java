@@ -90,7 +90,10 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 "echo __THERMAL_BLOCK__; " +
                                 "for Z in /sys/class/thermal/thermal_zone*; do " +
                                 " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                                " case \"$T\" in cpu-*) K=CPU;; gpu-*|gpuss-*) K=GPU;; *) continue;; esac; " +
+                                " T=$(printf '%s' \"$T\" | tr '[:upper:]' '[:lower:]'); " +
+                                " case \"$T\" in cpu|cpu-*|cpu_*|*cpu*|mtkts_cpu) K=CPU;; " +
+                                " gpu|gpu-*|gpu_*|*gpu*|gpuss-*|mtkts_gpu) K=GPU;; " +
+                                " *) continue;; esac; " +
                                 " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                                 " echo \"$K $V\"; " +
                                 "done; " +

@@ -40,10 +40,12 @@ final class FramePercentileCalculator {
 
         Collections.sort(frameFps);
 
-        int count = (int) Math.ceil(frameFps.size() * percentile);
+        int minimumTotalFrameCount =
+                (int) Math.ceil(MIN_PERCENTILE_FRAME_COUNT / percentile);
 
-        // Require at least 10 frames in the percentile sample.
-        if (count < 10) return -1;
+        if (frameFps.size() < minimumTotalFrameCount) return -1;
+
+        int count = (int) Math.ceil(frameFps.size() * percentile);
 
         double total = 0;
         for (int i = 0; i < count; i++) {

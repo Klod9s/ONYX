@@ -735,10 +735,10 @@ public class AnalysisContentBuilder {
 
         card.addView(metricsContainer);
 
-        if (d.frameIntervalsMs.isEmpty()) {
+        if (frameSummary.validIntervalCount == 0) {
             TextView unavailable = new TextView(context);
             unavailable.setText(
-                    "Frame-level lows unavailable: this session has no individual frame timestamps.");
+                    "Frame-level lows unavailable: no valid individual frame intervals were collected for this session.");
             unavailable.setTextSize(11);
             unavailable.setTextColor(muted);
             unavailable.setPadding(0, dp(10), 0, 0);
@@ -746,7 +746,7 @@ public class AnalysisContentBuilder {
         } else {
             TextView frameCount = new TextView(context);
             frameCount.setText(frameSummary.validIntervalCount
-                    + " frame intervals analyzed"
+                    + " valid frame intervals analyzed"
                     + (frameSummary.recordingGapCount > 0
                     ? String.format(Locale.US,
                     " · %d recording gaps excluded (%.1f s total)",
@@ -756,6 +756,28 @@ public class AnalysisContentBuilder {
             frameCount.setTextColor(muted);
             frameCount.setPadding(0, dp(10), 0, 0);
             card.addView(frameCount);
+
+            if (frameSummary.validIntervalCount < 1000) {
+                TextView unavailable = new TextView(context);
+                unavailable.setText(
+                        "1% low needs at least 1,000 valid frames; 0.1% low needs 10,000. "
+                                + "This session has "
+                                + frameSummary.validIntervalCount + ".");
+                unavailable.setTextSize(11);
+                unavailable.setTextColor(muted);
+                unavailable.setPadding(0, dp(4), 0, 0);
+                card.addView(unavailable);
+            } else if (frameSummary.validIntervalCount < 10000) {
+                TextView unavailable = new TextView(context);
+                unavailable.setText(
+                        "0.1% low needs at least 10,000 valid frames. "
+                                + "This session has "
+                                + frameSummary.validIntervalCount + ".");
+                unavailable.setTextSize(11);
+                unavailable.setTextColor(muted);
+                unavailable.setPadding(0, dp(4), 0, 0);
+                card.addView(unavailable);
+            }
         }
 
         LinearLayout.LayoutParams params =
