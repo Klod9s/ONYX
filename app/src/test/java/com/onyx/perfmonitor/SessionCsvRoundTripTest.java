@@ -50,7 +50,7 @@ public class SessionCsvRoundTripTest {
 
         String[] lines = csv.toString().split("\\n");
         assertEquals(2, lines.length);
-        assertEquals(37, lines[0].split(",", -1).length);
+        assertEquals(36, lines[0].split(",", -1).length);
 
         File file = temporaryFolder.newFile("round_trip.csv");
         try (FileWriter writer = new FileWriter(file)) {
@@ -70,7 +70,7 @@ public class SessionCsvRoundTripTest {
         assertEquals(4.012, data.voltage.get(0), 0.0001);
         assertEquals(4.81, data.power.get(0), 0.0001);
         assertEquals(87.0, data.battery.get(0), 0.0001);
-        assertEquals(540.0, data.secondsPerPercent.get(0), 0.0001);
+        assertEquals(-1.0, data.secondsPerPercent.get(0), 0.0001);
         assertEquals(39.4, data.temperature.get(0), 0.0001);
         assertEquals(12.5, data.cpu.get(0).get(0), 0.0001);
         assertEquals(1800.0, data.cpuFreq.get(0).get(0), 0.0001);
@@ -101,9 +101,9 @@ public class SessionCsvRoundTripTest {
         String[] lines = csv.toString().split("\\n");
         String[] columns = lines[1].split(",", -1);
 
-        assertEquals(37, columns.length);
+        assertEquals(36, columns.length);
+        assertEquals("", columns[34]);
         assertEquals("", columns[35]);
-        assertEquals("", columns[36]);
     }
 
     @Test
