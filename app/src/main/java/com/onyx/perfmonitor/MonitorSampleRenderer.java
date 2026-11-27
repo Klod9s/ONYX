@@ -35,11 +35,15 @@ final class MonitorSampleRenderer {
             GlassStyle.TileTag tag = (GlassStyle.TileTag) fps.getTag();
             setTextIfChanged(tag.label, "FPS");
 
-            // Frame-time graph only uses measured frame-pacing data.
+            // Derive frame time from the current FPS reading so the in-app
+            // graph follows the same live FPS value shown in this tile.
             GlassStyle.FrameGraphView g = tag.graph;
             if (g != null) {
-                if (s.averageFrameTimeMs > 0) g.addFrameTime((float) s.averageFrameTimeMs);
-                else g.noData();
+                if (s.fps > 0 && !Double.isNaN(s.fps) && !Double.isInfinite(s.fps)) {
+                    g.addFrameTime((float) (1000.0 / s.fps));
+                } else {
+                    g.noData();
+                }
             }
         }
 
