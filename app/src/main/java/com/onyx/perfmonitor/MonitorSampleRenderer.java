@@ -41,7 +41,7 @@ final class MonitorSampleRenderer {
 
         setTextIfChanged(fps, s.fps < 0
                 ? "—"
-                : String.format(Locale.US, "%.0f", s.fps));
+                : String.format(Locale.US, "%.1f", s.fps));
 
         if (fps != null && fps.getTag() instanceof GlassStyle.TileTag) {
             GlassStyle.TileTag tag = (GlassStyle.TileTag) fps.getTag();

@@ -181,7 +181,7 @@ final class OverlaySessionRecorder {
                 s.timeMs / 60000, (s.timeMs / 1000) % 60)).append(',')
                 .append("\"").append((s.app == null ? "Unknown" : s.app)
                         .replace("\"", "\"\"")).append("\",")
-                .append(s.fps < 0 ? "" : String.format(Locale.US, "%.0f", s.fps))
+                .append(s.fps < 0 ? "" : String.format(Locale.US, "%.1f", s.fps))
                 .append(',')
                 .append(String.format(Locale.US, "%.0f,%.3f,%.2f,%d",
                         s.currentMa, s.voltage, s.power, s.battery));
