@@ -261,6 +261,7 @@ public class FloatingFpsService extends Service {
         String cpu = readings[3];
         String gpu = readings[4];
         String ram = readings[5];
+        String fpsSource = readings.length > 11 ? readings[11] : "";
         int thermalStatus;
         try {
             thermalStatus = Integer.parseInt(readings[6]);
@@ -399,6 +400,9 @@ public class FloatingFpsService extends Service {
                                 ? "Android thermal status unavailable"
                                 : "Normal Android thermal status");
             }
+        }
+        if (fpsLabelView != null) {
+            fpsLabelView.setText(compactFpsSourceLabel(fpsSource));
         }
         if (frameTimeView != null) frameTimeView.setText(frameTime);
         if (cpuView != null) cpuView.setText("CPU " + cpu);
@@ -1443,6 +1447,18 @@ public class FloatingFpsService extends Service {
         if (attached) {
             windowManager.updateViewLayout(overlayRoot, overlayParams);
         }
+    }
+
+    private String compactFpsSourceLabel(String source) {
+        if (source == null || source.isEmpty() || "none".equalsIgnoreCase(source)) {
+            return "FPS";
+        }
+        if ("BLAST SF latency".equals(source)) return "FPS · BLAST";
+        if ("SF latency".equals(source)) return "FPS · SF LAT";
+        if ("SF Counter".equals(source)) return "FPS · SF COUNT";
+        if ("TimeStats".equals(source)) return "FPS · TIMESTATS";
+        if ("Display FPS".equals(source)) return "FPS · DISPLAY";
+        return "FPS · " + source;
     }
 
     private float parseReading(String value) {
