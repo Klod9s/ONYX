@@ -172,7 +172,7 @@ final class OverlaySessionRecorder {
                         .replace("\"", "\"\"")).append("\",")
                 .append(s.fps < 0 ? "" : String.format(Locale.US, "%.0f", s.fps))
                 .append(',')
-                .append(String.format(Locale.US, "%.0f,%.3f,%.2f,%d,",
+                .append(String.format(Locale.US, "%.0f,%.3f,%.2f,%d",
                         s.currentMa, s.voltage, s.power, s.battery));
         row.append(',').append(String.format(Locale.US, "%.1f", s.temperatureC));
         for (double value : s.cpu) {
