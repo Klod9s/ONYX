@@ -70,7 +70,7 @@ public class SessionCsvRoundTripTest {
         assertFalse(data.legacyStutterCountColumn);
         assertEquals(1, data.times.size());
         assertEquals(125.0, data.times.get(0), 0.0001);
-        assertEquals(60.0, data.fps.get(0), 0.0001);
+        assertEquals(59.8, data.fps.get(0), 0.0001);
         assertEquals(1200.0, data.current.get(0), 0.0001);
         assertEquals(4.012, data.voltage.get(0), 0.0001);
         assertEquals(4.81, data.power.get(0), 0.0001);

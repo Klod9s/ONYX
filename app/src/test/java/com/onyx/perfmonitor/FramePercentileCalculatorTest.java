@@ -23,10 +23,11 @@ public class FramePercentileCalculatorTest {
     }
 
     @Test
-    public void computesPointOnePercentLowFromSlowestIndividualFrames() {
+    public void computesPointOnePercentLowWithAtLeastTenSlowFrames() {
         List<Double> intervals = new ArrayList<>();
-        for (int i = 0; i < 999; i++) intervals.add(1000.0 / 60.0);
-        intervals.add(25.0);
+
+        for (int i = 0; i < 9990; i++) intervals.add(1000.0 / 60.0);
+        for (int i = 0; i < 10; i++) intervals.add(25.0);
 
         assertEquals(40.0,
                 FramePercentileCalculator.averageLowFps(intervals, 0.001),
@@ -36,10 +37,18 @@ public class FramePercentileCalculatorTest {
     @Test
     public void ignoresInvalidIntervals() {
         List<Double> intervals = new ArrayList<>();
+
+        for (int i = 0; i < 990; i++) {
+            intervals.add(1000.0 / 60.0);
+        }
+
         intervals.add(Double.NaN);
         intervals.add(0.0);
         intervals.add(-1.0);
-        intervals.add(1000.0 / 50.0);
+
+        for (int i = 0; i < 10; i++) {
+            intervals.add(20.0);
+        }
 
         assertEquals(50.0,
                 FramePercentileCalculator.averageLowFps(intervals, 0.01),
@@ -50,13 +59,46 @@ public class FramePercentileCalculatorTest {
     @Test
     public void excludesRecordingGapsFromFramePercentiles() {
         List<Double> intervals = new ArrayList<>();
-        intervals.add(1000.0 / 60.0);
+
+        for (int i = 0; i < 990; i++) {
+            intervals.add(1000.0 / 60.0);
+        }
+
         intervals.add(10_001.0);
-        intervals.add(20.0);
+
+        for (int i = 0; i < 10; i++) {
+            intervals.add(20.0);
+        }
 
         assertEquals(50.0,
                 FramePercentileCalculator.averageLowFps(intervals, 0.01),
                 0.0001);
+    }
+
+    @Test
+    public void returnsUnavailableWhenOnePercentSampleHasFewerThanTenFrames() {
+        List<Double> intervals = new ArrayList<>();
+
+        for (int i = 0; i < 900; i++) {
+            intervals.add(1000.0 / 60.0);
+        }
+
+        assertEquals(-1.0,
+                FramePercentileCalculator.averageLowFps(intervals, 0.01),
+                0.0);
+    }
+
+    @Test
+    public void returnsUnavailableWhenPointOnePercentSampleHasFewerThanTenFrames() {
+        List<Double> intervals = new ArrayList<>();
+
+        for (int i = 0; i < 9000; i++) {
+            intervals.add(1000.0 / 60.0);
+        }
+
+        assertEquals(-1.0,
+                FramePercentileCalculator.averageLowFps(intervals, 0.001),
+                0.0);
     }
 
     @Test
