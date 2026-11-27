@@ -146,6 +146,16 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                 "--timestats", "-maxlayers", "64", "-dump"});
     }
 
+    @Override
+    public String getSurfaceFlingerTimeStatsSnapshot() throws RemoteException {
+        String script = "echo __ONYX_LAYERS__; " +
+                "dumpsys SurfaceFlinger --list 2>/dev/null; " +
+                "echo __ONYX_TIMESTATS__; " +
+                "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null";
+        return run(new String[]{"sh", "-c", script}, COMMAND_TIMEOUT_SECONDS,
+                MAX_OUTPUT_CHARS);
+    }
+
     private static boolean isSafeLayerName(String value) {
         return value != null && !value.isEmpty() && value.length() <= 512
                 && value.matches("[A-Za-z0-9_ .:/()\\[\\]{}#@+\\-=,]+");
