@@ -295,11 +295,10 @@ final class GlassStyle {
             float w = bounds.width();
             float h = bounds.height();
 
-            fill.setShader(new LinearGradient(0, 0, 0, h,
-                    new int[]{Color.argb(218, 91, 126, 158),
-                            Color.argb(188, 48, 78, 109),
-                            Color.argb(205, 25, 48, 73)},
-                    new float[]{0f, 0.38f, 1f}, Shader.TileMode.CLAMP));
+            // Keep the button body a single, flat blue-grey tone.
+            // The glass appearance comes from the translucent sheen and edge highlights above it.
+            fill.setShader(null);
+            fill.setColor(Color.argb(210, 65, 91, 117));
             sheen.setShader(new LinearGradient(0, 0, 0, h * 0.72f,
                     new int[]{Color.argb(82, 225, 241, 255),
                             Color.argb(24, 190, 220, 246),
