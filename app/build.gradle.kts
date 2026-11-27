@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.github.jk1.dependency-license-report") version "3.1.5"
 }
 
 val releaseStoreFile = providers.environmentVariable("ONYX_KEYSTORE_PATH").orNull
@@ -10,6 +11,12 @@ val releaseKeyPassword = providers.environmentVariable("ONYX_KEY_PASSWORD").orNu
 val hasReleaseSigning = listOf(
     releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword
 ).all { !it.isNullOrBlank() }
+
+// Select one dependency graph per report so shipped runtime and test-only
+// dependencies can be reviewed separately. Override with -PlicenseAuditConfiguration=...
+val licenseAuditConfiguration = providers.gradleProperty("licenseAuditConfiguration")
+    .orElse("releaseRuntimeClasspath")
+    .get()
 
 android {
     namespace = "com.onyx.perfmonitor"
@@ -62,6 +69,16 @@ android {
 // Keep resolved direct and transitive versions stable once lockfiles are generated.
 configurations.configureEach {
     resolutionStrategy.activateDependencyLocking()
+}
+
+// The license-report plugin does not support Gradle configuration cache yet.
+// Run its task with --no-configuration-cache --no-parallel (see README).
+licenseReport {
+    configurations = arrayOf(licenseAuditConfiguration)
+    outputDir = layout.buildDirectory
+        .dir("reports/dependency-license/$licenseAuditConfiguration")
+        .get()
+        .asFile
 }
 
 dependencies {
