@@ -259,60 +259,144 @@ final class GlassStyle {
         }
     }
 
-    /** START SESSION button: translucent blue glass with a reflective top sheen. */
+    /** START SESSION button: steel-blue glass with a diagonal reflection and bright top/bottom edge glints. */
     static Drawable primaryButton(int accent, float radiusPx, float strokePx) {
-        return new GlassButtonDrawable(accent, radiusPx, strokePx);
+        return new GlassButtonDrawable(radiusPx, strokePx, GlassButtonDrawable.BLUE);
+    }
+
+    /** STOP SESSION button (recording): the same glass construction in crimson. */
+    static Drawable recordingButton(float radiusPx, float strokePx) {
+        return new GlassButtonDrawable(radiusPx, strokePx, GlassButtonDrawable.RED);
     }
 
     private static final class GlassButtonDrawable extends Drawable {
+        /** Colour set for one glass button flavour. Alphas for the layers are fixed in the drawable. */
+        static final class Tint {
+            final int fillLeft, fillRight, sheen, border, glint, glow, sheenTopAlpha, sheenBottomAlpha;
+            Tint(int fillLeft, int fillRight, int sheen, int border, int glint, int glow,
+                 int sheenTopAlpha, int sheenBottomAlpha) {
+                this.fillLeft = fillLeft;
+                this.fillRight = fillRight;
+                this.sheen = sheen;
+                this.border = border;
+                this.glint = glint;
+                this.glow = glow;
+                this.sheenTopAlpha = sheenTopAlpha;
+                this.sheenBottomAlpha = sheenBottomAlpha;
+            }
+        }
+
+        // Steel-blue glass (START SESSION).
+        static final Tint BLUE = new Tint(
+                Color.rgb(34, 57, 82), Color.rgb(37, 72, 104),
+                Color.rgb(200, 224, 247), Color.rgb(112, 134, 152),
+                Color.rgb(190, 222, 245), Color.rgb(180, 218, 255), 20, 8);
+        // Crimson glass (STOP SESSION): a little more saturated so the live state stays obvious.
+        static final Tint RED = new Tint(
+                Color.rgb(150, 38, 54), Color.rgb(116, 30, 50),
+                Color.rgb(250, 205, 212), Color.rgb(186, 108, 120),
+                Color.rgb(255, 206, 212), Color.rgb(255, 170, 180), 24, 10);
+
+        // Glint strength (0..255) at fixed positions across the button width.
+        private static final float[] GLINT_POS_TOP = {0f, 0.09f, 0.23f, 0.45f, 0.65f, 0.79f, 0.93f, 1f};
+        private static final int[] GLINT_A_TOP = {20, 61, 102, 199, 97, 51, 28, 20};
+        private static final float[] GLINT_POS_BOTTOM = {0f, 0.20f, 0.35f, 0.50f, 0.65f, 0.75f, 1f};
+        private static final int[] GLINT_A_BOTTOM = {0, 5, 84, 140, 115, 26, 0};
+
         private final float radius;
         private final float strokeWidth;
-        private final int accent;
+        private final Tint tint;
         private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint sheen = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glintTop = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint glintBottom = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF bounds = new RectF();
+        private final RectF strokeBounds = new RectF();
         private final RectF innerBounds = new RectF();
+        private final Path bodyPath = new Path();
+        private final Path diagonalPath = new Path();
+        private final Path sheenPath = new Path();
+        private float glintX0, glintX1;
+        private int alpha = 255;
 
-        GlassButtonDrawable(int accent, float radiusPx, float strokePx) {
-            this.accent = accent;
+        GlassButtonDrawable(float radiusPx, float strokePx, Tint tint) {
+            this.tint = tint;
             radius = radiusPx;
             strokeWidth = Math.max(1f, strokePx);
             border.setStyle(Paint.Style.STROKE);
             border.setStrokeWidth(strokeWidth);
+            glintTop.setStyle(Paint.Style.STROKE);
+            glintTop.setStrokeWidth(strokeWidth);
+            glintTop.setStrokeCap(Paint.Cap.BUTT);
+            glintBottom.setStyle(Paint.Style.STROKE);
+            glintBottom.setStrokeWidth(strokeWidth);
+            glintBottom.setStrokeCap(Paint.Cap.BUTT);
             inner.setStyle(Paint.Style.STROKE);
             inner.setStrokeWidth(1f);
+        }
+
+        private static int withAlpha(int rgb, int a) {
+            return Color.argb(a, Color.red(rgb), Color.green(rgb), Color.blue(rgb));
+        }
+
+        private static int[] glintColors(int rgb, int[] alphas) {
+            int[] c = new int[alphas.length];
+            for (int i = 0; i < alphas.length; i++) c[i] = withAlpha(rgb, alphas[i]);
+            return c;
         }
 
         @Override
         protected void onBoundsChange(android.graphics.Rect b) {
             bounds.set(b);
-            float inset = Math.max(1f, strokeWidth);
-            innerBounds.set(b.left + inset, b.top + inset,
-                    b.right - inset, b.bottom - inset);
+            float l = b.left, t = b.top;
             float w = bounds.width();
             float h = bounds.height();
+            float r = Math.min(radius, h / 2f);
+            float half = strokeWidth / 2f;
+            strokeBounds.set(l + half, t + half, b.right - half, b.bottom - half);
+            float inset = Math.max(1f, strokeWidth);
+            innerBounds.set(l + inset, t + inset, b.right - inset, b.bottom - inset);
 
-            // Keep the button body a single, flat blue-grey tone.
-            // The glass appearance comes from the translucent sheen and edge highlights above it.
-            fill.setShader(null);
-            fill.setColor(Color.argb(210, 65, 91, 117));
-            sheen.setShader(new LinearGradient(0, 0, 0, h * 0.72f,
-                    new int[]{Color.argb(82, 225, 241, 255),
-                            Color.argb(24, 190, 220, 246),
-                            Color.argb(0, 190, 220, 246)},
-                    new float[]{0f, 0.28f, 1f}, Shader.TileMode.CLAMP));
-            glow.setShader(new RadialGradient(w * 0.5f, h * 0.08f,
+            // Body: dark translucent tint that drifts slightly toward the right-hand colour.
+            fill.setShader(new LinearGradient(l, 0, l + w, 0,
+                    withAlpha(tint.fillLeft, 210), withAlpha(tint.fillRight, 210),
+                    Shader.TileMode.CLAMP));
+
+            // Soft haze near the top centre.
+            glow.setShader(new RadialGradient(l + w * 0.5f, t + h * 0.08f,
                     Math.max(w * 0.75f, h),
-                    Color.argb(35, 180, 218, 255),
-                    Color.argb(0, 180, 218, 255), Shader.TileMode.CLAMP));
-            border.setShader(new LinearGradient(0, 0, w, h,
-                    new int[]{Color.argb(190, 190, 220, 246),
-                            Color.argb(105, 117, 157, 194),
-                            Color.argb(145, 155, 194, 226)},
-                    null, Shader.TileMode.CLAMP));
+                    withAlpha(tint.glow, 35), withAlpha(tint.glow, 0), Shader.TileMode.CLAMP));
+
+            // Diagonal reflection: lighter above a line running from the bottom-left
+            // up to the top-right, clipped to the rounded body.
+            sheen.setShader(new LinearGradient(0, t, 0, t + h,
+                    withAlpha(tint.sheen, tint.sheenTopAlpha), withAlpha(tint.sheen, tint.sheenBottomAlpha),
+                    Shader.TileMode.CLAMP));
+            bodyPath.rewind();
+            bodyPath.addRoundRect(bounds, r, r, Path.Direction.CW);
+            diagonalPath.rewind();
+            diagonalPath.moveTo(l, t);
+            diagonalPath.lineTo(l + w, t);
+            diagonalPath.lineTo(l + w, t + h * 0.12f);
+            diagonalPath.lineTo(l, t + h * 0.92f);
+            diagonalPath.close();
+            sheenPath.rewind();
+            sheenPath.set(bodyPath);
+            if (!sheenPath.op(diagonalPath, Path.Op.INTERSECT)) sheenPath.rewind();
+
+            // Edge: a steady line all round, plus brighter glints on the top and
+            // bottom edges that peak just left of centre.
+            border.setShader(null);
+            border.setColor(withAlpha(tint.border, 128));
+            glintX0 = l + r * 0.55f;
+            glintX1 = l + w - r * 0.55f;
+            glintTop.setShader(new LinearGradient(l, 0, l + w, 0,
+                    glintColors(tint.glint, GLINT_A_TOP), GLINT_POS_TOP, Shader.TileMode.CLAMP));
+            glintBottom.setShader(new LinearGradient(l, 0, l + w, 0,
+                    glintColors(tint.glint, GLINT_A_BOTTOM), GLINT_POS_BOTTOM, Shader.TileMode.CLAMP));
             inner.setColor(Color.argb(38, 238, 247, 255));
         }
 
@@ -320,22 +404,24 @@ final class GlassStyle {
         public void draw(Canvas canvas) {
             if (bounds.isEmpty()) return;
             float r = Math.min(radius, bounds.height() / 2f);
+            int saved = -1;
+            if (alpha < 255) saved = canvas.saveLayerAlpha(bounds, alpha);
             canvas.drawRoundRect(bounds, r, r, fill);
             canvas.drawRoundRect(bounds, r, r, glow);
-            canvas.drawRoundRect(bounds, r, r, sheen);
-            canvas.drawRoundRect(bounds, r, r, border);
+            if (!sheenPath.isEmpty()) canvas.drawPath(sheenPath, sheen);
+            float rb = Math.max(0f, r - strokeWidth / 2f);
+            canvas.drawRoundRect(strokeBounds, rb, rb, border);
+            canvas.drawLine(glintX0, strokeBounds.top, glintX1, strokeBounds.top, glintTop);
+            canvas.drawLine(glintX0, strokeBounds.bottom, glintX1, strokeBounds.bottom, glintBottom);
             if (!innerBounds.isEmpty()) {
                 canvas.drawRoundRect(innerBounds, Math.max(0f, r - strokeWidth),
                         Math.max(0f, r - strokeWidth), inner);
             }
+            if (saved >= 0) canvas.restoreToCount(saved);
         }
 
-        @Override public void setAlpha(int alpha) {
-            fill.setAlpha(alpha);
-            sheen.setAlpha(alpha);
-            glow.setAlpha(alpha);
-            border.setAlpha(alpha);
-            inner.setAlpha(alpha);
+        @Override public void setAlpha(int a) {
+            alpha = Math.max(0, Math.min(255, a));
             invalidateSelf();
         }
 
@@ -344,19 +430,13 @@ final class GlassStyle {
             sheen.setColorFilter(filter);
             glow.setColorFilter(filter);
             border.setColorFilter(filter);
+            glintTop.setColorFilter(filter);
+            glintBottom.setColorFilter(filter);
             inner.setColorFilter(filter);
             invalidateSelf();
         }
 
         @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
-    }
-
-    /** STOP SESSION button (recording). */
-    static GradientDrawable recordingButton(float radiusPx, float strokePx) {
-        GradientDrawable d = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(205, 72, 84), Color.rgb(150, 42, 60)});
-        d.setCornerRadius(radiusPx);
-        return d;
     }
 
     /** Small outlined pill for the CHARGING / DISCHARGING state. */

@@ -69,14 +69,19 @@ final class SessionController {
         activity.loadHistory(true);
     }
 
+    private Boolean lastRecording;
+
     private void updateRecordingButton(boolean recording) {
+        if (lastRecording != null && lastRecording == recording) return;
+        lastRecording = recording;
+
         activity.startButton.setText(recording
                 ? "STOP SESSION" : "START SESSION");
 
         activity.startButton.setBackground(recording
                 ? GlassStyle.recordingButton(activity.dp(14), activity.dp(1))
                 : GlassStyle.primaryButton(activity.getAppAccentColor(),
-                        activity.dp(14), activity.dp(1)));
+                activity.dp(14), activity.dp(1)));
     }
     
         void startSession() {
