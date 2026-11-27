@@ -836,67 +836,157 @@ private FpsDetector.Shell rootFpsShell() {
         sample.stutterCount = -1;
     }
 
-private String rootCommand(String command) {
-        Process process = null;
-        Thread reader = null;
+    private static final int ROOT_OUTPUT_LIMIT = 2_000_000;
+    private static final long ROOT_COMMAND_TIMEOUT_MS = 8_000;
+    private static final String ROOT_SHELL_EOF = "__ONYX_ROOT_SHELL_EOF__";
 
-        java.io.ByteArrayOutputStream buffer =
-                new java.io.ByteArrayOutputStream();
+    private final Object rootShellLock = new Object();
+    private Process rootShellProcess;
+    private java.io.BufferedWriter rootShellWriter;
+    private java.util.concurrent.BlockingQueue<String> rootShellLines;
+    private Thread rootShellReader;
+    private long rootShellCommandId;
 
-        try {
-            process = new ProcessBuilder("su", "-c", command)
-                    .redirectErrorStream(true)
-                    .start();
+    /**
+     * Reuses one authorized su shell for successive sampling commands.
+     * Unique end markers keep each command's output isolated.
+     */
+    private String rootCommand(String command) {
+        if (command == null || command.isEmpty()) return null;
 
-            final InputStream input = process.getInputStream();
+        synchronized (rootShellLock) {
+            try {
+                ensureRootShellLocked();
 
-            reader = new Thread(() -> {
-                try {
-                    byte[] data = new byte[4096];
-                    int count;
+                long commandId = ++rootShellCommandId;
+                String marker = "__ONYX_ROOT_DONE_" + commandId + "__";
+                rootShellWriter.write(command);
+                rootShellWriter.newLine();
+                rootShellWriter.write("printf '\\n%s\\n' '" + marker + "'");
+                rootShellWriter.newLine();
+                rootShellWriter.flush();
 
-                    while ((count = input.read(data)) != -1) {
-                        int remaining = 2_000_000 - buffer.size();
+                StringBuilder output = new StringBuilder();
+                long deadline = android.os.SystemClock.elapsedRealtime()
+                        + ROOT_COMMAND_TIMEOUT_MS;
+                boolean outputLimitReached = false;
 
-                        if (remaining > 0) {
-                            buffer.write(data, 0, Math.min(count, remaining));
+                while (true) {
+                    long remaining = deadline
+                            - android.os.SystemClock.elapsedRealtime();
+                    if (remaining <= 0) {
+                        throw new java.util.concurrent.TimeoutException(
+                                "Root command timed out");
+                    }
+
+                    String line = rootShellLines.poll(
+                            remaining, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    if (line == null) {
+                        throw new java.util.concurrent.TimeoutException(
+                                "Root shell stopped responding");
+                    }
+                    if (ROOT_SHELL_EOF.equals(line)) {
+                        throw new java.io.IOException("Root shell exited");
+                    }
+                    if (marker.equals(line)) {
+                        return outputLimitReached ? null : output.toString();
+                    }
+
+                    if (!outputLimitReached) {
+                        int needed = line.length() + 1;
+                        if (output.length() + needed > ROOT_OUTPUT_LIMIT) {
+                            outputLimitReached = true;
+                            output.setLength(0);
+                        } else {
+                            output.append(line).append('\n');
                         }
                     }
-                } catch (Exception ignored) {
                 }
-            });
-
-            reader.setDaemon(true);
-            reader.start();
-
-            boolean finished = process.waitFor(
-                    8, java.util.concurrent.TimeUnit.SECONDS);
-
-            if (!finished) {
-                process.destroyForcibly();
-                process.waitFor(1,
-                        java.util.concurrent.TimeUnit.SECONDS);
-                input.close();
-                reader.join(500);
+            } catch (Exception ignored) {
+                destroyRootShellLocked();
                 return null;
             }
-
-            reader.join(1000);
-
-            if (reader.isAlive()) {
-                process.destroyForcibly();
-                input.close();
-                return null;
-            }
-
-            return buffer.toString(StandardCharsets.UTF_8.name());
-
-        } catch (Exception e) {
-            if (process != null) {
-                process.destroyForcibly();
-            }
-            return null;
         }
+    }
+
+    private void ensureRootShellLocked() throws Exception {
+        if (rootShellProcess != null && rootShellWriter != null
+                && rootShellLines != null && rootShellReader != null
+                && rootShellReader.isAlive()) {
+            return;
+        }
+
+        destroyRootShellLocked();
+        Process process = new ProcessBuilder("su")
+                .redirectErrorStream(true)
+                .start();
+        java.util.concurrent.BlockingQueue<String> lines =
+                new java.util.concurrent.ArrayBlockingQueue<>(8192);
+        java.io.BufferedReader reader = new java.io.BufferedReader(
+                new InputStreamReader(process.getInputStream(),
+                        StandardCharsets.UTF_8));
+
+        Thread readerThread = new Thread(() -> {
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    lines.put(line);
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ignored) {
+            } finally {
+                lines.offer(ROOT_SHELL_EOF);
+            }
+        }, "OnyxRootShellReader");
+        readerThread.setDaemon(true);
+        readerThread.start();
+
+        rootShellProcess = process;
+        rootShellWriter = new java.io.BufferedWriter(
+                new java.io.OutputStreamWriter(
+                        process.getOutputStream(), StandardCharsets.UTF_8));
+        rootShellLines = lines;
+        rootShellReader = readerThread;
+    }
+
+    void closeRootShell() {
+        synchronized (rootShellLock) {
+            destroyRootShellLocked();
+        }
+    }
+
+    private void destroyRootShellLocked() {
+        if (rootShellWriter != null) {
+            try {
+                rootShellWriter.write("exit");
+                rootShellWriter.newLine();
+                rootShellWriter.flush();
+            } catch (Exception ignored) {
+            }
+            try {
+                rootShellWriter.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (rootShellProcess != null) {
+            try {
+                rootShellProcess.destroy();
+                if (!rootShellProcess.waitFor(
+                        500, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    rootShellProcess.destroyForcibly();
+                }
+            } catch (Exception ignored) {
+                rootShellProcess.destroyForcibly();
+            }
+        }
+        if (rootShellReader != null) {
+            rootShellReader.interrupt();
+        }
+        rootShellProcess = null;
+        rootShellWriter = null;
+        rootShellLines = null;
+        rootShellReader = null;
     }
 
 private boolean checkRootAccess() {
