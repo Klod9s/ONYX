@@ -62,7 +62,7 @@ final class SessionCsvFormatter {
         row.append(formatElapsed(sample.timeMs)).append(',')
                 .append(quoteSafeText(sample.app)).append(',')
                 .append(sample.fps < 0 ? "" :
-                        String.format(Locale.US, "%.0f", sample.fps))
+                        String.format(Locale.US, "%.1f", sample.fps))
                 .append(',')
                 .append(String.format(Locale.US,
                         "%.0f,%.3f,%.2f,%d",
