@@ -68,14 +68,14 @@ public class FpsDetectorTest {
                 assertTrue(blastOnly);
                 snapshotCalls.incrementAndGet();
 
-                StringBuilder dump = new StringBuilder("10000000\\n");
+                StringBuilder dump = new StringBuilder("10000000\n");
                 long end = latest.get();
                 for (int i = 99; i >= 0; i--) {
-                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
                 }
-                return "__ONYX_SELECTED_LAYER__\\n"
-                        + "BLAST SurfaceView com.example.game\\n"
-                        + "__ONYX_LATENCY__\\n" + dump;
+                return "__ONYX_SELECTED_LAYER__\n"
+                        + "BLAST SurfaceView com.example.game\n"
+                        + "__ONYX_LATENCY__\n" + dump;
             }
         };
 
