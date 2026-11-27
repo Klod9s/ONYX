@@ -114,6 +114,10 @@ final class GlassStyle {
         void setAnimationsEnabled(boolean enabled) {
             if (animationsEnabled == enabled) return;
             animationsEnabled = enabled;
+            if (!enabled) {
+                count = 0;
+                misses = 0;
+            }
             invalidate();
         }
 
@@ -141,31 +145,19 @@ final class GlassStyle {
         @Override
         protected void onDraw(Canvas canvas) {
             float w = getWidth(), h = getHeight();
-            if (w <= 0 || h <= 0) return;
+            if (!animationsEnabled || w <= 0 || h <= 0 || count == 0) return;
             float pad = 2f * getResources().getDisplayMetrics().density;
-            if (!animationsEnabled) {
-                float y = h * 0.48f;
-                linePath.rewind();
-                linePath.moveTo(pad, y);
-                linePath.lineTo(w - pad, y);
-                areaPath.rewind();
-                areaPath.moveTo(pad, y);
-                areaPath.lineTo(w - pad, y);
-                areaPath.lineTo(w - pad, h);
-                areaPath.lineTo(pad, h);
-                areaPath.close();
+            if (count == 1) {
                 int accent = AppColors.accent(getContext());
-                int r = Color.red(accent), g = Color.green(accent), b = Color.blue(accent);
-                area.setShader(new LinearGradient(0, y, 0, h,
-                        Color.argb(105, r, g, b), Color.argb(0, r, g, b), Shader.TileMode.CLAMP));
-                canvas.drawPath(areaPath, area);
-                halo.setColor(Color.argb(35, r, g, b));
-                canvas.drawPath(linePath, halo);
                 line.setColor(accent);
-                canvas.drawPath(linePath, line);
+                halo.setColor(Color.argb(45, Color.red(accent),
+                        Color.green(accent), Color.blue(accent)));
+                float x = w - pad;
+                float y = h * 0.48f;
+                canvas.drawCircle(x, y, 2.2f * getResources().getDisplayMetrics().density, halo);
+                canvas.drawCircle(x, y, 1.2f * getResources().getDisplayMetrics().density, line);
                 return;
             }
-            if (count < 2) return;
 
             float lo = Float.MAX_VALUE, hi = 0f, sum = 0f;
             for (int i = 0; i < count; i++) {
