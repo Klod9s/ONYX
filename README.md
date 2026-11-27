@@ -138,6 +138,50 @@ To run the unit tests:
 ./gradlew testDebugUnitTest
 ```
 
+## Release signing and build verification
+
+Debug builds use the standard Android debug key. Release signing is optional for local
+development and is configured only through environment variables; never commit a
+keystore or signing passwords.
+
+Set these variables before running `assembleRelease`:
+
+- `ONYX_KEYSTORE_PATH` — path to your private release keystore
+- `ONYX_KEYSTORE_PASSWORD` — keystore password
+- `ONYX_KEY_ALIAS` — release key alias
+- `ONYX_KEY_PASSWORD` — key password
+
+When all four are present, Gradle signs the release APK with that key. Without them,
+the release build remains unsigned. Keep the keystore and passwords backed up securely
+outside the repository.
+
+Generate a release key once (do not repeat this for subsequent releases):
+
+```bash
+keytool -genkeypair -v -keystore onyx-release.jks -alias onyx \\
+  -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Publish the signing certificate fingerprint, not the keystore or its passwords:
+
+```bash
+keytool -list -v -keystore onyx-release.jks -alias onyx
+```
+
+For a comparable source build, use JDK 17, the checked-in Gradle wrapper
+(Gradle 9.6.0, distribution SHA-256 pinned in
+`gradle/wrapper/gradle-wrapper.properties`), Android SDK Platform 37, and the
+dependency versions declared in `gradle/libs.versions.toml` and
+`app/build.gradle.kts`. Build with:
+
+```bash
+./gradlew --no-daemon clean assembleRelease
+```
+
+On Windows, use `.\gradlew.bat --no-daemon clean assembleRelease`.
+Compare unsigned/signed artifacts only after accounting for the signing step;
+the release signature itself necessarily depends on the private key.
+
 ## License
 
 Copyright © 2026 Klod9s.
