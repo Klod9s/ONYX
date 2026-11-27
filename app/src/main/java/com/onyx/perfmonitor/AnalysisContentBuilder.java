@@ -779,7 +779,7 @@ public class AnalysisContentBuilder {
             android.widget.FrameLayout infoTouchTarget =
                     new android.widget.FrameLayout(context);
             LinearLayout.LayoutParams touchTargetParams =
-                    new LinearLayout.LayoutParams(dp(40), dp(40));
+                    new LinearLayout.LayoutParams(dp(40), dp(17));
             infoTouchTarget.setLayoutParams(touchTargetParams);
             infoIcon.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
                     dp(17), dp(17), Gravity.CENTER));
