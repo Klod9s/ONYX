@@ -73,6 +73,44 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void recoversIntervalsWhenRollingBufferOverwritesPreviousCursor() {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 2_000_000_000L);
+        FpsDetector detector = new FpsDetector(clock::get);
+        detector.beginFrameCapture(latest.get() - 1_000_000_000L);
+
+        FpsDetector.Shell shell = shell(
+                () -> "",
+                () -> "BLAST SurfaceView com.example.game\\n",
+                layerName -> {
+                    long end = latest.get();
+                    StringBuilder dump = new StringBuilder("8333333\\n");
+                    // Model a rolling 100-frame SurfaceFlinger buffer.
+                    for (int i = 99; i >= 0; i--) {
+                        long timestamp = end - i * 8_333_333L;
+                        dump.append("0 ").append(timestamp).append(" 0\\n");
+                    }
+                    return dump.toString();
+                },
+                () -> "");
+
+        FpsDetector.Result first = detector.detect(shell, "com.example.game");
+        assertTrue(first.valid());
+        assertTrue(first.frameIntervalsMs.size() > 0);
+
+        // Advance far enough that the previous cursor is no longer present
+        // in the 100-entry rolling buffer.
+        latest.addAndGet(2_000_000_000L);
+        clock.addAndGet(500);
+        FpsDetector.Result recovered = detector.detect(shell, "com.example.game");
+
+        assertTrue(recovered.valid());
+        assertTrue("Should recover intervals from the newer buffer",
+                recovered.frameIntervalsMs.size() > 0);
+        assertTrue(recovered.frameIntervalsMs.size() <= 99);
+    }
+
+    @Test
     public void rejectsUnknownPackageWithoutRunningShellCommands() {
         AtomicLong clock = new AtomicLong(1000);
         FpsDetector detector = new FpsDetector(clock::get);
