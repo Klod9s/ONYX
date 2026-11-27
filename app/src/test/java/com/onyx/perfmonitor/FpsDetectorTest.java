@@ -176,6 +176,39 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void keepsSfCounterValidWhenLayerIsIdleAndMeasuresWhenItResumes() {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong frames = new AtomicLong(100);
+        FpsDetector detector = new FpsDetector(clock::get);
+
+        FpsDetector.Shell shell = shell(
+                () -> "SurfaceView com.example.game\\nframe=" + frames.get() + "\\n",
+                () -> "",
+                layer -> "",
+                () -> "");
+
+        // BLAST and regular latency are checked before the counter fallback.
+        detector.detect(shell, "com.example.game");
+        detector.detect(shell, "com.example.game");
+        FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
+        assertFalse(baseline.valid());
+
+        clock.addAndGet(1000);
+        FpsDetector.Result idle = detector.detect(shell, "com.example.game");
+        assertTrue(idle.valid());
+        assertEquals(0.0, idle.fps, 0.0001);
+        assertEquals("SF Counter", idle.source);
+
+        // The counter starts moving again; FPS uses only this latest interval.
+        frames.set(160);
+        clock.addAndGet(1000);
+        FpsDetector.Result resumed = detector.detect(shell, "com.example.game");
+        assertTrue(resumed.valid());
+        assertEquals(60.0, resumed.fps, 0.0001);
+        assertEquals("SF Counter", resumed.source);
+    }
+
+    @Test
     public void frameCounterResetEstablishesANewBaseline() {
         AtomicLong clock = new AtomicLong(1000);
         AtomicLong frames = new AtomicLong(100);
