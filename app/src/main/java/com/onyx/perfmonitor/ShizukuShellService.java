@@ -141,6 +141,19 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
     }
 
     @Override
+    public String getSurfaceFlingerLayerLatencySnapshot(
+            String packageName, boolean blastOnly) throws RemoteException {
+        if (packageName == null
+                || !packageName.matches("[A-Za-z0-9_.]+")) {
+            return "";
+        }
+        String script = FpsDetector.buildSurfaceFlingerLayerLatencyScript(
+                packageName, blastOnly);
+        return run(new String[]{"sh", "-c", script}, COMMAND_TIMEOUT_SECONDS,
+                MAX_OUTPUT_CHARS);
+    }
+
+    @Override
     public String getSurfaceFlingerTimeStatsDump() throws RemoteException {
         return run(new String[]{"dumpsys", "SurfaceFlinger",
                 "--timestats", "-maxlayers", "64", "-dump"});
