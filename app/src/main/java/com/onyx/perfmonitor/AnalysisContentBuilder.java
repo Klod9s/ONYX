@@ -457,12 +457,7 @@ public class AnalysisContentBuilder {
 
     /** Battery current is signed: negative values represent discharge. */
     private boolean hasAnySigned(List<Double> values) {
-        if (values == null) return false;
-        for (Double value : values) {
-            // -1 is the existing unavailable-value sentinel.
-            if (value != null && Double.isFinite(value) && value != -1) return true;
-        }
-        return false;
+        return AnalysisMetricAvailability.hasAnySignedValues(values);
     }
 
     private boolean hasAnySeries(List<List<Double>> series) {
