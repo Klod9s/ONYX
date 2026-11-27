@@ -43,6 +43,62 @@ public class FpsDetectorTest {
     }
 
     @Test
+    public void usesBatchedLayerAndLatencySnapshotOnLayerCacheMiss() throws Exception {
+        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
+        AtomicLong snapshotCalls = new AtomicLong();
+        AtomicLong separateLayerCalls = new AtomicLong();
+        AtomicLong separateLatencyCalls = new AtomicLong();
+        FpsDetector detector = new FpsDetector(clock::get);
+
+        FpsDetector.Shell shell = new FpsDetector.Shell() {
+            @Override public String surfaceFlingerDump() { return ""; }
+            @Override public String surfaceFlingerLayers() {
+                separateLayerCalls.incrementAndGet();
+                return "BLAST SurfaceView com.example.game";
+            }
+            @Override public String surfaceFlingerLatency(String layerName) {
+                separateLatencyCalls.incrementAndGet();
+                return "";
+            }
+            @Override public String surfaceFlingerTimeStatsDump() { return ""; }
+            @Override public String surfaceFlingerLayerLatencySnapshot(
+                    String packageName, boolean blastOnly) {
+                assertEquals("com.example.game", packageName);
+                assertTrue(blastOnly);
+                snapshotCalls.incrementAndGet();
+
+                StringBuilder dump = new StringBuilder("10000000\\n");
+                long end = latest.get();
+                for (int i = 99; i >= 0; i--) {
+                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\\n");
+                }
+                return "__ONYX_SELECTED_LAYER__\\n"
+                        + "BLAST SurfaceView com.example.game\\n"
+                        + "__ONYX_LATENCY__\\n" + dump;
+            }
+        };
+
+        FpsDetector.Result result = detector.detect(shell, "com.example.game");
+
+        assertTrue(result.valid());
+        assertEquals("BLAST SF latency", result.source);
+        assertEquals(1, snapshotCalls.get());
+        assertEquals(0, separateLayerCalls.get());
+        assertEquals(0, separateLatencyCalls.get());
+    }
+
+    @Test
+    public void buildsSafeSingleShellLayerLatencyScript() {
+        String script = FpsDetector.buildSurfaceFlingerLayerLatencyScript(
+                "com.example.game", true);
+
+        assertTrue(script.contains("dumpsys SurfaceFlinger --list"));
+        assertTrue(script.contains("awk -v pkg='com.example.game' -v blast=1"));
+        assertTrue(script.contains("dumpsys SurfaceFlinger --latency \\"$SELECTED\\""));
+    }
+
+    @Test
     public void capturesOnlyNewSurfaceFlingerIntervalsAcrossOverlappingPolls() {
         AtomicLong clock = new AtomicLong(1000);
         AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
