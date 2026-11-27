@@ -182,7 +182,7 @@ public class FpsDetectorTest {
         FpsDetector detector = new FpsDetector(clock::get);
 
         FpsDetector.Shell shell = shell(
-                () -> "SurfaceView com.example.game\\nframe=" + frames.get() + "\\n",
+                () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
                 () -> "",
                 layer -> "",
                 () -> "");
