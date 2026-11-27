@@ -359,6 +359,14 @@ public class SessionsAdapter extends RecyclerView.Adapter<SessionsAdapter.Holder
     }
 
     @Override
+    public List<String> fileNames() {
+        List<String> names = new ArrayList<>(items.size());
+        for (SessionItem item : items) {
+            names.add(item.fileName);
+        }
+        return names;
+    }
+
     public int getItemCount() {
         return items.size();
     }
