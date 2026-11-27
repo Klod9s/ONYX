@@ -743,7 +743,9 @@ public class FpsDetector {
                 "index($0,pkg) && index($0,\"SurfaceView\") {" +
                 " isBlast=(index($0,\"BLAST\") > 0);" +
                 " if ((blast && isBlast) || (!blast && !isBlast)) {" +
-                " line=$0; start=index(line,\"{\");" +
+                " line=$0; sub(/^[ \\t]+/, \"\", line);" +
+                " sub(/[ \\t]+$/, \"\", line);" +
+                " start=index(line,\"{\");" +
                 " end=index(line,\" parentId=\");" +
                 " if (start > 0 && end > start)" +
                 " line=substr(line,start+1,end-start-1);" +
