@@ -60,8 +60,7 @@ public class SessionCompareActivity extends Activity {
     }
 
     private boolean isValidSessionName(String filename) {
-        return filename != null && filename.startsWith("session_")
-                && filename.endsWith(".csv");
+        return SessionFileManager.isSafeSessionFilename(filename);
     }
 
     private void showLoading() {
