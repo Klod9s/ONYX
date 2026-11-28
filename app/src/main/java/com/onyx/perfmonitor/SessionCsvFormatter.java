@@ -36,7 +36,7 @@ final class SessionCsvFormatter {
 
     static void appendHeader(StringBuilder csv) {
         csv.append(
-                "Time,App,FPS,Current (mA),Voltage (V),Power (W)," +
+                "Time,Time (ms),App,FPS,Current (mA),Voltage (V),Power (W)," +
                         "Battery (%),Temperature (°C)," +
                         "CPU 0 (%),CPU 1 (%),CPU 2 (%),CPU 3 (%)," +
                         "CPU 4 (%),CPU 5 (%),CPU 6 (%),CPU 7 (%)," +
@@ -60,6 +60,7 @@ final class SessionCsvFormatter {
         StringBuilder row = new StringBuilder();
 
         row.append(formatElapsed(sample.timeMs)).append(',')
+                .append(sample.timeMs).append(',')
                 .append(quoteSafeText(sample.app)).append(',')
                 .append(sample.fps < 0 ? "" :
                         String.format(Locale.US, "%.1f", sample.fps))

@@ -60,6 +60,9 @@ public class SessionData {
 
     private boolean foundReadingsMarker = false;
 
+    /** True when the file carries a millisecond-precision time column. */
+    boolean hasTimeMsColumn = false;
+
     private SessionData() {
         for (int i = 0; i < 8; i++) {
             cpu.add(new ArrayList<>());
@@ -141,6 +144,7 @@ public class SessionData {
             boolean skipHeader = false;
             boolean hasSecondsPerPercentColumn = true;
             int frameRefreshPeriodColumn = -1;
+            int timeMsColumn = -1;
 
             while ((line = reader.readLine()) != null) {
 
@@ -168,20 +172,26 @@ public class SessionData {
                     String normalizedHeader = line.toLowerCase(Locale.US);
                     data.legacyStutterCountColumn = normalizedHeader.contains("stutter count")
                             || normalizedHeader.contains("stuttercount");
+
                     List<String> headerColumns = parseCsvLine(line);
                     for (int i = 0; i < headerColumns.size(); i++) {
-                        if ("Frame Refresh Period (ms)".equals(
-                                headerColumns.get(i).trim())) {
+                        String name = headerColumns.get(i).trim();
+                        if ("Frame Refresh Period (ms)".equals(name)) {
                             frameRefreshPeriodColumn = i;
-                            break;
+                        } else if ("Time (ms)".equalsIgnoreCase(name)) {
+                            timeMsColumn = i;
                         }
                     }
+
+                    // Older files have no millisecond column, so every later
+                    // index shifts by one when it is present.
+                    data.hasTimeMsColumn = timeMsColumn >= 0;
                     skipHeader = false;
                     continue;
                 }
 
                 data.addRow(parseCsvLine(line), hasSecondsPerPercentColumn,
-                        frameRefreshPeriodColumn);
+                        frameRefreshPeriodColumn, timeMsColumn);
             }
 
             return data;
@@ -192,18 +202,31 @@ public class SessionData {
     }
 
     private void addRow(List<String> columns, boolean hasSecondsPerPercentColumn,
-                        int frameRefreshPeriodColumn) {
+                        int frameRefreshPeriodColumn, int timeMsColumn) {
         if (columns.size() < 8) return;
 
+        // Files without the drain column are one shorter from that point on;
+        // files with the millisecond column are one longer from the start.
         int offset = hasSecondsPerPercentColumn ? 0 : -1;
-        times.add(parseTime(columns.get(0)));
-        fps.add(number(columns, 2));
+        int timeOffset = timeMsColumn >= 0 ? 1 : 0;
+        offset += timeOffset;
+
+        // Prefer the millisecond value; MM:SS is whole seconds only and several
+        // samples can share the same second.
+        double timestamp = timeMsColumn >= 0
+                ? number(columns, timeMsColumn) / 1000.0
+                : -1;
+        if (timestamp < 0) timestamp = parseTime(columns.get(0));
+        times.add(timestamp);
+
+        fps.add(number(columns, 2 + timeOffset));
         fpsSource.add(columns.size() > 30 + offset ? columns.get(30 + offset) : "");
-        current.add(number(columns, 3));
-        voltage.add(number(columns, 4));
-        power.add(number(columns, 5));
-        battery.add(number(columns, 6));
-        secondsPerPercent.add(hasSecondsPerPercentColumn ? number(columns, 7) : -1);
+        current.add(number(columns, 3 + timeOffset));
+        voltage.add(number(columns, 4 + timeOffset));
+        power.add(number(columns, 5 + timeOffset));
+        battery.add(number(columns, 6 + timeOffset));
+        secondsPerPercent.add(hasSecondsPerPercentColumn
+                ? number(columns, 7 + timeOffset) : -1);
         temperature.add(number(columns, 8 + offset));
 
         for (int i = 0; i < 8; i++) {
@@ -280,7 +303,7 @@ public class SessionData {
     }
 
     private static double number(List<String> columns, int index) {
-        if (index >= columns.size()) return -1;
+        if (index < 0 || index >= columns.size()) return -1;
 
         try {
             String value = columns.get(index).trim();
