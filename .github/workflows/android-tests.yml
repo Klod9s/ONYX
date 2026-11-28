@@ -15,7 +15,7 @@ permissions:
 jobs:
   unit-tests:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Check out repository
@@ -34,11 +34,11 @@ jobs:
         uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
 
       - name: Run unit tests
-        run: bash ./gradlew testDebugUnitTest
+        run: .\gradlew.bat --no-configuration-cache testDebugUnitTest
 
   lint:
     name: Android lint
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Check out repository
@@ -57,7 +57,7 @@ jobs:
         uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
 
       - name: Run lint
-        run: bash ./gradlew lintDebug
+        run: .\gradlew.bat --no-configuration-cache lintDebug
 
       - name: Upload lint report
         if: always()
@@ -69,7 +69,7 @@ jobs:
 
   release-build:
     name: Release build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Check out repository
@@ -91,7 +91,7 @@ jobs:
       # The point is to prove R8 and resource shrinking succeed, which the debug
       # build never exercises.
       - name: Assemble unsigned release
-        run: bash ./gradlew assembleRelease
+        run: .\gradlew.bat --no-configuration-cache assembleRelease
 
       - name: Upload mapping
         if: always()
