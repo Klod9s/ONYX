@@ -120,6 +120,10 @@ public class FpsDetector {
     private static final int M_TIMESTATS = 4;
 
     private static final long LAYER_CACHE_MS = 30000;
+    // How often to retry a layer lookup that found nothing. Without this, an app
+    // with no matching layer triggers a fresh --list + --latency every probe.
+    private static final long LOOKUP_RETRY_MS = 5000;
+
     // How long a method waits after returning nothing.
 // One that worked a moment ago retries fast (loading screen, pause);
 // one that never worked for this app backs off slowly.
@@ -151,14 +155,18 @@ public class FpsDetector {
     private final long[] lastAliveMs = new long[5];
     private final int[] misses = new int[5];
     private String pkg = "";
+    private boolean discoveryPending = true;
+    private long quietUntil = 0;
 
     // BLAST latency state
     private String blastLayerName = "";
     private long blastLayerCheckMs = 0;
+    private long blastLookupFailMs = 0;
 
     // Other SurfaceView latency state
     private String otherLayerName = "";
     private long otherLayerCheckMs = 0;
+    private long otherLookupFailMs = 0;
 
     // Session-scoped cursor through SurfaceFlinger presentation timestamps.
     private boolean frameCaptureActive = false;
@@ -193,9 +201,11 @@ public class FpsDetector {
 
         blastLayerName = "";
         blastLayerCheckMs = 0;
+        blastLookupFailMs = 0;
 
         otherLayerName = "";
         otherLayerCheckMs = 0;
+        otherLookupFailMs = 0;
 
         lastSfTime = 0;
         lastSfFrames = 0;
@@ -208,6 +218,8 @@ public class FpsDetector {
         java.util.Arrays.fill(lastAliveMs, 0);
         java.util.Arrays.fill(misses, 0);
         java.util.Arrays.fill(retryAt, 0);
+        discoveryPending = true;
+        quietUntil = 0;
     }
 
     /** Starts collecting unique frame intervals for the next recorded session. */
@@ -225,9 +237,9 @@ public class FpsDetector {
         frameCaptureStartNs = Long.MAX_VALUE;
     }
 
-    public synchronized Result detect(Shell shell, String packageName) {
-        long now = elapsedRealtime.getAsLong();
 
+
+    public synchronized Result detect(Shell shell, String packageName) {
         boolean havePackage = packageName != null
                 && !"Unknown".equals(packageName)
                 && PKG_RE.matcher(packageName).matches();
@@ -237,46 +249,72 @@ public class FpsDetector {
             return NONE;
         }
 
+        // A package change clears every layer name, so all sources are unknown
+        // again. reset() sets discoveryPending so the next cycle probes them all.
         if (!packageName.equals(pkg)) {
             reset();
             pkg = packageName;
         }
 
+        long now = elapsedRealtime.getAsLong();
+
+        boolean discovery = discoveryPending;
+        discoveryPending = false;
+
+        // Nothing has worked for this app; stop paying a full dump per cycle to
+        // rediscover that. A package change resets and retries immediately.
+        if (!discovery && quietUntil != 0) {
+            if (now < quietUntil) {
+                return NONE;
+            }
+            // Quiet period expired and nothing worked: retry a full pass
+            // instead of falling back to one-probe-per-cycle.
+            discovery = true;
+            quietUntil = 0;
+        }
+
         int[] methods = {M_BLAST, M_LATENCY, M_COUNTER, M_TIMESTATS};
+        Result idleResult = null;
 
         for (int method : methods) {
-            // Skip sources that are still waiting for their retry.
-            if (now < retryAt[method]) {
+            if (!discovery && now < retryAt[method]) {
                 continue;
             }
 
             Result result = attempt(method, shell, now);
 
             if (result.valid()) {
-                return result;
-            }
-
-            // Keep a pending baseline on its current source.
-            if (result != NONE) {
-                return NONE;
-            }
-
-            // BLAST and LATENCY are both cheap: try LATENCY in the same cycle.
-            if (method == M_BLAST && lastAliveMs[M_COUNTER] == 0) {
+                // A zero means "nothing presented recently". While discovering,
+                // keep looking for a live source and only fall back to the zero
+                // if every source is idle.
+                if (result.fps > 0 || !discovery) {
+                    quietUntil = 0;
+                    return result;
+                }
+                if (idleResult == null) idleResult = result;
                 continue;
             }
 
-            // Preserve the established SF Counter fallback.
-            if ((method == M_BLAST || method == M_LATENCY)
-                    && lastAliveMs[M_COUNTER] != 0) {
-                Result fallback = attempt(M_COUNTER, shell, now);
-                return fallback.valid() ? fallback : NONE;
+            if (!discovery) {
+                if ((method == M_BLAST || method == M_LATENCY)
+                        && lastAliveMs[M_COUNTER] != 0) {
+                    Result fallback = attempt(M_COUNTER, shell, now);
+                    return fallback.valid() ? fallback : NONE;
+                }
+                return NONE;
             }
-
-            // One actual source probe per sample.
-            return NONE;
         }
 
+        if (idleResult != null) {
+            quietUntil = 0;
+            return idleResult;
+        }
+
+        // A layer was discovered, so rendering is imminent — going quiet here
+        // is what made a freshly launched game show "--" for 5 seconds.
+        boolean anyLayerFound = !blastLayerName.isEmpty()
+                || !otherLayerName.isEmpty();
+        quietUntil = anyLayerFound ? 0 : now + 5000;
         return NONE;
     }
 
@@ -453,8 +491,12 @@ public class FpsDetector {
         boolean refreshedLayer;
 
         if (blastOnly) {
-            refreshedLayer = blastLayerName.isEmpty()
-                    || now - blastLayerCheckMs >= LAYER_CACHE_MS;
+            if (blastLayerName.isEmpty()) {
+                // Nothing found yet: retry slowly instead of on every probe.
+                refreshedLayer = now - blastLookupFailMs >= LOOKUP_RETRY_MS;
+            } else {
+                refreshedLayer = now - blastLayerCheckMs >= LAYER_CACHE_MS;
+            }
             if (refreshedLayer) {
                 LayerLatencySnapshot snapshot =
                         readLayerLatencySnapshot(shell, pkg, true);
@@ -465,14 +507,19 @@ public class FpsDetector {
                     blastLayerName = findLayer(shell, true);
                 }
                 blastLayerCheckMs = now;
+                if (blastLayerName.isEmpty()) {
+                    blastLookupFailMs = now;
+                }
             }
 
             selectedLayer = blastLayerName;
             source = "BLAST SF latency";
-
         } else {
-            refreshedLayer = otherLayerName.isEmpty()
-                    || now - otherLayerCheckMs >= LAYER_CACHE_MS;
+            if (otherLayerName.isEmpty()) {
+                refreshedLayer = now - otherLookupFailMs >= LOOKUP_RETRY_MS;
+            } else {
+                refreshedLayer = now - otherLayerCheckMs >= LAYER_CACHE_MS;
+            }
             if (refreshedLayer) {
                 LayerLatencySnapshot snapshot =
                         readLayerLatencySnapshot(shell, pkg, false);
@@ -653,8 +700,8 @@ public class FpsDetector {
 
 
     private Result dropLayer(boolean blastOnly) {
-        if (blastOnly) { blastLayerName = ""; blastLayerCheckMs = 0; }
-        else           { otherLayerName = ""; otherLayerCheckMs = 0; }
+        if (blastOnly) { blastLayerName = ""; blastLayerCheckMs = 0; blastLookupFailMs = 0; }
+        else           { otherLayerName = ""; otherLayerCheckMs = 0; otherLookupFailMs = 0; }
         return NONE;
     }
 

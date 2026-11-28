@@ -28,7 +28,6 @@ final class MonitoringEngine {
     private volatile boolean frameCaptureStopRequested;
     private volatile long frameCaptureStartNs = Long.MAX_VALUE;
     private long startElapsedMs = android.os.SystemClock.elapsedRealtime();
-    private String lastPackage = "Unknown";
     private final CpuUsageTracker cpuUsageTracker = new CpuUsageTracker();
     private String cachedForegroundPackage = "";
     private long lastForegroundCheckMs = 0;
@@ -112,6 +111,8 @@ final class MonitoringEngine {
     private volatile boolean fpsRunning = false;
     private volatile long lastEnsureMs = 0;
     private Thread fpsThread;
+
+
     private final java.util.ArrayList<Double> pendingIntervals = new java.util.ArrayList<>();
 
     private synchronized void ensureFpsLoop() {
@@ -151,7 +152,10 @@ final class MonitoringEngine {
                             latestFps = null;
                         }
                     }
-                    Thread.sleep(300);
+                    // Static screen (0 FPS): poll half as often. Rendering resumes within ~0.7 s.
+                    FpsDetector.Result last = latestFps;
+                    long sleepMs = (last != null && last.fps == 0) ? 600 : 300;
+                    Thread.sleep(sleepMs);
                 } catch (InterruptedException e) {
                     return;
                 } catch (Exception ignored) {
@@ -264,22 +268,22 @@ final class MonitoringEngine {
         }
     }
 
-private Sample readSample(boolean recording) {
+
+    private String readMetricsShellRoot() {
         String script =
-                "T0=$(date +%s%3N); " +
-                "APP=$(dumpsys window 2>/dev/null | " +
-                        "grep -m 1 'mCurrentFocus=Window' | " +
-                        "sed 's/.* u[0-9]* //; s#/.*##'); " +
-                        "[ -n \"$APP\" ] || APP=Unknown; " +
-                        "echo __APP__; echo \"$APP\"; " +
-                        "T1=$(date +%s%3N); " +
-                        "echo __TEMP__; cat /sys/class/power_supply/battery/temp 2>/dev/null; " +
+                "echo __TEMP__; cat /sys/class/power_supply/battery/temp 2>/dev/null; " +
                         "echo __BAT__; " +
-                        "cat /sys/class/power_supply/battery/current_now 2>/dev/null; " +
-                        "cat /sys/class/power_supply/battery/voltage_now 2>/dev/null; " +
-                        "cat /sys/class/power_supply/battery/capacity 2>/dev/null; " +
+                        "for P in /sys/class/power_supply/*; do " +
+                        " [ -d \"$P\" ] || continue; " +
+                        " TYPE=; IFS= read -r TYPE < \"$P/type\" 2>/dev/null; " +
+                        " [ \"$TYPE\" = \"Battery\" ] || continue; " +
+                        " CURRENT=-; VOLTAGE=-; CAPACITY=-; " +
+                        " [ -r \"$P/current_now\" ] && CURRENT=$(cat \"$P/current_now\"); " +
+                        " [ -r \"$P/voltage_now\" ] && VOLTAGE=$(cat \"$P/voltage_now\"); " +
+                        " [ -r \"$P/capacity\" ] && CAPACITY=$(cat \"$P/capacity\"); " +
+                        " echo \"$CURRENT $VOLTAGE $CAPACITY\"; break; " +
+                        "done; " +
                         "echo __CPU__; cat /proc/stat; " +
-                        "T2=$(date +%s%3N); " +
                         "echo __CPU_FREQ__; " +
                         "for i in 0 1 2 3 4 5 6 7; do " +
                         "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
@@ -292,196 +296,99 @@ private Sample readSample(boolean recording) {
                         "fi; " +
                         "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
                         "done; " +
-                        "T3=$(date +%s%3N); " +
-
-                        // --- STRICT UNIVERSAL GPU DETECTION ---
                         "CACHED_FREQ='" + validateSysfsPath(cachedGpuFreqPath) + "'; " +
                         "CACHED_LOAD='" + validateSysfsPath(cachedGpuLoadPath) + "'; " +
                         "CACHED_MALI='" + validateSysfsPath(cachedMaliPath) + "'; " +
                         "GPU_FREQ=-1; GPU_LOAD='-1 -1'; FOUND_FREQ='none'; FOUND_LOAD='none'; " +
-                        "MALI_PATH=\"$CACHED_MALI\"; " +
-                        "MALI_RETRY=0; " +
-                        "if [ -n \"$MALI_PATH\" ] && [ ! -d \"$MALI_PATH\" ]; then " +
-                        " MALI_PATH=''; " +
-                        " MALI_RETRY=1; " +
-                        "fi; " +
-                        "if [ -z \"$MALI_PATH\" ] && { " +
-                        (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
-                        " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
-                        " if [ -d /sys/class/misc/mali0/device ]; then " +
-                        "  MALI_PATH='/sys/class/misc/mali0/device'; " +
-                        " else " +
-                        "  MALI_PATH=$(find /sys/devices/platform -name '*.mali' -type d 2>/dev/null | head -n 1); " +
-                        " fi; " +
-                        "fi; " +
-                        "T4=$(date +%s%3N); " +
-                        // GPU Frequency
-                        "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
-                        " GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
-                        "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then " +
-                        " GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
+                        "MALI_PATH=\"$CACHED_MALI\"; MALI_RETRY=0; " +
+                        "if [ -n \"$MALI_PATH\" ] && [ ! -d \"$MALI_PATH\" ]; then MALI_PATH=''; MALI_RETRY=1; fi; " +
+                        "if [ -z \"$MALI_PATH\" ] && { " + (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") + " || [ \"$MALI_RETRY\" = 1 ]; }; then " +
+                        " if [ -d /sys/class/misc/mali0/device ]; then MALI_PATH='/sys/class/misc/mali0/device'; " +
+                        " else MALI_PATH=$(find /sys/devices/platform -name '*.mali' -type d 2>/dev/null | head -n 1); fi; fi; " +
+                        "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
+                        "elif [ -n \"$CACHED_FREQ\" ] && [ -r \"$CACHED_FREQ\" ]; then GPU_FREQ=$(cat \"$CACHED_FREQ\"); FOUND_FREQ=\"$CACHED_FREQ\"; " +
                         "elif [ -n \"$MALI_PATH\" ]; then " +
                         " for F in \"$MALI_PATH\"/devfreq/cur_freq \"$MALI_PATH\"/devfreq/*/cur_freq; do " +
-                        "  if [ -r \"$F\" ]; then " +
-                        "   GPU_FREQ=$(cat \"$F\"); FOUND_FREQ=\"$F\"; break; " +
-                        "  fi; " +
-                        " done; " +
-                        " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then " +
-                        "  GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
-                        " elif [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/clock\" ]; then " +
-                        "  GPU_FREQ=$(cat \"$MALI_PATH/clock\"); FOUND_FREQ=\"$MALI_PATH/clock\"; " +
-                        " fi; " +
-                        "fi; " +
+                        "  if [ -r \"$F\" ]; then GPU_FREQ=$(cat \"$F\"); FOUND_FREQ=\"$F\"; break; fi; done; " +
+                        " if [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/device/clock\" ]; then GPU_FREQ=$(cat \"$MALI_PATH/device/clock\"); FOUND_FREQ=\"$MALI_PATH/device/clock\"; " +
+                        " elif [ \"$FOUND_FREQ\" = 'none' ] && [ -r \"$MALI_PATH/clock\" ]; then GPU_FREQ=$(cat \"$MALI_PATH/clock\"); FOUND_FREQ=\"$MALI_PATH/clock\"; fi; fi; " +
                         "if [ \"$FOUND_FREQ\" = 'none' ]; then " +
                         " for D in /sys/class/devfreq/*; do " +
-                        "  [ -d \"$D\" ] || continue; " +
-                        "  N=${D##*/}; " +
+                        "  [ -d \"$D\" ] || continue; N=${D##*/}; " +
                         "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
                         "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
-                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                        ") ;; *) continue;; esac; " +
-                        "  if [ -r \"$D/cur_freq\" ]; then " +
-                        "   GPU_FREQ=$(cat \"$D/cur_freq\"); FOUND_FREQ=\"$D/cur_freq\"; break; " +
-                        "  fi; " +
-                        " done; " +
-                        "fi; " +
-
-                        // One-time fallback for device-level devfreq nodes.
-                        "if [ \"$FOUND_FREQ\" = 'none' ] && " +
-                        (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") +
-                        "; then " +
+                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() + ") ;; *) continue;; esac; " +
+                        "  if [ -r \"$D/cur_freq\" ]; then GPU_FREQ=$(cat \"$D/cur_freq\"); FOUND_FREQ=\"$D/cur_freq\"; break; fi; done; fi; " +
+                        "if [ \"$FOUND_FREQ\" = 'none' ] && " + (!maliSearchCompleted ? "[ 1 = 1 ]" : "[ 1 = 0 ]") + "; then " +
                         " for F in $(find /sys/devices -type f \\( -path '*/devfreq/cur_freq' -o -path '*/devfreq/*/cur_freq' \\) -print 2>/dev/null); do " +
-                        "  [ -r \"$F\" ] || continue; " +
-                        "  D=${F%/cur_freq}; N=${D##*/}; " +
+                        "  [ -r \"$F\" ] || continue; D=${F%/cur_freq}; N=${D##*/}; " +
                         "  if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
                         "  if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
                         "  N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
                         "  case \"$N\" in *busmon*) continue;; esac; " +
-                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                        ") ;; *) continue;; esac; " +
-                        "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; " +
-                        " done; " +
-                        "fi; " +
-                        "T5=$(date +%s%3N); " +
+                        "  case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() + ") ;; *) continue;; esac; " +
+                        "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; done; fi; " +
                         "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
-
-
-                        // GPU Load
                         "GPU_LOAD_CANDIDATES=''; " +
-                        "add_gpu_load_candidate() { " +
-                        " F=\"$1\"; " +
-                        " [ -r \"$F\" ] || return; " +
-                        " V=$(cat \"$F\" 2>/dev/null) || return; " +
-                        " [ -n \"$V\" ] || return; " +
-                        " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
-                        " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
-                        "  GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; " +
-                        " fi; " +
-                        " fi; " +
-                        " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; " +
-                        "}; " +
+                        "add_gpu_load_candidate() { F=\"$1\"; [ -r \"$F\" ] || return; V=$(cat \"$F\" 2>/dev/null) || return; [ -n \"$V\" ] || return; " +
+                        " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; fi; " +
+                        " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; }; " +
                         "add_gpu_load_candidate /sys/class/kgsl/kgsl-3d0/gpubusy; " +
-                        "for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do " +
-                        " add_gpu_load_candidate \"$F\"; " +
-                        "done; " +
-                        "if [ -n \"$CACHED_LOAD\" ]; then " +
-                        " add_gpu_load_candidate \"$CACHED_LOAD\"; " +
-                        "fi; " +
+                        "for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do add_gpu_load_candidate \"$F\"; done; " +
+                        "if [ -n \"$CACHED_LOAD\" ]; then add_gpu_load_candidate \"$CACHED_LOAD\"; fi; " +
                         "if [ -n \"$MALI_PATH\" ]; then " +
-                        " for F in " +
-                        "  \"$MALI_PATH\"/devfreq/load " +
-                        "  \"$MALI_PATH\"/devfreq/*/load " +
-                        "  \"$MALI_PATH\"/devfreq/utilisation " +
-                        "  \"$MALI_PATH\"/devfreq/*/utilisation " +
-                        "  \"$MALI_PATH\"/devfreq/utilization " +
-                        "  \"$MALI_PATH\"/devfreq/*/utilization " +
-                        "  \"$MALI_PATH\"/device/utilisation " +
-                        "  \"$MALI_PATH\"/device/utilization; do " +
-                        "  add_gpu_load_candidate \"$F\"; " +
-                        " done; " +
-                        "fi; " +
-                        "for D in /sys/class/devfreq/*; do " +
-                        " [ -d \"$D\" ] || continue; " +
-                        " N=${D##*/}; " +
+                        " for F in \"$MALI_PATH\"/devfreq/load \"$MALI_PATH\"/devfreq/*/load \"$MALI_PATH\"/devfreq/utilisation \"$MALI_PATH\"/devfreq/*/utilisation \"$MALI_PATH\"/devfreq/utilization \"$MALI_PATH\"/devfreq/*/utilization \"$MALI_PATH\"/device/utilisation \"$MALI_PATH\"/device/utilization; do " +
+                        "  add_gpu_load_candidate \"$F\"; done; fi; " +
+                        "if [ -z \"$CACHED_LOAD\" ]; then for D in /sys/class/devfreq/*; do " +
+                        " [ -d \"$D\" ] || continue; N=${D##*/}; " +
                         " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
                         " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
                         " case \"$N\" in *busmon*) continue;; esac; " +
-                        " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                        ") ;; *) continue;; esac; " +
-                        " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do " +
-                        "  add_gpu_load_candidate \"$F\"; " +
-                        " done; " +
-                        "done; " +
-                        "if [ 1 = 0 ]; then " +
-                        "for F in $(find /sys/devices -type f \\( " +
-                        " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
-                        " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
-                        " \\) -print 2>/dev/null); do " +
-                        " [ -r \"$F\" ] || continue; " +
-                        " D=${F%/*}; N=${D##*/}; " +
-                        " if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
-                        " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
-                        " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
-                        " case \"$N\" in *busmon*) continue;; esac; " +
-                        " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                        ") ;; *) continue;; esac; " +
-                        " add_gpu_load_candidate \"$F\"; " +
-                        "done; " +
-                        "fi; " +
-                        "echo __GPU_LOAD_BLOCK__; " +
-                        "printf '%s\\n' \"$GPU_LOAD_CANDIDATES\"; " +
-                        "T6=$(date +%s%3N); " +
-
+                        " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() + ") ;; *) continue;; esac; " +
+                        " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do add_gpu_load_candidate \"$F\"; done; done; fi; " +
+                        "echo __GPU_LOAD_BLOCK__; printf '%s\\n' \"$GPU_LOAD_CANDIDATES\"; " +
                         "echo __THERMAL_BLOCK__; " +
-                        "for Z in /sys/class/thermal/thermal_zone*; do " +
-                        " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                        " case \"$T\" in " +
-                        " cpu|CPU|Cpu|cpu-*|CPU-*|Cpu-*|cpu_*|CPU_*|Cpu_*|*cpu*|*CPU*|mtkts_cpu|MTKTS_CPU) K=CPU;; " +
-                        " gpu|GPU|Gpu|gpu-*|GPU-*|Gpu-*|gpu_*|GPU_*|Gpu_*|*gpu*|*GPU*|gpuss-*|GPUSS-*|mtkts_gpu|MTKTS_GPU) K=GPU;; " +
-                        " *) continue;; esac; " +
-                        " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
-                        " echo \"$K $V\"; " +
-                        "done; " +
-                        "T_THERMAL=$(date +%s%3N); " +
+                        "CACHE=/data/local/tmp/onyx_thermal_cache; " +
+                        "set -- /sys/class/thermal/thermal_zone*; ZONES=$#; " +
+                        "scan_zones() { " +
+                        " : > \"$CACHE\"; echo \"$ZONES\" >> \"$CACHE\"; " +
+                        " for Z in /sys/class/thermal/thermal_zone*; do " +
+                        "  T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
+                        "  case \"$T\" in cpu|CPU|Cpu|cpu-*|CPU-*|Cpu-*|cpu_*|CPU_*|Cpu_*|*cpu*|*CPU*|mtkts_cpu|MTKTS_CPU) K=CPU;; " +
+                        "  gpu|GPU|Gpu|gpu-*|GPU-*|Gpu-*|gpu_*|GPU_*|Gpu_*|*gpu*|*GPU*|gpuss-*|GPUSS-*|mtkts_gpu|MTKTS_GPU) K=GPU;; " +
+                        "  *) continue;; esac; " +
+                        "  N=${Z##*thermal_zone}; echo \"$K $N\" >> \"$CACHE\"; " +
+                        "  V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; echo \"$K $V\"; " +
+                        " done; }; " +
+                        "CACHED=; [ -s \"$CACHE\" ] && { IFS= read -r CACHED < \"$CACHE\"; }; " +
+                        "if [ -n \"$CACHED\" ] && [ \"$CACHED\" = \"$ZONES\" ]; then " +
+                        " HIT=0; while IFS= read -r K N; do " +
+                        "  V=; IFS= read -r V < /sys/class/thermal/thermal_zone$N/temp 2>/dev/null; " +
+                        "  if [ -n \"$V\" ]; then echo \"$K $V\"; HIT=1; fi; done < \"$CACHE\"; " +
+                        " [ \"$HIT\" = 0 ] && { rm -f \"$CACHE\"; scan_zones; }; " +
+                        "else " +
+                        " scan_zones; " +
+                        "fi; " +
                         "echo __COOLING_BLOCK__; " +
                         "for C in /sys/class/thermal/cooling_device*; do " +
-                        " [ -d \"$C\" ] || continue; " +
-                        " T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
+                        " [ -d \"$C\" ] || continue; T=; IFS= read -r T < \"$C/type\" 2>/dev/null; " +
                         " case \"$T\" in *cpu*|*gpu*|*cpufreq*|*devfreq*) ;; *) continue;; esac; " +
-                        " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; " +
-                        " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
-                        " echo \"$T $S $M\"; " +
-                        "done; " +
-                        "T_COOLING=$(date +%s%3N); " +
-                        "T7=$(date +%s%3N); " +
-                        "echo __MALI_BLOCK__; " +
-                        "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
-                        "echo __END__; " +
-                        "T8=$(date +%s%3N); " +
-                        "echo __ONYX_TIMING__; " +
-                        "echo \"app=$((T1-T0))ms battery_cpu=$((T2-T1))ms cpu_freq=$((T3-T2))ms mali_search=$((T4-T3))ms gpu_freq=$((T5-T4))ms gpu_load=$((T6-T5))ms thermal=$((T_THERMAL-T6))ms cooling=$((T_COOLING-T_THERMAL))ms final=$((T8-T7))ms\"; ";
+                        " S=; M=; IFS= read -r S < \"$C/cur_state\" 2>/dev/null; IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
+                        " echo \"$T $S $M\"; done; " +
+                        "echo __MALI_BLOCK__; [ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
+                        "echo __END__; ";
 
-    long rootCommandStartMs = android.os.SystemClock.elapsedRealtime();
-    String output = rootCommand(script);
-    long rootCommandDurationMs =
-            android.os.SystemClock.elapsedRealtime() - rootCommandStartMs;
-
-    android.util.Log.d("ONYX_ROOT_COMMAND",
-            "duration=" + rootCommandDurationMs + "ms"
-                    + ", outputNull=" + (output == null));
-
-    if (output == null) return null;
-    int timingIndex = output.indexOf("__ONYX_TIMING__");
-    if (timingIndex >= 0) {
-        android.util.Log.d(
-                "ONYX_SHELL_TIMING",
-                output.substring(timingIndex + "__ONYX_TIMING__".length()).trim()
-        );
+        return rootCommand(script);
     }
 
+    private Sample readSample(boolean recording) {
+        String app = getForegroundAppRoot();
+        if (app == null) app = "Unknown";
+        String output = readMetricsShellRoot();
+        if (output == null) return null;
 
         try {
-            String app = between(output, "__APP__\n", "__TEMP__").trim();
+            // Note: __APP__ is no longer in the output string, we use the 'app' variable directly
             String tempRaw = between(output, "__TEMP__\n", "__BAT__").trim();
             int batIndex = output.indexOf("__BAT__");
 
@@ -491,17 +398,13 @@ private Sample readSample(boolean recording) {
             sample.power = -1;
             sample.temperatureC = -1;
             sample.battery = -1;
-            sample.timeMs = Math.max(0,
-                    android.os.SystemClock.elapsedRealtime() - startElapsedMs);
+            sample.timeMs = Math.max(0, android.os.SystemClock.elapsedRealtime() - startElapsedMs);
             sample.app = app.isEmpty() ? "Unknown" : app;
-            lastPackage = sample.app;
 
             long fpsStartMs = android.os.SystemClock.elapsedRealtime();
             FpsDetector.Result r = fpsDetector.detect(rootFpsShell(), sample.app);
             android.util.Log.d("ONYX_FPS",
-                    "mode=ROOT duration="
-                            + (android.os.SystemClock.elapsedRealtime() - fpsStartMs)
-                            + "ms, source=" + r.source);
+                    "mode=ROOT duration=" + (android.os.SystemClock.elapsedRealtime() - fpsStartMs) + "ms, source=" + r.source);
 
             if (r.valid()) {
                 sample.fps = r.fps;
@@ -519,7 +422,6 @@ private Sample readSample(boolean recording) {
                 sample.stutterCount = -1;
             }
 
-            // Defensive temperature parsing
             try {
                 double rawTemp = Double.parseDouble(tempRaw.trim());
                 sample.temperatureC = rawTemp > 100 ? rawTemp / 10.0 : rawTemp;
@@ -532,67 +434,58 @@ private Sample readSample(boolean recording) {
             sample.gpuFreqMHz = -1;
             sample.gpuLoadPercent = -1;
 
-            // Defensive battery parsing
             if (batIndex >= 0) {
                 String bat = between(output, "__BAT__\n", "__CPU__").trim();
                 SysfsBatteryValues batteryValues = parseSysfsBatteryValues(bat);
 
-                Intent powerIntent = context.registerReceiver(
-                        null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-                boolean unplugged = powerIntent != null
-                        && powerIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
+                Intent powerIntent = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                boolean unplugged = powerIntent != null && powerIntent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 0;
+                int status = powerIntent != null ? powerIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1) : -1;
 
-                int status = powerIntent != null
-                        ? powerIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                        : -1;
-
-                sample.charging =
-                        status == BatteryManager.BATTERY_STATUS_CHARGING
-                                || status == BatteryManager.BATTERY_STATUS_FULL;
-
-                sample.currentMa = batteryValues.hasCurrent()
-                        ? batteryCurrent.toMilliampsFromSysfs(batteryValues.currentMicroamps, unplugged)
-                        : -1;
-                sample.voltage = batteryValues.hasVoltage()
-                        ? batteryValues.voltageMicrovolts / 1000000.0 : -1;
-                sample.power = calculatePowerWatts(
-                        sample.currentMa, sample.voltage,
-                        batteryValues.hasCurrent() && batteryValues.hasVoltage());
+                sample.batteryUnplugged = unplugged;
+                sample.charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
+                sample.currentMa = batteryValues.hasCurrent() ? batteryCurrent.toMilliampsFromSysfs(batteryValues.currentMicroamps, unplugged) : -1;
+                sample.voltage = batteryValues.hasVoltage() ? batteryValues.voltageMicrovolts / 1000000.0 : -1;
+                sample.power = calculatePowerWatts(sample.currentMa, sample.voltage, batteryValues.hasCurrent() && batteryValues.hasVoltage());
                 sample.battery = batteryValues.batteryPercent;
             }
 
-            // Independent CPU Usage parsing
+            // Never report "-" just because one source failed: fill the gaps from
+            // Android's own battery API, which always works.
+            if (sample.currentMa == -1 || sample.battery == -1
+                    || sample.temperatureC == -1) {
+                Sample fallback = readAndroidSample(recording);
+                if (fallback != null) {
+                    if (sample.currentMa == -1) sample.currentMa = fallback.currentMa;
+                    if (sample.voltage < 0) sample.voltage = fallback.voltage;
+                    if (sample.battery < 0) sample.battery = fallback.battery;
+                    if (sample.temperatureC < 0) sample.temperatureC = fallback.temperatureC;
+                    if (!sample.charging) sample.charging = fallback.charging;
+                    sample.batteryUnplugged = fallback.batteryUnplugged;
+                    sample.power = calculatePowerWatts(sample.currentMa, sample.voltage,
+                            sample.currentMa != -1 && sample.voltage > 0);
+                }
+            }
+
             String cpu = between(output, "__CPU__\n", "__CPU_FREQ__");
             if (!cpu.isEmpty()) {
                 sample.cpu = parseCpu(cpu);
             }
 
-            // Independent Frequency parsing using explicit markers
             String cpuFreqRaw = between(output, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
             parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
-            // GPU Freq Block
-            String gpuFreqBlock = between(
-                    output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__"
-            ).trim();
-
+            String gpuFreqBlock = between(output, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__").trim();
             String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
-            String gpuFreqPath = gpuFreqParts.length >= 2
-                    ? gpuFreqParts[1] : "";
-
-            sample.gpuFreqMHz = parseGpuFrequencyMHz(
-                    gpuFreqBlock, gpuFreqPath);
+            String gpuFreqPath = gpuFreqParts.length >= 2 ? gpuFreqParts[1] : "";
+            sample.gpuFreqMHz = parseGpuFrequencyMHz(gpuFreqBlock, gpuFreqPath);
 
             if (!gpuFreqPath.equals("none") && !gpuFreqPath.isEmpty()) {
                 cachedGpuFreqPath = validateSysfsPath(gpuFreqPath);
             }
 
-            // GPU Load Block: select the first valid candidate in priority order.
-            String gpuLoadBlock = between(
-                    output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
-
+            String gpuLoadBlock = between(output, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
             String selectedGpuLoad = firstValidGpuLoadCandidate(gpuLoadBlock);
-
             sample.gpuLoadPercent = -1;
             cachedGpuLoadPath = "";
 
@@ -600,28 +493,21 @@ private Sample readSample(boolean recording) {
                 String[] gpuLoadParts = selectedGpuLoad.split("\\s+");
                 String gpuLoadPath = gpuLoadParts[gpuLoadParts.length - 1];
                 String validatedPath = validateSysfsPath(gpuLoadPath);
-
                 if (!validatedPath.isEmpty()) {
                     sample.gpuLoadPercent = parseGpuLoadPercent(selectedGpuLoad);
                     cachedGpuLoadPath = validatedPath;
                 }
             }
 
-            parseThermalTemperatures(
-                    between(output, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
-            applyCoolingReading(
-                    between(output, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"), sample);
+            parseThermalTemperatures(between(output, "__THERMAL_BLOCK__\n", "__COOLING_BLOCK__"), sample);
+            applyCoolingReading(between(output, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"), sample);
 
-            // Cache MALI_PATH (FIXED: uses 'output', not 'freqOutput')
             String maliBlock = between(output, "__MALI_BLOCK__\n", "__END__").trim();
             if (!maliBlock.isEmpty()) {
-                cachedMaliPath = maliBlock.equals("none")
-                        ? ""
-                        : validateSysfsPath(maliBlock);
+                cachedMaliPath = maliBlock.equals("none") ? "" : validateSysfsPath(maliBlock);
             }
 
             maliSearchCompleted = true;
-
             return sample;
         } catch (Exception e) {
             return null;
@@ -773,7 +659,7 @@ private Sample readSample(boolean recording) {
             fpsPackage = foregroundPackage;
             ensureFpsLoop();
 
-            FpsDetector.Result r = latestFps;
+            FpsDetector.Result r = getLatestFps();
             if (r != null && r.valid()) {
                 sample.fps = r.fps;
                 sample.fpsSource = r.source;
@@ -792,7 +678,7 @@ private Sample readSample(boolean recording) {
         return sample;
     }
 
-private Sample readAndroidSample(boolean recording) {
+    private Sample readAndroidSample(boolean recording) {
         try {
             Intent batteryIntent = context.registerReceiver(
                     null,
@@ -849,7 +735,35 @@ private Sample readAndroidSample(boolean recording) {
         }
     }
 
-private double[] parseCpu(String raw) {
+    private String getForegroundAppRoot() {
+        long now = android.os.SystemClock.elapsedRealtime();
+
+        // Reuse the last answer for 1.5 s. The foreground app rarely changes,
+        // and running dumpsys window on every sample is what made the display
+        // refresh only once per second.
+        if (!cachedForegroundPackage.isEmpty()
+                && now - lastForegroundCheckMs < 1500) {
+            return cachedForegroundPackage;
+        }
+
+        String script = "dumpsys window 2>/dev/null | grep -m 1 'mCurrentFocus=Window'"
+                + " | sed 's/.* u[0-9]* //; s#/.*##'";
+        String out = rootCommand(script);
+
+        if (out != null) {
+            String app = out.trim();
+            if (!app.isEmpty()) {
+                cachedForegroundPackage = app;
+                lastForegroundCheckMs = now;
+                return app;
+            }
+        }
+
+        // Keep the last known app rather than flashing "Unknown".
+        return cachedForegroundPackage.isEmpty() ? "Unknown" : cachedForegroundPackage;
+    }
+
+    private double[] parseCpu(String raw) {
         return cpuUsageTracker.parse(raw);
     }
 
@@ -1121,7 +1035,7 @@ private double[] parseCpu(String raw) {
         return path;
     }
 
-private String between(String value, String start, String end) {
+    private String between(String value, String start, String end) {
         int x = value.indexOf(start);
         if (x < 0) return "";
 
@@ -1131,7 +1045,7 @@ private String between(String value, String start, String end) {
         return y < 0 ? "" : value.substring(x, y);
     }
 
-private FpsDetector.Shell rootFpsShell() {
+    private FpsDetector.Shell rootFpsShell() {
         return new FpsDetector.Shell() {
             @Override public String surfaceFlingerDump() {
                 String out = rootCommand("dumpsys SurfaceFlinger 2>/dev/null");
@@ -1160,9 +1074,9 @@ private FpsDetector.Shell rootFpsShell() {
             @Override public String surfaceFlingerTimeStatsSnapshot() {
                 String out = rootCommand(
                         "echo __ONYX_LAYERS__; " +
-                        "dumpsys SurfaceFlinger --list 2>/dev/null; " +
-                        "echo __ONYX_TIMESTATS__; " +
-                        "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
+                                "dumpsys SurfaceFlinger --list 2>/dev/null; " +
+                                "echo __ONYX_TIMESTATS__; " +
+                                "dumpsys SurfaceFlinger --timestats -maxlayers 64 -dump 2>/dev/null");
                 return out == null ? "" : out;
             }
         };
@@ -1358,7 +1272,7 @@ private FpsDetector.Shell rootFpsShell() {
         rootShellReader = null;
     }
 
-private boolean checkRootAccess() {
+    private boolean checkRootAccess() {
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{"su", "-c", "id"});
@@ -1371,23 +1285,40 @@ private boolean checkRootAccess() {
                         new InputStreamReader(process.getInputStream()));
                 String output = reader.readLine();
                 reader.close();
-                return output != null && output.contains("uid=0");
+
+                boolean ok = output != null && output.contains("uid=0");
+                return ok;
             }
 
             process.destroyForcibly();
             process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS);
-        } catch (Exception ignored) {
-        }
+
+        } catch (Exception ignored) { }
+
         return false;
     }
 
-private String detectMonitoringMode() {
+    private String detectMonitoringMode() {
         long now = android.os.SystemClock.elapsedRealtime();
+
+        // The very first sample must not guess: check root inline once, so the
+        // app doesn't show empty metrics for the first half minute.
+        if (!rootChecked && rootProbeInProgress.compareAndSet(false, true)) {
+            try {
+                boolean hasRoot = checkRootAccess();
+                cachedRoot = hasRoot;
+                rootFailStreak = hasRoot ? 0 : rootFailStreak + 1;
+                lastRootCheckMs = android.os.SystemClock.elapsedRealtime();
+                rootChecked = true;
+            } finally {
+                rootProbeInProgress.set(false);
+            }
+        }
 
         // Rooted: re-verify every 30 s. Not rooted: retry every 5 s a few times
         // (covers tapping Allow on a prompt), then only once a minute.
         long interval = cachedRoot ? 30_000
-                : (rootFailStreak < 3 ? 5_000 : 60_000);
+                : (rootFailStreak < 3 ? 1_000 : 60_000);
 
         if ((!rootChecked || now - lastRootCheckMs >= interval)
                 && rootProbeInProgress.compareAndSet(false, true)) {

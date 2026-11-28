@@ -1,5 +1,10 @@
 package com.onyx.perfmonitor;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+
 import android.os.RemoteException;
 import android.os.SystemClock;
 
@@ -19,6 +24,125 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
     public String readMetrics(String cachedGpuFreqPath, String cachedGpuLoadPath,
                               String cachedMaliPath, boolean searchMali)
             throws RemoteException {
+        String freqPath = safeSysfsPath(cachedGpuFreqPath);
+        String loadPath = safeSysfsPath(cachedGpuLoadPath);
+
+        // Fast path only once GPU nodes are known; otherwise let the shell discover them.
+        if (!searchMali && !freqPath.isEmpty() && !loadPath.isEmpty()) {
+            String fast = readMetricsJava(freqPath, loadPath, safeSysfsPath(cachedMaliPath));
+            if (fast != null) return fast;
+        }
+        return readMetricsShell(cachedGpuFreqPath, cachedGpuLoadPath,
+                cachedMaliPath, searchMali);
+    }
+
+    private static String readFirstLine(String path) {
+        try (BufferedReader r = new BufferedReader(new FileReader(path))) {
+            String s = r.readLine();
+            return s == null ? "" : s.trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String readWhole(String path) {
+        try (FileInputStream in = new FileInputStream(path);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toString("UTF-8");
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Same marker format as the shell script. Returns null if the GPU nodes can't be read. */
+    private static String readMetricsJava(String freqPath, String loadPath, String maliPath) {
+        String gpuFreq = readFirstLine(freqPath);
+        String gpuLoad = readFirstLine(loadPath);
+        if (gpuFreq.isEmpty() || gpuLoad.isEmpty()) return null;
+
+        StringBuilder sb = new StringBuilder(8192);
+
+        // Battery
+        sb.append("__BATTERY_BLOCK__\n");
+        File[] supplies = new File("/sys/class/power_supply").listFiles();
+        if (supplies != null) {
+            java.util.Arrays.sort(supplies);
+            for (File p : supplies) {
+                if (!"Battery".equals(readFirstLine(p.getPath() + "/type"))) continue;
+                String cur = readFirstLine(p.getPath() + "/current_now");
+                String vol = readFirstLine(p.getPath() + "/voltage_now");
+                String cap = readFirstLine(p.getPath() + "/capacity");
+                sb.append(cur.isEmpty() ? "-" : cur).append(' ')
+                        .append(vol.isEmpty() ? "-" : vol).append(' ')
+                        .append(cap.isEmpty() ? "-" : cap).append('\n');
+                break;
+            }
+        }
+
+        // CPU usage counters
+        sb.append("__PROC_STAT__\n");
+        String stat = readWhole("/proc/stat");
+        sb.append(stat);
+        if (!stat.endsWith("\n")) sb.append('\n');
+
+        // CPU frequencies
+        sb.append("__CPU_FREQ__\n");
+        for (int i = 0; i < 8; i++) {
+            String v = readFirstLine(
+                    "/sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+            boolean ok = v.matches("[0-9]+") && !v.matches("0+");
+            sb.append(ok ? v : "-1").append('\n');
+        }
+
+        // GPU
+        sb.append("__GPU_FREQ_BLOCK__\n")
+                .append(gpuFreq).append('\n').append(freqPath).append('\n');
+        sb.append("__GPU_LOAD_BLOCK__\n")
+                .append(gpuLoad).append(' ').append(loadPath).append('\n');
+
+        // Thermal zones
+        sb.append("__THERMAL_BLOCK__\n");
+        File[] zones = new File("/sys/class/thermal")
+                .listFiles((d, n) -> n.startsWith("thermal_zone"));
+        if (zones != null) {
+            for (File z : zones) {
+                String type = readFirstLine(z.getPath() + "/type").toLowerCase(java.util.Locale.ROOT);
+                String kind;
+                if (type.contains("cpu")) kind = "CPU";
+                else if (type.contains("gpu")) kind = "GPU";
+                else continue;
+                String temp = readFirstLine(z.getPath() + "/temp");
+                if (temp.isEmpty()) continue;
+                sb.append(kind).append(' ').append(temp).append('\n');
+            }
+        }
+
+        // Cooling devices
+        sb.append("__COOLING_BLOCK__\n");
+        File[] cools = new File("/sys/class/thermal")
+                .listFiles((d, n) -> n.startsWith("cooling_device"));
+        if (cools != null) {
+            for (File c : cools) {
+                String type = readFirstLine(c.getPath() + "/type");
+                if (!(type.contains("cpu") || type.contains("gpu")
+                        || type.contains("devfreq"))) continue;
+                String s = readFirstLine(c.getPath() + "/cur_state");
+                String m = readFirstLine(c.getPath() + "/max_state");
+                sb.append(type).append(' ').append(s).append(' ').append(m).append('\n');
+            }
+        }
+
+        sb.append("__MALI_BLOCK__\n")
+                .append(maliPath.isEmpty() ? "none" : maliPath).append('\n');
+        sb.append("__END__\n");
+        return sb.toString();
+    }
+
+    private String readMetricsShell(String cachedGpuFreqPath, String cachedGpuLoadPath,
+                                    String cachedMaliPath, boolean searchMali) {
         String script = "T_STAGE=$(date +%s%3N); " +
                                 "mark_stage() { T_NOW=$(date +%s%3N); " +
                                 "echo __STAGE_MS__ $1 $((T_NOW - T_STAGE)); " +

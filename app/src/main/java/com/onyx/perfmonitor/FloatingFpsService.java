@@ -131,7 +131,7 @@ public class FloatingFpsService extends Service {
                             if (!serviceDestroyed
                                     && backgroundSamplingEnabled
                                     && overlayPrefs.getBoolean(
-                                            "overlay_enabled", false)) {
+                                    "overlay_enabled", false)) {
                                 handler.postDelayed(backgroundSampleTick, 500);
                             }
                         });
@@ -861,13 +861,13 @@ public class FloatingFpsService extends Service {
         int leftStackH = leftFpsRamPair
                 ? topH + botH
                 : (showFps ? fpsH : 0)
-                        + (showRam ? ramH : 0)
-                        + (showTemperature ? tempH : 0);
+                + (showRam ? ramH : 0)
+                + (showTemperature ? tempH : 0);
         int contentH = showRam
                 ? Math.max(leftStackH, rightTwo ? topH + botH : rightSingleH)
                 : Math.max(topH + botH, Math.max(
-                        leftTwo ? 0 : leftSingleH,
-                        rightTwo ? 0 : rightSingleH));
+                leftTwo ? 0 : leftSingleH,
+                rightTwo ? 0 : rightSingleH));
 
         // ---------- left column: FPS over temp ----------
         LinearLayout fpsRow = new LinearLayout(this);
@@ -910,19 +910,19 @@ public class FloatingFpsService extends Service {
             } else {
                 int remaining = (showFps ? 1 : 0) + 1
                         + (showTemperature ? 1 : 0);
-            if (showFps) {
-                remaining--;
-                View fpsContent = compactFps ? fpsView : fpsRow;
-                leftColumn.addView(remaining > 0
-                        ? cellWithBottomLine(fpsContent, fpsH, Gravity.CENTER)
-                        : cell(fpsContent, fpsH));
-            }
-            if (showTemperature) {
-                remaining--;
-                leftColumn.addView(remaining > 0
-                        ? cellWithBottomLine(tempRow, tempH, Gravity.CENTER)
-                        : cell(tempRow, tempH));
-            }
+                if (showFps) {
+                    remaining--;
+                    View fpsContent = compactFps ? fpsView : fpsRow;
+                    leftColumn.addView(remaining > 0
+                            ? cellWithBottomLine(fpsContent, fpsH, Gravity.CENTER)
+                            : cell(fpsContent, fpsH));
+                }
+                if (showTemperature) {
+                    remaining--;
+                    leftColumn.addView(remaining > 0
+                            ? cellWithBottomLine(tempRow, tempH, Gravity.CENTER)
+                            : cell(tempRow, tempH));
+                }
                 remaining--;
                 leftColumn.addView(cell(ramView, ramH));
             }
@@ -1498,7 +1498,7 @@ public class FloatingFpsService extends Service {
         String action = intent != null ? intent.getAction() : null;
         if (ACTION_ENGINE_HANDOFF.equals(action)
                 || (intent == null && overlayPrefs.getBoolean(
-                        "overlay_enabled", false))) {
+                "overlay_enabled", false))) {
             startBackgroundSampling();
             // A fullscreen game may take the foreground while the existing
             // application-overlay window is still below its surface. Re-add
