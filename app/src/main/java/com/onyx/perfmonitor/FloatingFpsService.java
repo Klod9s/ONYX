@@ -1585,6 +1585,10 @@ public class FloatingFpsService extends Service {
                 if (serviceDestroyed) return;
 
                 if (start) {
+                    // Match the dashboard path: CPU load must only be computed
+                    // from samples taken inside the session, so discard any
+                    // baseline carried over from before record was pressed.
+                    monitoringEngine.resetCpuBaseline();
                     if (SessionDataPreferences.framePacingEnabled(this)) {
                         monitoringEngine.beginFrameCapture();
                     }
