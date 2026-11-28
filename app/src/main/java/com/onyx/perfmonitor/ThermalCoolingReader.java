@@ -44,7 +44,7 @@ final class ThermalCoolingReader {
             if (parts.length < 3) continue;
             String type = parts[0].toLowerCase(java.util.Locale.ROOT);
             boolean cpu = type.contains("cpu") || type.contains("cpufreq");
-            boolean gpu = !cpu && (type.contains("gpu") || type.contains("devfreq"));
+            boolean gpu = !cpu && GpuDevfreqMatcher.matches(type);
             if (!cpu && !gpu) continue;
             try {
                 int current = Integer.parseInt(parts[1]);

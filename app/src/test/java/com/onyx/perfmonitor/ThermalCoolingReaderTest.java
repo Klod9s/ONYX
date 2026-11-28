@@ -57,6 +57,15 @@ public class ThermalCoolingReaderTest {
     }
 
     @Test
+    public void ignoresGenericDevfreqCoolingDevices() {
+        ThermalCoolingReader.Reading reading =
+                ThermalCoolingReader.read("thermal-devfreq-0 2 5");
+
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.gpuState);
+        assertEquals(ThermalCoolingReader.UNAVAILABLE, reading.overallState());
+    }
+
+    @Test
     public void keepsCpuAndGpuAvailabilityIndependent() {
         ThermalCoolingReader.Reading reading =
                 ThermalCoolingReader.read("gpu 3 5");

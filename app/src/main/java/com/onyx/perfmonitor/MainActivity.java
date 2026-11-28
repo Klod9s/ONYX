@@ -890,6 +890,41 @@ new MonitorPageBuilder(this).build(page);
         return SessionSummaryFormatter.build(samples, this);
     }
 
+    void checkDeviceCapabilities(
+            java.util.function.Consumer<java.util.List<DeviceCapabilityCheck.Row>> done) {
+        // Stop the regular sampler so the check does not race with it.
+        samplingController.stop();
+
+        worker.execute(() -> {
+            java.util.List<Sample> samples = new java.util.ArrayList<>();
+
+            // Several readings: some metrics need the FPS loop to warm up, and
+            // a single miss should not mark a metric as unsupported.
+            for (int i = 0; i < 4; i++) {
+                try {
+                    Sample sample = monitoringEngine.sample(false);
+                    if (sample != null) samples.add(sample);
+                } catch (Exception ignored) {
+                }
+                if (i < 3) {
+                    try {
+                        Thread.sleep(400);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+
+            java.util.List<DeviceCapabilityCheck.Row> rows =
+                    DeviceCapabilityCheck.evaluate(samples);
+
+            runOnUiThread(() -> {
+                done.accept(rows);
+                samplingController.wake();
+            });
+        });
+    }
 
     void saveSession(String result) {
         final String sessionCsv = buildCsv(result);
