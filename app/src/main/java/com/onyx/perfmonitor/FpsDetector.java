@@ -544,6 +544,8 @@ public class FpsDetector {
                     otherLayerName = snapshot.layerName;
                     out = snapshot.latencyDump;
                 } else {
+                    // Keep this fallback: a null snapshot also means a malformed
+                    // reply or a RemoteException, not only "no such layer".
                     otherLayerName = findLayer(shell, false);
                 }
                 otherLayerCheckMs = now;
