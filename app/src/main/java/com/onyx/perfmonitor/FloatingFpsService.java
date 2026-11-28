@@ -228,8 +228,9 @@ public class FloatingFpsService extends Service {
 
                 handler.post(() -> {
                     if (!attached) return;
-                    refreshOverlay(readings, true);
-                    handler.postDelayed(updater, 1000);
+                    boolean addPoint = (++graphTick % 4 == 0);
+                    refreshOverlay(readings, addPoint);
+                    handler.postDelayed(updater, 500);
                 });
             });
         }
@@ -237,6 +238,8 @@ public class FloatingFpsService extends Service {
 
     // Instant refresh when a setting changes (no graph point added)
     private boolean prefRefreshPending = false;
+
+    private int graphTick = 0;
 
     // Instant refresh when a setting changes (no graph point added)
     private final Runnable prefRefresh = () -> {
@@ -1260,6 +1263,17 @@ public class FloatingFpsService extends Service {
         String gpuCoolingMaxState = String.valueOf(livePrefs.getInt(
                 "gpu_cooling_max_state", ThermalCoolingReader.UNAVAILABLE));
 
+        FpsDetector.Result live = backgroundSamplingEnabled && monitoringEngine != null
+                ? monitoringEngine.getLatestFps() : null;
+        if (live != null) {
+            fps = String.valueOf(Math.round(live.fps));
+            fpsSource = live.source;
+            if (live.averageFrameTimeMs > 0) {
+                frameTime = String.format(java.util.Locale.US,
+                        "%.1f ms", live.averageFrameTimeMs);
+            }
+        }
+
         return new String[]{
                 fps,
                 temperature,
@@ -1587,6 +1601,7 @@ public class FloatingFpsService extends Service {
         overlayPrefs.edit().putBoolean("overlay_engine_active", false).apply();
         handler.removeCallbacks(backgroundSampleTick);
         monitoringEngine.resetBaselines();
+        monitoringEngine.stopFpsLoop();
     }
 
     private void notifyShizukuDisconnected() {
@@ -1666,6 +1681,7 @@ public class FloatingFpsService extends Service {
         samplingExecutor.shutdown();
         if (monitoringEngine != null) {
             final MonitoringEngine engine = monitoringEngine;
+            engine.stopFpsLoop();
             Thread cleanup = new Thread(engine::closeRootShell,
                     "OnyxRootShellCleanup");
             cleanup.setDaemon(true);

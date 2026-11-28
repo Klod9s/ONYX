@@ -122,6 +122,8 @@ public class MainActivity extends Activity {
     private final OverlayStylePickerBuilder overlayStylePickerBuilder =
             new OverlayStylePickerBuilder(this);
 
+    private volatile long lastEnsureMs = 0;
+
     android.widget.ImageView[] navIcons =
             new android.widget.ImageView[4];
 
@@ -1324,6 +1326,7 @@ new MonitorPageBuilder(this).build(page);
         fileWorker.shutdown();
         if (monitoringEngine != null) {
             final MonitoringEngine engine = monitoringEngine;
+            engine.stopFpsLoop();
             Thread cleanup = new Thread(engine::closeRootShell,
                     "OnyxRootShellCleanup");
             cleanup.setDaemon(true);

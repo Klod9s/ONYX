@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 final class MonitoringEngine {
     private final Context context;
     private final BatteryCurrent batteryCurrent;
-    private IOnyxUserService shizukuService;
+    private volatile IOnyxUserService shizukuService;
     private final FpsDetector fpsDetector = new FpsDetector();
     private volatile boolean frameCaptureRequested;
     private volatile boolean frameCaptureActive;
@@ -44,11 +44,22 @@ final class MonitoringEngine {
     private long lastRootCheckMs = 0;
     private String cachedMonitoringMode = "";
     private long lastModeCheckMs = 0;
-    private String lastSamplingMode = "";
+    private volatile String lastSamplingMode = "";
 
     MonitoringEngine(Context context) {
         this.context = context.getApplicationContext();
         this.batteryCurrent = new BatteryCurrent(this.context);
+        try {
+            android.hardware.display.DisplayManager dm =
+                    this.context.getSystemService(android.hardware.display.DisplayManager.class);
+            android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
+            float max = 0;
+            for (android.view.Display.Mode m : d.getSupportedModes()) {
+                max = Math.max(max, m.getRefreshRate());
+            }
+            if (max > 0) fpsDetector.setMaxDisplayFps(max);
+        } catch (Exception ignored) {
+        }
     }
 
     void setShizukuService(IOnyxUserService service) {
@@ -94,6 +105,84 @@ final class MonitoringEngine {
         fpsDetector.reset();
     }
 
+    // ---- Fast FPS loop (Shizuku) ----
+    private volatile FpsDetector.Result latestFps = null;
+    private volatile long latestFpsAtMs = 0;
+    private volatile String fpsPackage = "";
+    private volatile boolean fpsRunning = false;
+    private volatile long lastEnsureMs = 0;
+    private Thread fpsThread;
+    private final java.util.ArrayList<Double> pendingIntervals = new java.util.ArrayList<>();
+
+    private synchronized void ensureFpsLoop() {
+        lastEnsureMs = android.os.SystemClock.elapsedRealtime();
+        if (fpsRunning && fpsThread != null && fpsThread.isAlive()) return;
+        fpsRunning = true;
+        fpsThread = new Thread(() -> {
+            while (fpsRunning) {
+                try {
+                    // Self-stop if sample() hasn't called ensureFpsLoop() for 3 s
+                    if (android.os.SystemClock.elapsedRealtime() - lastEnsureMs > 3000) {
+                        fpsRunning = false;
+                        latestFps = null;
+                        return;
+                    }
+
+                    String pkg = fpsPackage;
+                    IOnyxUserService svc = shizukuService;
+                    if (svc != null && !pkg.isEmpty()
+                            && "SHIZUKU".equals(lastSamplingMode)) {
+                        FpsDetector.Result r =
+                                fpsDetector.detect(shizukuFpsShell(svc), pkg);
+                        long now = android.os.SystemClock.elapsedRealtime();
+                        if (r.valid()) {
+                            if (!r.frameIntervalsMs.isEmpty()) {
+                                synchronized (pendingIntervals) {
+                                    pendingIntervals.addAll(r.frameIntervalsMs);
+                                    if (pendingIntervals.size() > 20000) {
+                                        pendingIntervals.subList(0,
+                                                pendingIntervals.size() - 20000).clear();
+                                    }
+                                }
+                            }
+                            latestFps = r;
+                            latestFpsAtMs = now;
+                        } else if (now - latestFpsAtMs > 1500) {
+                            latestFps = null;
+                        }
+                    }
+                    Thread.sleep(300);
+                } catch (InterruptedException e) {
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+        }, "OnyxFpsLoop");
+        fpsThread.setDaemon(true);
+        fpsThread.start();
+    }
+
+    void stopFpsLoop() {
+        fpsRunning = false;
+        if (fpsThread != null) fpsThread.interrupt();
+    }
+
+    FpsDetector.Result getLatestFps() {
+        FpsDetector.Result r = latestFps;
+        if (r != null && r.valid()
+                && android.os.SystemClock.elapsedRealtime() - latestFpsAtMs < 1500) {
+            return r;
+        }
+        return null;
+    }
+    private java.util.List<Double> drainIntervals() {
+        synchronized (pendingIntervals) {
+            java.util.ArrayList<Double> copy = new java.util.ArrayList<>(pendingIntervals);
+            pendingIntervals.clear();
+            return copy;
+        }
+    }
+
     Sample sample(boolean recording) {
         if (frameCaptureStopRequested) {
             fpsDetector.endFrameCapture();
@@ -118,6 +207,8 @@ final class MonitoringEngine {
         }
 
         Sample sample;
+        long readStartMs = android.os.SystemClock.elapsedRealtime();
+
         if ("ROOT".equals(mode)) {
             sample = readSample(recording);
         } else if ("SHIZUKU".equals(mode)) {
@@ -125,11 +216,30 @@ final class MonitoringEngine {
         } else {
             sample = readAndroidSample(recording);
         }
+
+        long readDurationMs =
+                android.os.SystemClock.elapsedRealtime() - readStartMs;
+
+        long thermalStartMs = android.os.SystemClock.elapsedRealtime();
         if (sample != null) {
-            // Android thermal status is available independently of ROOT/SHIZUKU mode.
             sample.thermalStatus = ThermalStatusReader.read(context);
+        }
+        long thermalDurationMs =
+                android.os.SystemClock.elapsedRealtime() - thermalStartMs;
+
+        long ramStartMs = android.os.SystemClock.elapsedRealtime();
+        if (sample != null) {
             sample.ramUsagePercent = readRamUsagePercent();
         }
+        long ramDurationMs =
+                android.os.SystemClock.elapsedRealtime() - ramStartMs;
+
+        android.util.Log.d("ONYX_STAGES",
+                "mode=" + mode
+                        + " read=" + readDurationMs + "ms"
+                        + " thermal=" + thermalDurationMs + "ms"
+                        + " ram=" + ramDurationMs + "ms");
+
         return sample;
     }
 
@@ -156,17 +266,20 @@ final class MonitoringEngine {
 
 private Sample readSample(boolean recording) {
         String script =
+                "T0=$(date +%s%3N); " +
                 "APP=$(dumpsys window 2>/dev/null | " +
                         "grep -m 1 'mCurrentFocus=Window' | " +
                         "sed 's/.* u[0-9]* //; s#/.*##'); " +
                         "[ -n \"$APP\" ] || APP=Unknown; " +
                         "echo __APP__; echo \"$APP\"; " +
+                        "T1=$(date +%s%3N); " +
                         "echo __TEMP__; cat /sys/class/power_supply/battery/temp 2>/dev/null; " +
                         "echo __BAT__; " +
                         "cat /sys/class/power_supply/battery/current_now 2>/dev/null; " +
                         "cat /sys/class/power_supply/battery/voltage_now 2>/dev/null; " +
                         "cat /sys/class/power_supply/battery/capacity 2>/dev/null; " +
                         "echo __CPU__; cat /proc/stat; " +
+                        "T2=$(date +%s%3N); " +
                         "echo __CPU_FREQ__; " +
                         "for i in 0 1 2 3 4 5 6 7; do " +
                         "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
@@ -179,6 +292,7 @@ private Sample readSample(boolean recording) {
                         "fi; " +
                         "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
                         "done; " +
+                        "T3=$(date +%s%3N); " +
 
                         // --- STRICT UNIVERSAL GPU DETECTION ---
                         "CACHED_FREQ='" + validateSysfsPath(cachedGpuFreqPath) + "'; " +
@@ -200,7 +314,7 @@ private Sample readSample(boolean recording) {
                         "  MALI_PATH=$(find /sys/devices/platform -name '*.mali' -type d 2>/dev/null | head -n 1); " +
                         " fi; " +
                         "fi; " +
-
+                        "T4=$(date +%s%3N); " +
                         // GPU Frequency
                         "if [ -r /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq ]; then " +
                         " GPU_FREQ=$(cat /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq); FOUND_FREQ='/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq'; " +
@@ -248,7 +362,7 @@ private Sample readSample(boolean recording) {
                         "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; " +
                         " done; " +
                         "fi; " +
-
+                        "T5=$(date +%s%3N); " +
                         "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
 
 
@@ -298,6 +412,7 @@ private Sample readSample(boolean recording) {
                         "  add_gpu_load_candidate \"$F\"; " +
                         " done; " +
                         "done; " +
+                        "if [ 1 = 0 ]; then " +
                         "for F in $(find /sys/devices -type f \\( " +
                         " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
                         " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
@@ -312,19 +427,22 @@ private Sample readSample(boolean recording) {
                         ") ;; *) continue;; esac; " +
                         " add_gpu_load_candidate \"$F\"; " +
                         "done; " +
+                        "fi; " +
                         "echo __GPU_LOAD_BLOCK__; " +
                         "printf '%s\\n' \"$GPU_LOAD_CANDIDATES\"; " +
+                        "T6=$(date +%s%3N); " +
 
                         "echo __THERMAL_BLOCK__; " +
                         "for Z in /sys/class/thermal/thermal_zone*; do " +
                         " T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
-                        " T=$(printf '%s' \"$T\" | tr '[:upper:]' '[:lower:]'); " +
-                        " case \"$T\" in cpu|cpu-*|cpu_*|*cpu*|mtkts_cpu) K=CPU;; " +
-                        " gpu|gpu-*|gpu_*|*gpu*|gpuss-*|mtkts_gpu) K=GPU;; " +
+                        " case \"$T\" in " +
+                        " cpu|CPU|Cpu|cpu-*|CPU-*|Cpu-*|cpu_*|CPU_*|Cpu_*|*cpu*|*CPU*|mtkts_cpu|MTKTS_CPU) K=CPU;; " +
+                        " gpu|GPU|Gpu|gpu-*|GPU-*|Gpu-*|gpu_*|GPU_*|Gpu_*|*gpu*|*GPU*|gpuss-*|GPUSS-*|mtkts_gpu|MTKTS_GPU) K=GPU;; " +
                         " *) continue;; esac; " +
                         " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                         " echo \"$K $V\"; " +
                         "done; " +
+                        "T_THERMAL=$(date +%s%3N); " +
                         "echo __COOLING_BLOCK__; " +
                         "for C in /sys/class/thermal/cooling_device*; do " +
                         " [ -d \"$C\" ] || continue; " +
@@ -334,12 +452,33 @@ private Sample readSample(boolean recording) {
                         " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
                         " echo \"$T $S $M\"; " +
                         "done; " +
+                        "T_COOLING=$(date +%s%3N); " +
+                        "T7=$(date +%s%3N); " +
                         "echo __MALI_BLOCK__; " +
                         "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
-                        "echo __END__; ";
+                        "echo __END__; " +
+                        "T8=$(date +%s%3N); " +
+                        "echo __ONYX_TIMING__; " +
+                        "echo \"app=$((T1-T0))ms battery_cpu=$((T2-T1))ms cpu_freq=$((T3-T2))ms mali_search=$((T4-T3))ms gpu_freq=$((T5-T4))ms gpu_load=$((T6-T5))ms thermal=$((T_THERMAL-T6))ms cooling=$((T_COOLING-T_THERMAL))ms final=$((T8-T7))ms\"; ";
 
-        String output = rootCommand(script);
-        if (output == null) return null;
+    long rootCommandStartMs = android.os.SystemClock.elapsedRealtime();
+    String output = rootCommand(script);
+    long rootCommandDurationMs =
+            android.os.SystemClock.elapsedRealtime() - rootCommandStartMs;
+
+    android.util.Log.d("ONYX_ROOT_COMMAND",
+            "duration=" + rootCommandDurationMs + "ms"
+                    + ", outputNull=" + (output == null));
+
+    if (output == null) return null;
+    int timingIndex = output.indexOf("__ONYX_TIMING__");
+    if (timingIndex >= 0) {
+        android.util.Log.d(
+                "ONYX_SHELL_TIMING",
+                output.substring(timingIndex + "__ONYX_TIMING__".length()).trim()
+        );
+    }
+
 
         try {
             String app = between(output, "__APP__\n", "__TEMP__").trim();
@@ -357,7 +496,12 @@ private Sample readSample(boolean recording) {
             sample.app = app.isEmpty() ? "Unknown" : app;
             lastPackage = sample.app;
 
+            long fpsStartMs = android.os.SystemClock.elapsedRealtime();
             FpsDetector.Result r = fpsDetector.detect(rootFpsShell(), sample.app);
+            android.util.Log.d("ONYX_FPS",
+                    "mode=ROOT duration="
+                            + (android.os.SystemClock.elapsedRealtime() - fpsStartMs)
+                            + "ms, source=" + r.source);
 
             if (r.valid()) {
                 sample.fps = r.fps;
@@ -484,7 +628,7 @@ private Sample readSample(boolean recording) {
         }
     }
 
-private Sample readShizukuSample(boolean recording) {
+    private Sample readShizukuSample(boolean recording) {
         Sample sample = readAndroidSample(recording);
         if (sample == null) return null;
 
@@ -492,6 +636,8 @@ private Sample readShizukuSample(boolean recording) {
         if (service == null) {
             clearFps(sample);
             fpsDetector.reset();
+            fpsPackage = "";
+            latestFps = null;
             return sample;
         }
 
@@ -504,15 +650,11 @@ private Sample readShizukuSample(boolean recording) {
                 sample.gpuFreqMHz = -1;
                 sample.gpuLoadPercent = -1;
 
-                // Universal script with safe Mali discovery guard
                 String freqOutput = service.readMetrics(
                         cachedGpuFreqPath, cachedGpuLoadPath, cachedMaliPath,
                         !maliSearchCompleted);
 
-
                 if (freqOutput != null) {
-                    // BatteryManager current reporting is missing on some vendor ROMs.
-                    // Fall back to the Battery-type power-supply sysfs nodes via Shizuku.
                     String batteryBlock = between(
                             freqOutput, "__BATTERY_BLOCK__\n", "__PROC_STAT__"
                     ).trim();
@@ -538,34 +680,27 @@ private Sample readShizukuSample(boolean recording) {
                     String cpuOutput = between(
                             freqOutput, "__PROC_STAT__\n", "__CPU_FREQ__"
                     ).trim();
-
                     if (!cpuOutput.isEmpty()) {
                         sample.cpu = parseCpu(cpuOutput);
                     }
-                    // Parse CPU Freq
+
                     String cpuFreqRaw = between(freqOutput, "__CPU_FREQ__\n", "__GPU_FREQ_BLOCK__").trim();
                     parseCpuFrequencies(cpuFreqRaw, sample.cpuFreqMHz);
 
-                    // Parse GPU Freq
                     String gpuFreqBlock = between(
                             freqOutput, "__GPU_FREQ_BLOCK__\n", "__GPU_LOAD_BLOCK__"
                     ).trim();
-
                     String[] gpuFreqParts = gpuFreqBlock.split("\\s+");
                     String gpuFreqPath = gpuFreqParts.length >= 2
                             ? gpuFreqParts[1] : "";
-
                     sample.gpuFreqMHz = parseGpuFrequencyMHz(
                             gpuFreqBlock, gpuFreqPath);
-
                     if (!gpuFreqPath.equals("none") && !gpuFreqPath.isEmpty()) {
                         cachedGpuFreqPath = validateSysfsPath(gpuFreqPath);
                     }
 
-                    // Parse GPU Load: select the first valid candidate in priority order.
                     String gpuLoadBlock = between(
                             freqOutput, "__GPU_LOAD_BLOCK__\n", "__THERMAL_BLOCK__").trim();
-
                     String selectedGpuLoad = firstValidGpuLoadCandidate(gpuLoadBlock);
 
                     sample.gpuLoadPercent = -1;
@@ -575,7 +710,6 @@ private Sample readShizukuSample(boolean recording) {
                         String[] gpuLoadParts = selectedGpuLoad.split("\\s+");
                         String gpuLoadPath = gpuLoadParts[gpuLoadParts.length - 1];
                         String validatedPath = validateSysfsPath(gpuLoadPath);
-
                         if (!validatedPath.isEmpty()) {
                             sample.gpuLoadPercent = parseGpuLoadPercent(selectedGpuLoad);
                             cachedGpuLoadPath = validatedPath;
@@ -587,22 +721,20 @@ private Sample readShizukuSample(boolean recording) {
                     applyCoolingReading(
                             between(freqOutput, "__COOLING_BLOCK__\n", "__MALI_BLOCK__"), sample);
 
-                    // Cache MALI_PATH safely
                     String maliBlock = between(freqOutput, "__MALI_BLOCK__\n", "__END__").trim();
                     if (!maliBlock.isEmpty()) {
                         cachedMaliPath = maliBlock.equals("none")
                                 ? ""
                                 : validateSysfsPath(maliBlock);
                     }
-
                     maliSearchCompleted = true;
                 }
             } catch (Exception ignored) {
-                // Keep frequency unavailable if the command fails
+                // Keep metrics unavailable if the command fails
             }
 
-            // Faster foreground package refresh while recording
-            long foregroundRefreshMs = recording ? 1000 : 2000;
+            // Foreground package refresh
+            long foregroundRefreshMs = recording ? 500 : 1000;
             if (cachedForegroundPackage.isEmpty() || now - lastForegroundCheckMs >= foregroundRefreshMs) {
                 String foregroundOutput = service.getResumedActivityDump();
                 if (foregroundOutput == null) foregroundOutput = "";
@@ -632,21 +764,24 @@ private Sample readShizukuSample(boolean recording) {
             if (foregroundPackage.isEmpty()) {
                 clearFps(sample);
                 fpsDetector.reset();
+                fpsPackage = "";
+                latestFps = null;
                 return sample;
             }
 
             sample.app = foregroundPackage;
-            FpsDetector.Result r = fpsDetector.detect(shizukuFpsShell(service), foregroundPackage);
+            fpsPackage = foregroundPackage;
+            ensureFpsLoop();
 
-            if (r.valid()) {
+            FpsDetector.Result r = latestFps;
+            if (r != null && r.valid()) {
                 sample.fps = r.fps;
                 sample.fpsSource = r.source;
                 sample.averageFrameTimeMs = r.averageFrameTimeMs;
                 sample.frameTimeStdDevMs = r.frameTimeStdDevMs;
                 sample.stutterCount = r.stutterCount;
                 sample.frameRefreshPeriodMs = r.frameRefreshPeriodMs;
-                sample.frameIntervalsMs.addAll(r.frameIntervalsMs);
-
+                sample.frameIntervalsMs.addAll(drainIntervals());
             } else {
                 clearFps(sample);
             }

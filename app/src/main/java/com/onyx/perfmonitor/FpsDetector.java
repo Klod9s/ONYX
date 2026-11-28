@@ -2,6 +2,7 @@
 package com.onyx.perfmonitor;
 
 import android.os.SystemClock;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,7 +112,6 @@ public class FpsDetector {
             return fps >= 0;
         }
     }
-
     private static final Result NONE = new Result(-1, "none", false);
 
     private static final int M_BLAST = 0;
@@ -119,13 +119,14 @@ public class FpsDetector {
     private static final int M_LATENCY = 3;
     private static final int M_TIMESTATS = 4;
 
-    private static final long LAYER_CACHE_MS = 5000;
+    private static final long LAYER_CACHE_MS = 30000;
     // How long a method waits after returning nothing.
 // One that worked a moment ago retries fast (loading screen, pause);
 // one that never worked for this app backs off slowly.
     private static final long[] FAST_RETRY_MS = {500, 1000, 2000, 5000};
     private static final long[] SLOW_RETRY_MS = {2000, 4000, 6000};
     private static final long RECENT_OK_MS = 15000;
+    private static final long[] CHEAP_RETRY_MS = {250, 500, 1000};
 
     private static final Pattern PKG_RE =
             Pattern.compile("^[A-Za-z0-9_.]+$");
@@ -177,7 +178,10 @@ public class FpsDetector {
     private long lastTimeStatsFrames = -1;
     private long lastTimeStatsTimeMs = 0;
 
-    public void reset() {
+    private volatile double maxDisplayFps = 0;
+    public void setMaxDisplayFps(double hz) { maxDisplayFps = hz; }
+
+    public synchronized void reset() {
         boolean sessionBaselineNotYetEstablished =
                 frameCaptureActive && frameCaptureBaselinePending;
         pkg = "";
@@ -207,21 +211,22 @@ public class FpsDetector {
     }
 
     /** Starts collecting unique frame intervals for the next recorded session. */
-    public void beginFrameCapture(long sessionStartNs) {
+    public synchronized void beginFrameCapture(long sessionStartNs) {
         frameCaptureActive = true;
         frameCaptureBaselinePending = true;
         lastCapturedPresentationNs = 0;
         frameCaptureStartNs = sessionStartNs;
     }
 
-    public void endFrameCapture() {
+    public synchronized void endFrameCapture() {
         frameCaptureActive = false;
         frameCaptureBaselinePending = false;
         lastCapturedPresentationNs = 0;
         frameCaptureStartNs = Long.MAX_VALUE;
     }
 
-    public Result detect(Shell shell, String packageName) {
+    public synchronized Result detect(Shell shell, String packageName) {
+        long now = elapsedRealtime.getAsLong();
 
         boolean havePackage = packageName != null
                 && !"Unknown".equals(packageName)
@@ -237,31 +242,38 @@ public class FpsDetector {
             pkg = packageName;
         }
 
-        long now = elapsedRealtime.getAsLong();
-
-        // Probe at most one FPS source per sampling cycle. A failed source
-        // backs off in attempt(), allowing the next source to be tried on a
-        // later cycle instead of spawning several dumpsys processes at once.
         int[] methods = {M_BLAST, M_LATENCY, M_COUNTER, M_TIMESTATS};
+
         for (int method : methods) {
+            // Skip sources that are still waiting for their retry.
             if (now < retryAt[method]) {
                 continue;
             }
 
             Result result = attempt(method, shell, now);
+
             if (result.valid()) {
                 return result;
             }
 
-            // Once SF Counter has proven reliable, a failed higher-priority
-            // probe must not create a "none" sample. Retry the counter in the
-            // same cycle so CSV/live readings retain a real measurement.
+            // Keep a pending baseline on its current source.
+            if (result != NONE) {
+                return NONE;
+            }
+
+            // BLAST and LATENCY are both cheap: try LATENCY in the same cycle.
+            if (method == M_BLAST && lastAliveMs[M_COUNTER] == 0) {
+                continue;
+            }
+
+            // Preserve the established SF Counter fallback.
             if ((method == M_BLAST || method == M_LATENCY)
                     && lastAliveMs[M_COUNTER] != 0) {
                 Result fallback = attempt(M_COUNTER, shell, now);
                 return fallback.valid() ? fallback : NONE;
             }
 
+            // One actual source probe per sample.
             return NONE;
         }
 
@@ -301,15 +313,20 @@ public class FpsDetector {
             }
 
         } catch (Exception e) {
-            r = NONE;
+            return NONE; // service not ready: don't touch misses/retryAt
         }
 
         if (r == NONE) {
             misses[method]++;
 
-            boolean workedRecently = lastAliveMs[method] != 0
-                    && now - lastAliveMs[method] < RECENT_OK_MS;
-            long[] steps = workedRecently ? FAST_RETRY_MS : SLOW_RETRY_MS;
+            long[] steps;
+            if (method == M_BLAST || method == M_LATENCY) {
+                steps = CHEAP_RETRY_MS;
+            } else {
+                boolean workedRecently = lastAliveMs[method] != 0
+                        && now - lastAliveMs[method] < RECENT_OK_MS;
+                steps = workedRecently ? FAST_RETRY_MS : SLOW_RETRY_MS;
+            }
 
             retryAt[method] = now
                     + steps[Math.min(misses[method] - 1, steps.length - 1)];
@@ -336,6 +353,7 @@ public class FpsDetector {
             Shell shell, long now) throws Exception {
 
         String out = shell.surfaceFlingerDump();
+        now = elapsedRealtime.getAsLong();
 
         if (out == null || out.isEmpty()) {
             return NONE;
@@ -413,9 +431,11 @@ public class FpsDetector {
         lastSfTime = now;
         lastSfFrames = totalFrames;
 
-        if (fps > 360) {
+        double cap = maxDisplayFps > 0 ? maxDisplayFps * 1.05 : 360;
+        if (fps > cap) {
             return new Result(-1, "SF Counter", true);
         }
+        if (maxDisplayFps > 0) fps = Math.min(fps, maxDisplayFps);
 
         return new Result(fps, "SF Counter", false);
     }
@@ -531,7 +551,7 @@ public class FpsDetector {
         }
 
         if (presents.size() < 2) {
-            return NONE;
+            return refreshedLayer ? NONE : dropLayer(blastOnly);
         }
         Collections.sort(presents);
 
@@ -542,12 +562,16 @@ public class FpsDetector {
         }
 
 // Ignore stale timestamps.
-        if (System.nanoTime() - latest > 2_000_000_000L) {
-            return NONE;
+        if (System.nanoTime() - latest > 1_000_000_000L) {
+            // Idle, or the layer was swapped. Re-check the layer at most once per second.
+            long due = now - LAYER_CACHE_MS + 1000;
+            if (blastOnly) blastLayerCheckMs = Math.min(blastLayerCheckMs, due);
+            else           otherLayerCheckMs = Math.min(otherLayerCheckMs, due);
+            return new Result(0, source, false);
         }
 
 // Use the latest one-second window.
-        long windowStart = latest - 1_000_000_000L;
+        long windowStart = latest - 500_000_000L;
 
         List<Long> windowPresents = new ArrayList<>();
 
@@ -558,7 +582,10 @@ public class FpsDetector {
         }
 
         if (windowPresents.size() < 2) {
-            return NONE;
+            // Low frame rate: fall back to the last two frames instead of dropping the layer.
+            windowPresents.clear();
+            windowPresents.add(presents.get(presents.size() - 2));
+            windowPresents.add(presents.get(presents.size() - 1));
         }
 
         long first = windowPresents.get(0);
@@ -580,7 +607,7 @@ public class FpsDetector {
         // Faster-reacting FPS: only the newest 500 ms, if there are enough frames.
 // The pacing stats below still use the full one-second window.
         double shownFps = fps;
-        long fastStart = last - 500_000_000L;
+        long fastStart = last - 250_000_000L;
         int fastCount = 0;
         long fastFirst = 0;
 
@@ -622,6 +649,13 @@ public class FpsDetector {
                 refreshPeriodMs,
                 capturedFrameIntervals
         );
+    }
+
+
+    private Result dropLayer(boolean blastOnly) {
+        if (blastOnly) { blastLayerName = ""; blastLayerCheckMs = 0; }
+        else           { otherLayerName = ""; otherLayerCheckMs = 0; }
+        return NONE;
     }
 
     /**
@@ -754,16 +788,15 @@ public class FpsDetector {
                 "SELECTED=$(printf '%s\\n' \"$LAYERS\" | " +
                 "awk -v pkg='" + packageName + "' -v blast=" +
                 (blastOnly ? "1" : "0") + " '" +
-                "index($0,pkg) && index($0,\"SurfaceView\") {" +
-                " isBlast=(index($0,\"BLAST\") > 0);" +
-                " if ((blast && isBlast) || (!blast && !isBlast)) {" +
-                " line=$0; sub(/^[ \\t]+/, \"\", line);" +
-                " sub(/[ \\t]+$/, \"\", line);" +
-                " start=index(line,\"{\");" +
-                " end=index(line,\" parentId=\");" +
-                " if (start > 0 && end > start)" +
-                " line=substr(line,start+1,end-start-1);" +
-                " print line; exit; } }'); " +
+                "index($0,pkg) {" +
+                " isSv=(index($0,\"SurfaceView\")>0); isBlast=(index($0,\"BLAST\")>0);" +
+                " line=$0; sub(/^[ \\t]+/, \"\", line); sub(/[ \\t]+$/, \"\", line);" +
+                " start=index(line,\"{\"); end=index(line,\" parentId=\");" +
+                " if (start > 0 && end > start) line=substr(line,start+1,end-start-1);" +
+                " if (blast) { if (isSv && isBlast && sv==\"\") sv=line }" +
+                " else if (isSv) { if (!isBlast && sv==\"\") sv=line }" +
+                " else if (w==\"\" && index(line,\"/\")>0 && line !~ /Background|Task|Splash|leash|Bounds/) w=line;" +
+                "} END { if (sv!=\"\") print sv; else if (!blast) print w }'); " +
                 "echo __ONYX_SELECTED_LAYER__; echo \"$SELECTED\"; " +
                 "echo __ONYX_LATENCY__; " +
                 "if [ -n \"$SELECTED\" ]; then " +
