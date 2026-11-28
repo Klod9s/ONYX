@@ -188,6 +188,9 @@ public class FloatingFpsService extends Service {
     private LinearLayout overlayContent;
     private TextView fpsView;
     private TextView fpsLabelView;
+    private String lastFpsSourceLabel = "";
+    private long sourceLabelUntil = 0;
+
     private TextView temperatureView;
     private ImageView batteryIconView;
     private TextView frameTimeView;
@@ -405,7 +408,27 @@ public class FloatingFpsService extends Service {
             }
         }
         if (fpsLabelView != null) {
-            fpsLabelView.setText(compactFpsSourceLabel(fpsSource));
+            long now = android.os.SystemClock.elapsedRealtime();
+            String sourceLabel = compactFpsSourceLabel(fpsSource);
+
+            // Show the source briefly when it changes, then fall back to "FPS"
+            // so the label does not compete with the number for attention.
+            if (!sourceLabel.equals(lastFpsSourceLabel)) {
+                lastFpsSourceLabel = sourceLabel;
+                if (!"FPS".equals(sourceLabel)) {
+                    sourceLabelUntil = now + 2000;
+                }
+            }
+
+            if (sourceLabelUntil > now && !"FPS".equals(sourceLabel)) {
+                fpsLabelView.setText(sourceLabel);
+                fpsLabelView.setAlpha(1f);
+            } else if (sourceLabelUntil != 0 && sourceLabelUntil <= now) {
+                fpsLabelView.setText("FPS");
+                sourceLabelUntil = 0;
+            } else {
+                fpsLabelView.setText("FPS");
+            }
         }
         if (frameTimeView != null) frameTimeView.setText(frameTime);
         if (cpuView != null) cpuView.setText("CPU " + cpu);
@@ -581,6 +604,8 @@ public class FloatingFpsService extends Service {
         fpsView.setTextColor(overlayAccentColor);
 
         fpsLabelView = createMetricView("FPS");
+        lastFpsSourceLabel = "";
+        sourceLabelUntil = 0;
         TextView fpsLabel = fpsLabelView;
         setOverlayTextSize(fpsLabel, 5);
         fpsLabel.setTranslationY(-dpScaled(9));
@@ -781,6 +806,8 @@ public class FloatingFpsService extends Service {
         fpsView.setTextColor(overlayAccentColor);
 
         fpsLabelView = createMetricView("FPS");
+        lastFpsSourceLabel = "";
+        sourceLabelUntil = 0;
         TextView fpsLabel = fpsLabelView;
         setOverlayTextSize(fpsLabel, 6);
         fpsLabel.setTranslationY(-dpScaled(15));
@@ -806,7 +833,9 @@ public class FloatingFpsService extends Service {
 
         // ---------- widths, measured from the real font (worst-case text) ----------
         int fpsNumW = (int) Math.ceil(fpsView.getPaint().measureText("000"));
-        int fpsLabelW = (int) Math.ceil(fpsLabel.getPaint().measureText("FPS"));
+        int fpsLabelW = (int) Math.ceil(
+                fpsLabel.getPaint().measureText("FPS · TIMESTATS"));
+
         int fpsRowW = compactFps ? fpsNumW : fpsNumW + dpScaled(3) + fpsLabelW;
         // Keep FPS compact only when it shares the left stack with RAM and temperature.
         fpsView.setTranslationX(compactFps ? 0f : (fpsLabelW + dpScaled(3)) / 2f);
@@ -1471,7 +1500,6 @@ public class FloatingFpsService extends Service {
         if ("SF latency".equals(source)) return "FPS · SF LAT";
         if ("SF Counter".equals(source)) return "FPS · SF COUNT";
         if ("TimeStats".equals(source)) return "FPS · TIMESTATS";
-        if ("Display FPS".equals(source)) return "FPS · DISPLAY";
         return "FPS · " + source;
     }
 

@@ -1121,6 +1121,10 @@ final class MonitoringEngine {
     }
 
     private static final int ROOT_OUTPUT_LIMIT = 2_000_000;
+    // The layer list is small (a few hundred bytes per layer) but must never be
+    // truncated: it decides which FPS source is used, and a cut-off list
+    // silently hides the game's layer.
+    private static final int ROOT_LAYER_LIST_LIMIT = 8_000_000;
     private static final long ROOT_COMMAND_TIMEOUT_MS = 8_000;
     private static final String ROOT_SHELL_EOF = "__ONYX_ROOT_SHELL_EOF__";
 
@@ -1173,6 +1177,9 @@ final class MonitoringEngine {
                         throw new java.io.IOException("Root shell exited");
                     }
                     if (marker.equals(line)) {
+                        if (outputLimitReached) {
+                            return null;
+                        }
                         return output.toString();
                     }
 

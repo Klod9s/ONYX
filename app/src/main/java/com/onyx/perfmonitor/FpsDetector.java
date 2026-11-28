@@ -140,14 +140,27 @@ public class FpsDetector {
 
 
     private final java.util.function.LongSupplier elapsedRealtime;
+    // Presentation timestamps come from the same monotonic clock in production,
+    // but tests need to control it independently of the retry clock.
+    private final java.util.function.LongSupplier nanoTime;
 
     public FpsDetector() {
-        this(SystemClock::elapsedRealtime);
+        this(SystemClock::elapsedRealtime, System::nanoTime);
     }
 
     // Package-private clock injection keeps retry and frame-counter tests deterministic.
     FpsDetector(java.util.function.LongSupplier elapsedRealtime) {
+        this(elapsedRealtime, System::nanoTime);
+    }
+
+    /**
+     * Tests pass a shared clock for both suppliers so a synthetic presentation
+     * timestamp and the detector's own comparison stay on the same timebase.
+     */
+    FpsDetector(java.util.function.LongSupplier elapsedRealtime,
+                java.util.function.LongSupplier nanoTime) {
         this.elapsedRealtime = elapsedRealtime;
+        this.nanoTime = nanoTime;
     }
 
     private final long[] retryAt = new long[5];
@@ -260,6 +273,7 @@ public class FpsDetector {
 
         boolean discovery = discoveryPending;
         discoveryPending = false;
+
 
         // Nothing has worked for this app; stop paying a full dump per cycle to
         // rediscover that. A package change resets and retries immediately.
@@ -476,6 +490,7 @@ public class FpsDetector {
         if (maxDisplayFps > 0) fps = Math.min(fps, maxDisplayFps);
 
         return new Result(fps, "SF Counter", false);
+
     }
 
     // ------------------------------------------------------------
@@ -504,6 +519,8 @@ public class FpsDetector {
                     blastLayerName = snapshot.layerName;
                     out = snapshot.latencyDump;
                 } else {
+                    // Keep this fallback: a null snapshot also means a malformed
+                    // reply or a RemoteException, not only "no such layer".
                     blastLayerName = findLayer(shell, true);
                 }
                 blastLayerCheckMs = now;
@@ -609,7 +626,7 @@ public class FpsDetector {
         }
 
 // Ignore stale timestamps.
-        if (System.nanoTime() - latest > 1_000_000_000L) {
+        if (nanoTime.getAsLong() - latest > 1_000_000_000L) {
             // Idle, or the layer was swapped. Re-check the layer at most once per second.
             long due = now - LAYER_CACHE_MS + 1000;
             if (blastOnly) blastLayerCheckMs = Math.min(blastLayerCheckMs, due);

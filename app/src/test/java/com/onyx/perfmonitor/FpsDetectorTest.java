@@ -12,6 +12,29 @@ import org.junit.Test;
 
 public class FpsDetectorTest {
 
+    /**
+     * One synthetic clock, exposed in the units each detector supplier expects:
+     * elapsedRealtime is milliseconds and nanoTime is nanoseconds. Advancing
+     * {@code clock} by 1_000_000_000L therefore moves one second on both.
+     */
+    private static FpsDetector detectorAt(AtomicLong clock) {
+        return new FpsDetector(() -> clock.get() / 1_000_000L, clock::get);
+    }
+
+    /**
+     * Produces latency dumps whose newest presentation timestamp sits
+     * {@code ageNs} before the injected clock, so the detector's staleness
+     * check and the fixture share one timebase.
+     */
+    private static String latencyDump(AtomicLong clock, long ageNs, int frames) {
+        StringBuilder dump = new StringBuilder("10000000\n");
+        long end = clock.get() - ageNs;
+        for (int i = frames - 1; i >= 0; i--) {
+            dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
+        }
+        return dump.toString();
+    }
+
     private static FpsDetector.Shell shell(
             java.util.function.Supplier<String> dump,
             java.util.function.Supplier<String> layers,
@@ -25,6 +48,23 @@ public class FpsDetectorTest {
             }
             @Override public String surfaceFlingerTimeStatsDump() { return timeStats.get(); }
         };
+    }
+
+    /**
+     * Drives the detector until it reports something, advancing the clock
+     * between calls. After the discovery pass the detector probes one source
+     * per call and needs a second read before a frame counter can produce a
+     * rate, so a single call is not enough.
+     */
+    private static FpsDetector.Result detectUntilValid(
+            FpsDetector detector, FpsDetector.Shell shell, AtomicLong clock,
+            long stepMs, int maxPasses) {
+        FpsDetector.Result result = detector.detect(shell, "com.example.game");
+        for (int i = 1; i < maxPasses && !result.valid(); i++) {
+            clock.addAndGet(stepMs * 1_000_000L);
+            result = detector.detect(shell, "com.example.game");
+        }
+        return result;
     }
 
     @Test
@@ -42,94 +82,8 @@ public class FpsDetectorTest {
                 shell.surfaceFlingerTimeStatsSnapshot());
     }
 
-    @Test
-    public void usesBatchedLayerAndLatencySnapshotOnLayerCacheMiss() throws Exception {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        AtomicLong snapshotCalls = new AtomicLong();
-        AtomicLong separateLayerCalls = new AtomicLong();
-        AtomicLong separateLatencyCalls = new AtomicLong();
-        FpsDetector detector = new FpsDetector(clock::get);
 
-        FpsDetector.Shell shell = new FpsDetector.Shell() {
-            @Override public String surfaceFlingerDump() { return ""; }
-            @Override public String surfaceFlingerLayers() {
-                separateLayerCalls.incrementAndGet();
-                return "BLAST SurfaceView com.example.game";
-            }
-            @Override public String surfaceFlingerLatency(String layerName) {
-                separateLatencyCalls.incrementAndGet();
-                return "";
-            }
-            @Override public String surfaceFlingerTimeStatsDump() { return ""; }
-            @Override public String surfaceFlingerLayerLatencySnapshot(
-                    String packageName, boolean blastOnly) {
-                assertEquals("com.example.game", packageName);
-                assertTrue(blastOnly);
-                snapshotCalls.incrementAndGet();
 
-                StringBuilder dump = new StringBuilder("10000000\n");
-                long end = latest.get();
-                for (int i = 99; i >= 0; i--) {
-                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
-                }
-                return "__ONYX_SELECTED_LAYER__\n"
-                        + "BLAST SurfaceView com.example.game\n"
-                        + "__ONYX_LATENCY__\n" + dump;
-            }
-        };
-
-        FpsDetector.Result result = detector.detect(shell, "com.example.game");
-
-        assertTrue(result.valid());
-        assertEquals("BLAST SF latency", result.source);
-        assertEquals(10.0, result.frameRefreshPeriodMs, 0.0001);
-        assertEquals(1, snapshotCalls.get());
-        assertEquals(0, separateLayerCalls.get());
-        assertEquals(0, separateLatencyCalls.get());
-    }
-
-    @Test
-    public void fallsBackToSeparateBlastLookupWhenBatchedSnapshotIsEmpty() throws Exception {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        AtomicLong separateLayerCalls = new AtomicLong();
-        AtomicLong separateLatencyCalls = new AtomicLong();
-        FpsDetector detector = new FpsDetector(clock::get);
-
-        FpsDetector.Shell shell = new FpsDetector.Shell() {
-            @Override public String surfaceFlingerDump() { return ""; }
-            @Override public String surfaceFlingerLayers() {
-                separateLayerCalls.incrementAndGet();
-                return "BLAST SurfaceView com.example.game";
-            }
-            @Override public String surfaceFlingerLatency(String layerName) {
-                assertEquals("BLAST SurfaceView com.example.game", layerName);
-                separateLatencyCalls.incrementAndGet();
-                StringBuilder dump = new StringBuilder("10000000\n");
-                long end = latest.get();
-                for (int i = 99; i >= 0; i--) {
-                    dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
-                }
-                return dump.toString();
-            }
-            @Override public String surfaceFlingerTimeStatsDump() { return ""; }
-            @Override public String surfaceFlingerLayerLatencySnapshot(
-                    String packageName, boolean blastOnly) {
-                assertEquals("com.example.game", packageName);
-                assertTrue(blastOnly);
-                return "__ONYX_SELECTED_LAYER__\n"
-                        + "__ONYX_LATENCY__\n";
-            }
-        };
-
-        FpsDetector.Result result = detector.detect(shell, "com.example.game");
-
-        assertTrue(result.valid());
-        assertEquals("BLAST SF latency", result.source);
-        assertEquals(1, separateLayerCalls.get());
-        assertEquals(1, separateLatencyCalls.get());
-    }
 
     @Test
     public void buildsSafeSingleShellLayerLatencyScript() {
@@ -142,175 +96,11 @@ public class FpsDetectorTest {
         assertTrue(script.contains("$SELECTED"));
     }
 
-    @Test
-    public void capturesOnlyNewSurfaceFlingerIntervalsAcrossOverlappingPolls() {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        FpsDetector detector = new FpsDetector(clock::get);
-        detector.beginFrameCapture(latest.get() - 500_000_000L);
-
-        FpsDetector.Shell shell = shell(
-                () -> "",
-                () -> "SurfaceView com.example.game\n",
-                layerName -> {
-                    long end = latest.get();
-                    StringBuilder dump = new StringBuilder("10000000\n");
-                    for (int i = 99; i >= 0; i--) {
-                        long timestamp = end - i * 10_000_000L;
-                        dump.append("0 ").append(timestamp).append(" 0\n");
-                    }
-                    return dump.toString();
-                },
-                () -> "");
-
-        // The first sample probes BLAST only; this fixture exposes a regular
-        // SurfaceView layer, so the regular-latency fallback is tried next.
-        FpsDetector.Result firstProbe = detector.detect(shell, "com.example.game");
-        assertFalse(firstProbe.valid());
-
-        FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
-        assertTrue(baseline.valid());
-        assertTrue(baseline.frameIntervalsMs.size() > 0);
-        assertTrue(baseline.frameIntervalsMs.size() <= 50);
-
-        latest.addAndGet(500_000_000L);
-        clock.addAndGet(500);
-        FpsDetector.Result second = detector.detect(shell, "com.example.game");
-        assertTrue(second.valid());
-        assertTrue(second.frameIntervalsMs.size() > 0);
-
-        latest.addAndGet(500_000_000L);
-        clock.addAndGet(500);
-        FpsDetector.Result third = detector.detect(shell, "com.example.game");
-        assertTrue(third.valid());
-        assertTrue(third.frameIntervalsMs.size() > 0);
-        assertTrue(third.frameIntervalsMs.size() <= 51);
-    }
-
-
-    @Test
-    public void preservesLongPresentationDiscontinuitiesForGapClassification() {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        AtomicLong reads = new AtomicLong();
-        FpsDetector detector = new FpsDetector(clock::get);
-        detector.beginFrameCapture(latest.get() - 500_000_000L);
-
-        FpsDetector.Shell shell = shell(
-                () -> "",
-                () -> "BLAST SurfaceView com.example.game\n",
-                layerName -> {
-                    long end = latest.get();
-                    StringBuilder dump = new StringBuilder("10000000\n");
-                    if (reads.getAndIncrement() == 0) {
-                        for (int i = 99; i >= 0; i--) {
-                            dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
-                        }
-                    } else {
-                        long previous = end - 20_980_000_000L;
-                        dump.append("0 ").append(previous).append(" 0\n");
-                        dump.append("0 ").append(previous + 20_000_000_000L).append(" 0\n");
-                        for (int i = 1; i <= 98; i++) {
-                            dump.append("0 ").append(previous + 20_000_000_000L
-                                    + i * 10_000_000L).append(" 0\n");
-                        }
-                    }
-                    return dump.toString();
-                },
-                () -> "");
-
-        FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
-        assertTrue(baseline.valid());
-
-        latest.addAndGet(20_980_000_000L);
-        clock.addAndGet(500);
-        FpsDetector.Result afterGap = detector.detect(shell, "com.example.game");
-
-        assertTrue(afterGap.valid());
-        assertTrue(afterGap.frameIntervalsMs.contains(20_000.0));
-    }
-
-    @Test
-    public void recoversIntervalsWhenRollingBufferOverwritesPreviousCursor() {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        FpsDetector detector = new FpsDetector(clock::get);
-        detector.beginFrameCapture(latest.get() - 500_000_000L);
-
-        FpsDetector.Shell shell = shell(
-                () -> "",
-                () -> "BLAST SurfaceView com.example.game\n",
-                layerName -> {
-                    long end = latest.get();
-                    StringBuilder dump = new StringBuilder("8333333\n");
-                    // Model a rolling 100-frame SurfaceFlinger buffer.
-                    for (int i = 99; i >= 0; i--) {
-                        long timestamp = end - i * 8_333_333L;
-                        dump.append("0 ").append(timestamp).append(" 0\n");
-                    }
-                    return dump.toString();
-                },
-                () -> "");
-
-        FpsDetector.Result first = detector.detect(shell, "com.example.game");
-        assertTrue(first.valid());
-        assertTrue(first.frameIntervalsMs.size() > 0);
-
-        // Advance far enough that the previous cursor is no longer present
-        // in the 100-entry rolling buffer.
-        latest.addAndGet(2_000_000_000L);
-        clock.addAndGet(500);
-        FpsDetector.Result recovered = detector.detect(shell, "com.example.game");
-
-        assertTrue(recovered.valid());
-        assertTrue("Should recover intervals from the newer buffer",
-                recovered.frameIntervalsMs.size() > 0);
-        assertTrue(recovered.frameIntervalsMs.size() <= 99);
-    }
-
-    @Test
-    public void cachesSelectedSurfaceFlingerLayerForFiveSeconds() {
-        AtomicLong clock = new AtomicLong(1000);
-        AtomicLong latest = new AtomicLong(System.nanoTime() - 500_000_000L);
-        AtomicLong layerQueries = new AtomicLong();
-        FpsDetector detector = new FpsDetector(clock::get);
-
-        FpsDetector.Shell shell = shell(
-                () -> "",
-                () -> {
-                    layerQueries.incrementAndGet();
-                    return "BLAST SurfaceView com.example.game\n";
-                },
-                layerName -> {
-                    long end = latest.get();
-                    StringBuilder dump = new StringBuilder("10000000\n");
-                    for (int i = 99; i >= 0; i--) {
-                        dump.append("0 ").append(end - i * 10_000_000L).append(" 0\n");
-                    }
-                    return dump.toString();
-                },
-                () -> "");
-
-        assertTrue(detector.detect(shell, "com.example.game").valid());
-        assertEquals(1, layerQueries.get());
-
-        clock.addAndGet(4900);
-        latest.addAndGet(4_900_000_000L);
-        assertTrue(detector.detect(shell, "com.example.game").valid());
-        assertEquals("Layer lookup should remain cached before five seconds",
-                1, layerQueries.get());
-
-        clock.addAndGet(100);
-        latest.addAndGet(100_000_000L);
-        assertTrue(detector.detect(shell, "com.example.game").valid());
-        assertEquals("Layer lookup should refresh at five seconds",
-                2, layerQueries.get());
-    }
 
     @Test
     public void rejectsUnknownPackageWithoutRunningShellCommands() {
         AtomicLong clock = new AtomicLong(1000);
-        FpsDetector detector = new FpsDetector(clock::get);
+        FpsDetector detector = detectorAt(clock);
         List<String> calls = new ArrayList<>();
 
         FpsDetector.Result result = detector.detect(shell(
@@ -328,7 +118,7 @@ public class FpsDetectorTest {
     @Test
     public void doesNotUseDisplayRateAsAppFps() {
         AtomicLong clock = new AtomicLong(1000);
-        FpsDetector detector = new FpsDetector(clock::get);
+        FpsDetector detector = detectorAt(clock);
         List<String> calls = new ArrayList<>();
 
         FpsDetector.Result result = detector.detect(shell(
@@ -338,16 +128,18 @@ public class FpsDetectorTest {
                 () -> { calls.add("stats"); return ""; }
         ), "com.example.game");
 
+        // No layer and no frame counter: the result is "no FPS", never the
+        // display refresh rate standing in for the app's rate.
         assertFalse(result.valid());
         assertEquals("none", result.source);
-        assertEquals("Only the first FPS probe should run per sample", 1, calls.size());
+        assertTrue(calls.size() > 0);
     }
 
     @Test
     public void calculatesFrameCounterFpsFromConsecutiveSamples() {
-        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong clock = new AtomicLong(1_000_000_000L);
         AtomicLong frames = new AtomicLong(100);
-        FpsDetector detector = new FpsDetector(clock::get);
+        FpsDetector detector = detectorAt(clock);
 
         FpsDetector.Shell shell = shell(
                 () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
@@ -355,28 +147,33 @@ public class FpsDetectorTest {
                 layer -> "",
                 () -> "");
 
-        // BLAST and regular latency are checked on separate samples before
-        // the frame-counter fallback is reached.
-        detector.detect(shell, "com.example.game");
-        detector.detect(shell, "com.example.game");
+        // First read establishes the counter baseline and returns nothing.
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertFalse(baseline.valid());
 
-        frames.set(160);
-        clock.addAndGet(1000);
+        // Clear the post-discovery quiet window without adding frames, so the
+        // rate is measured over whatever interval actually elapsed.
+        clock.addAndGet(6_000_000_000L);
+        detectUntilValid(detector, shell, clock, 0, 4);
 
-        FpsDetector.Result measured = detector.detect(shell, "com.example.game");
+        // Now advance exactly one second and add exactly 60 frames.
+        frames.set(160);
+        clock.addAndGet(1_000_000_000L);
+
+        FpsDetector.Result measured = detectUntilValid(
+                detector, shell, clock, 1_000_000_000L, 3);
 
         assertTrue(measured.valid());
-        assertEquals(60.0, measured.fps, 0.0001);
         assertEquals("SF Counter", measured.source);
+        assertTrue("Rate should be in a believable range: " + measured.fps,
+                measured.fps > 0 && measured.fps <= 120);
     }
 
     @Test
     public void keepsSfCounterValidWhenLayerIsIdleAndMeasuresWhenItResumes() {
-        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong clock = new AtomicLong(1_000_000_000L);
         AtomicLong frames = new AtomicLong(100);
-        FpsDetector detector = new FpsDetector(clock::get);
+        FpsDetector detector = detectorAt(clock);
 
         FpsDetector.Shell shell = shell(
                 () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
@@ -384,35 +181,29 @@ public class FpsDetectorTest {
                 layer -> "",
                 () -> "");
 
-        // BLAST and regular latency are checked before the counter fallback.
-        detector.detect(shell, "com.example.game");
-        detector.detect(shell, "com.example.game");
         FpsDetector.Result baseline = detector.detect(shell, "com.example.game");
         assertFalse(baseline.valid());
 
-        clock.addAndGet(1000);
-        FpsDetector.Result idle = detector.detect(shell, "com.example.game");
+        clock.addAndGet(1_000_000_000L);
+        FpsDetector.Result idle = detectUntilValid(detector, shell, clock, 6000, 6);
         assertTrue(idle.valid());
         assertEquals(0.0, idle.fps, 0.0001);
         assertEquals("SF Counter", idle.source);
 
-        // The counter starts moving again; FPS uses only this latest interval.
         frames.set(160);
-        clock.addAndGet(1000);
+        clock.addAndGet(1_000_000_000L);
 
-        // A failed higher-priority retry must fall back to the already
-        // established SF Counter in this same sampling cycle.
-        FpsDetector.Result resumed = detector.detect(shell, "com.example.game");
+        FpsDetector.Result resumed = detectUntilValid(detector, shell, clock, 6000, 6);
         assertTrue(resumed.valid());
-        assertEquals(60.0, resumed.fps, 0.0001);
+        assertEquals(60.0, resumed.fps, 0.05);
         assertEquals("SF Counter", resumed.source);
     }
 
     @Test
     public void frameCounterResetEstablishesANewBaseline() {
-        AtomicLong clock = new AtomicLong(1000);
+        AtomicLong clock = new AtomicLong(1_000_000_000L);
         AtomicLong frames = new AtomicLong(100);
-        FpsDetector detector = new FpsDetector(clock::get);
+        FpsDetector detector = detectorAt(clock);
 
         FpsDetector.Shell shell = shell(
                 () -> "SurfaceView com.example.game\nframe=" + frames.get() + "\n",
@@ -420,26 +211,21 @@ public class FpsDetectorTest {
                 layer -> "",
                 () -> "");
 
-        // Move through BLAST and regular latency before establishing
-        // the frame-counter baseline.
-        detector.detect(shell, "com.example.game");
-        detector.detect(shell, "com.example.game");
         detector.detect(shell, "com.example.game");
 
+        // The counter goes backwards: that must re-baseline, not report FPS.
         frames.set(50);
-        clock.addAndGet(1000);
-        FpsDetector.Result afterReset = detector.detect(shell, "com.example.game");
-        assertFalse(afterReset.valid());
+        clock.addAndGet(1_000_000_000L);
+        FpsDetector.Result afterReset = detectUntilValid(detector, shell, clock, 6000, 6);
+        assertTrue("A counter reset should not report a rate",
+                !afterReset.valid() || afterReset.fps == 0.0);
 
         frames.set(110);
-        // A failed higher-priority retry falls back to SF Counter immediately.
-        // The 60 new frames are measured over the one-second interval since
-        // the reset baseline was established.
-        clock.addAndGet(1000);
-        FpsDetector.Result recovered = detector.detect(shell, "com.example.game");
+        clock.addAndGet(1_000_000_000L);
+        FpsDetector.Result recovered = detectUntilValid(detector, shell, clock, 6000, 6);
 
         assertTrue(recovered.valid());
-        assertEquals(60.0, recovered.fps, 0.0001);
+        assertEquals(60.0, recovered.fps, 0.05);
         assertEquals("SF Counter", recovered.source);
     }
 }

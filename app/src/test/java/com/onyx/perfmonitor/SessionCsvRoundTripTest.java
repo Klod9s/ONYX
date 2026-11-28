@@ -53,7 +53,7 @@ public class SessionCsvRoundTripTest {
 
         String[] lines = csv.toString().split("\\n");
         assertEquals(2, lines.length);
-        assertEquals(37, lines[0].split(",", -1).length);
+        assertEquals(38, lines[0].split(",", -1).length);
         org.junit.Assert.assertTrue(lines[0].contains("Hitch Count (sampled window)"));
 
         File file = temporaryFolder.newFile("round_trip.csv");
@@ -108,10 +108,10 @@ public class SessionCsvRoundTripTest {
         String[] lines = csv.toString().split("\\n");
         String[] columns = lines[1].split(",", -1);
 
-        assertEquals(37, columns.length);
-        assertEquals("", columns[34]);
+        assertEquals(38, columns.length);
         assertEquals("", columns[35]);
         assertEquals("", columns[36]);
+        assertEquals("", columns[37]);
     }
 
     @Test

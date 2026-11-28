@@ -143,11 +143,7 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
 
     private String readMetricsShell(String cachedGpuFreqPath, String cachedGpuLoadPath,
                                     String cachedMaliPath, boolean searchMali) {
-        String script = "T_STAGE=$(date +%s%3N); " +
-                                "mark_stage() { T_NOW=$(date +%s%3N); " +
-                                "echo __STAGE_MS__ $1 $((T_NOW - T_STAGE)); " +
-                                "T_STAGE=$T_NOW; }; " +
-                                "echo __BATTERY_BLOCK__; " +
+        String script =         "echo __BATTERY_BLOCK__; " +
                                 "for P in /sys/class/power_supply/*; do " +
                                 " [ -d \"$P\" ] || continue; " +
                                 " TYPE=$(cat \"$P/type\" 2>/dev/null); " +
@@ -158,9 +154,7 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 " [ -r \"$P/capacity\" ] && CAPACITY=$(cat \"$P/capacity\"); " +
                                 " echo \"$CURRENT $VOLTAGE $CAPACITY\"; break; " +
                                 "done; " +
-                                "mark_stage BATTERY; " +
                                 "echo __PROC_STAT__; cat /proc/stat; " +
-                                "mark_stage PROC_STAT; " +
                                 "echo __CPU_FREQ__; " +
                                 "for i in 0 1 2 3 4 5 6 7; do " +
                                 "F=/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq; V=; " +
@@ -169,10 +163,8 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
 
                                 "if [ -n \"$V\" ] && [ \"$V\" -gt 0 ] 2>/dev/null; then echo \"$V\"; else echo -1; fi; " +
                                 "done; " +
-                                "mark_stage CPU_FREQ; " +
                                 "CACHED_FREQ='" + safeSysfsPath(cachedGpuFreqPath) + "'; " +
                                 "CACHED_LOAD='" + safeSysfsPath(cachedGpuLoadPath) + "'; " +
-                                "echo __CACHED_GPU_LOAD__ $CACHED_LOAD; " +
                                 "CACHED_MALI='" + safeSysfsPath(cachedMaliPath) + "'; " +
                                 "GPU_FREQ=-1; GPU_LOAD='-1 -1'; FOUND_FREQ='none'; FOUND_LOAD='none'; " +
                                 "MALI_PATH=\"$CACHED_MALI\"; " +
@@ -238,82 +230,78 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 "  GPU_FREQ=$(cat \"$F\" 2>/dev/null); FOUND_FREQ=\"$F\"; break; " +
                                 " done; " +
                                 "fi; " +
-                                "mark_stage GPU_FREQ; " +
                                 "echo __GPU_FREQ_BLOCK__; echo $GPU_FREQ; echo $FOUND_FREQ; " +
 
 
-// GPU Load: collect candidates in priority order.
-// Java will select the first candidate with a valid reading.
-                "GPU_LOAD_CANDIDATES=''; " +
-                "GPU_LOAD_ADDED=0; " +
-                "add_gpu_load_candidate() { " +
-                " F=\"$1\"; " +
-                " [ -r \"$F\" ] || return; " +
-                " V=$(cat \"$F\" 2>/dev/null) || return; " +
-                " [ -n \"$V\" ] || return; " +
-                " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
-                "  GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; " +
-                " fi; " +
-                " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; " +
-                " GPU_LOAD_ADDED=1; " +
-                "}; " +
-                "add_gpu_load_candidate /sys/class/kgsl/kgsl-3d0/gpubusy; " +
-                "if [ \"$GPU_LOAD_ADDED\" != 1 ]; then " +
-                " for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do " +
-                "  add_gpu_load_candidate \"$F\"; " +
-                " done; " +
-                "fi; " +
-                "if [ -n \"$CACHED_LOAD\" ] && " +
-                "   [ \"$CACHED_LOAD\" != \"/sys/class/kgsl/kgsl-3d0/gpubusy\" ]; then " +
-                " add_gpu_load_candidate \"$CACHED_LOAD\"; " +
-                "fi; " +
-                "if [ -n \"$MALI_PATH\" ]; then " +
-                " for F in " +
-                "  \"$MALI_PATH\"/devfreq/load " +
-                "  \"$MALI_PATH\"/devfreq/*/load " +
-                "  \"$MALI_PATH\"/devfreq/utilisation " +
-                "  \"$MALI_PATH\"/devfreq/*/utilisation " +
-                "  \"$MALI_PATH\"/devfreq/utilization " +
-                "  \"$MALI_PATH\"/devfreq/*/utilization " +
-                "  \"$MALI_PATH\"/device/utilisation " +
-                "  \"$MALI_PATH\"/device/utilization; do " +
-                "  add_gpu_load_candidate \"$F\"; " +
-                " done; " +
-                "fi; " +
-                "for D in /sys/class/devfreq/*; do " +
-                " [ -d \"$D\" ] || continue; " +
-                " N=${D##*/}; " +
-                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
-                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
-                " case \"$N\" in *busmon*) continue;; esac; " +
-                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                ") ;; *) continue;; esac; " +
-                " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do " +
-                "  add_gpu_load_candidate \"$F\"; " +
-                " done; " +
-                "done; " +
-                (searchMali ? "if [ 1 = 1 ]; then " : "if [ 1 = 0 ]; then ") +
-                "for F in $(find /sys/devices -type f \\( " +
-                " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
-                " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
-                " \\) -print 2>/dev/null); do " +
-                " [ -r \"$F\" ] || continue; " +
-                " D=${F%/*}; N=${D##*/}; " +
-                " if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
-                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
-                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
-                " case \"$N\" in *busmon*) continue;; esac; " +
-                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
-                ") ;; *) continue;; esac; " +
-                " add_gpu_load_candidate \"$F\"; " +
-                "done; " +
-                "fi; " +
-                "echo __GPU_LOAD_BLOCK__; " +
-                "printf '%s\n' \"$GPU_LOAD_CANDIDATES\"; " +
-                "mark_stage GPU_LOAD; " +
+                                // GPU Load: collect candidates in priority order.
+                                // Java will select the first candidate with a valid reading.
+                                "GPU_LOAD_CANDIDATES=''; " +
+                                "GPU_LOAD_ADDED=0; " +
+                                "add_gpu_load_candidate() { " +
+                                " F=\"$1\"; " +
+                                " [ -r \"$F\" ] || return; " +
+                                " V=$(cat \"$F\" 2>/dev/null) || return; " +
+                                " [ -n \"$V\" ] || return; " +
+                                " if [ -n \"$GPU_LOAD_CANDIDATES\" ]; then " +
+                                "  GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}\n\"; " +
+                                " fi; " +
+                                " GPU_LOAD_CANDIDATES=\"${GPU_LOAD_CANDIDATES}${V} ${F}\"; " +
+                                " GPU_LOAD_ADDED=1; " +
+                                "}; " +
+                                "add_gpu_load_candidate /sys/class/kgsl/kgsl-3d0/gpubusy; " +
+                                "if [ \"$GPU_LOAD_ADDED\" != 1 ]; then " +
+                                " for F in /sys/devices/platform/soc/*/kgsl/kgsl-3d0/gpubusy; do " +
+                                "  add_gpu_load_candidate \"$F\"; " +
+                                " done; " +
+                                "fi; " +
+                                "if [ -n \"$CACHED_LOAD\" ] && " +
+                                "   [ \"$CACHED_LOAD\" != \"/sys/class/kgsl/kgsl-3d0/gpubusy\" ]; then " +
+                                " add_gpu_load_candidate \"$CACHED_LOAD\"; " +
+                                "fi; " +
+                                "if [ -n \"$MALI_PATH\" ]; then " +
+                                " for F in " +
+                                "  \"$MALI_PATH\"/devfreq/load " +
+                                "  \"$MALI_PATH\"/devfreq/*/load " +
+                                "  \"$MALI_PATH\"/devfreq/utilisation " +
+                                "  \"$MALI_PATH\"/devfreq/*/utilisation " +
+                                "  \"$MALI_PATH\"/devfreq/utilization " +
+                                "  \"$MALI_PATH\"/devfreq/*/utilization " +
+                                "  \"$MALI_PATH\"/device/utilisation " +
+                                "  \"$MALI_PATH\"/device/utilization; do " +
+                                "  add_gpu_load_candidate \"$F\"; " +
+                                " done; " +
+                                "fi; " +
+                                "for D in /sys/class/devfreq/*; do " +
+                                " [ -d \"$D\" ] || continue; " +
+                                " N=${D##*/}; " +
+                                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                " case \"$N\" in *busmon*) continue;; esac; " +
+                                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                " for F in \"$D/load\" \"$D/utilisation\" \"$D/utilization\"; do " +
+                                "  add_gpu_load_candidate \"$F\"; " +
+                                " done; " +
+                                "done; " +
+                                (searchMali ? "if [ 1 = 1 ]; then " : "if [ 1 = 0 ]; then ") +
+                                "for F in $(find /sys/devices -type f \\( " +
+                                " -path '*/devfreq/load' -o -path '*/devfreq/utilisation' -o -path '*/devfreq/utilization' " +
+                                " -o -path '*/devfreq/*/load' -o -path '*/devfreq/*/utilisation' -o -path '*/devfreq/*/utilization' " +
+                                " \\) -print 2>/dev/null); do " +
+                                " [ -r \"$F\" ] || continue; " +
+                                " D=${F%/*}; N=${D##*/}; " +
+                                " if [ \"$N\" = 'devfreq' ]; then P=${D%/devfreq}; N=${P##*/}; fi; " +
+                                " if [ -r \"$D/name\" ]; then IFS= read -r N < \"$D/name\"; fi; " +
+                                " N=$(printf '%s' \"$N\" | tr '[:upper:]' '[:lower:]'); " +
+                                " case \"$N\" in *busmon*) continue;; esac; " +
+                                " case \"$N\" in " + GpuDevfreqMatcher.shellCasePatterns() +
+                                ") ;; *) continue;; esac; " +
+                                " add_gpu_load_candidate \"$F\"; " +
+                                "done; " +
+                                "fi; " +
+                                "echo __GPU_LOAD_BLOCK__; " +
+                                "printf '%s\n' \"$GPU_LOAD_CANDIDATES\"; " +
 
-
-                "T_THERMAL_START=$(date +%s%3N); " +
                                 "echo __THERMAL_BLOCK__; " +
                                 "for Z in /sys/class/thermal/thermal_zone*; do " +
                                 "T=; IFS= read -r T < \"$Z/type\" 2>/dev/null; " +
@@ -324,9 +312,6 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 " V=; IFS= read -r V < \"$Z/temp\" 2>/dev/null; " +
                                 " echo \"$K $V\"; " +
                                 "done; " +
-                                "T_THERMAL_END=$(date +%s%3N); " +
-                                "echo __THERMAL_MS__ $((T_THERMAL_END - T_THERMAL_START)); " +
-                                "mark_stage THERMAL; " +
                                 "echo __COOLING_BLOCK__; " +
                                 "for C in /sys/class/thermal/cooling_device*; do " +
                                 " [ -d \"$C\" ] || continue; " +
@@ -336,19 +321,10 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                                 " IFS= read -r M < \"$C/max_state\" 2>/dev/null; " +
                                 " echo \"$T $S $M\"; " +
                                 "done; " +
-                                "mark_stage COOLING; " +
                                 "echo __MALI_BLOCK__; " +
                                 "[ -n \"$MALI_PATH\" ] && echo \"$MALI_PATH\" || echo none; " +
                                 "echo __END__;";
-        String output = run(new String[]{"sh", "-c", script}, 10, MAX_OUTPUT_CHARS);
-
-        android.util.Log.d("ONYX_SHIZUKU_DEBUG",
-                "OUTPUT_LENGTH=" + output.length()
-                        + " OUTPUT_START="
-                        + output.toString()
-                        .replace('\n', '|'));
-
-        return output;
+        return run(new String[]{"sh", "-c", script}, 10, MAX_OUTPUT_CHARS);
     }
 
     @Override
@@ -387,7 +363,11 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
 
     @Override
     public String getSurfaceFlingerLayers() throws RemoteException {
-        return run(new String[]{"dumpsys", "SurfaceFlinger", "--list"});
+        // Only SurfaceView layers matter to the detector; filtering here keeps the
+        // reply well inside Binder's transaction limit on devices with many layers.
+        return run(new String[]{"/system/bin/sh", "-c",
+                        "dumpsys SurfaceFlinger --list 2>/dev/null | grep -i SurfaceView"},
+                COMMAND_TIMEOUT_SECONDS, MAX_OUTPUT_CHARS);
     }
 
     @Override
@@ -462,6 +442,7 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
     }
 
     private static String run(String[] command, long timeoutSeconds, int maxOutputChars) {
+
         long t0 = SystemClock.elapsedRealtime();
         String r = runInner(command, timeoutSeconds, maxOutputChars);
         long took = SystemClock.elapsedRealtime() - t0;
@@ -469,8 +450,6 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
         String label = command[command.length - 1].length() > 60
                 ? command[0] + " <script>"
                 : String.join(" ", command);
-
-        android.util.Log.d("ONYX_TIMING", label + " took " + took + "ms");
         return r;
     }
 
@@ -478,6 +457,9 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
         Process process = null;
         Thread readerThread = null;
         StringBuilder output = new StringBuilder();
+        java.util.concurrent.atomic.AtomicBoolean truncated =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
+
 
         try {
             process = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -492,8 +474,11 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
                     while ((count = reader.read(buffer)) != -1) {
                         synchronized (output) {
                             int remaining = maxOutputChars - output.length();
-                            if (remaining > 0) {
-                                output.append(buffer, 0, Math.min(count, remaining));
+                            if (count <= remaining) {
+                                output.append(buffer, 0, count);
+                            } else {
+                                output.append(buffer, 0, Math.max(0, remaining));
+                                truncated.set(true);
                             }
                         }
                     }
@@ -518,6 +503,11 @@ public class ShizukuShellService extends IOnyxUserService.Stub {
             }
 
             synchronized (output) {
+                if (truncated.get()) {
+                    // A partial dumpsys can still parse as valid data, which would
+                    // report a wrong reading. Signal failure instead.
+                    return null;
+                }
                 return output.toString();
             }
         } catch (Exception ignored) {
