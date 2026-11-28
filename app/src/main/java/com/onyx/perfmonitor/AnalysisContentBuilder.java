@@ -187,7 +187,7 @@ public class AnalysisContentBuilder {
         }
 
         TextView readings = new TextView(context);
-        readings.setText(d.times.size() + " readings collected");
+        readings.setText(coverageText(d));
         readings.setTextSize(12);
         readings.setTextColor(muted);
         readings.setPadding(0, dp(5), 0, 0);
@@ -230,8 +230,8 @@ public class AnalysisContentBuilder {
         boolean hasFpsStability = SessionDataPreferences.framePacingEnabled(context) && hasFps;
         boolean hasOnePercentLow = FramePercentileCalculator.averageLowFps(
                 d.frameIntervalsMs, 0.01) >= 0;
-        boolean hasPointOnePercentLow = FramePercentileCalculator.averageLowFps(
-                d.frameIntervalsMs, 0.001) >= 0;
+        boolean hasPointOnePercentLow = FramePercentileCalculator.worstWindowedLowFps(
+                d.frameIntervalsMs, 0.01, 1000) >= 0;
 
         // Hide the frame-pacing summary when none
         // of those metrics has any collected data.
@@ -461,6 +461,30 @@ public class AnalysisContentBuilder {
         return false;
     }
 
+    /**
+     * Reports how many readings were collected against how many were expected.
+     * Sampling is nominally every 500 ms, so a long session with many dropped
+     * samples should not look the same as a clean one.
+     */
+    private String coverageText(SessionData data) {
+        int collected = data.times.size();
+        if (collected < 2) return collected + " readings collected";
+
+        double spanMs = data.times.get(collected - 1) - data.times.get(0);
+        if (!Double.isFinite(spanMs) || spanMs <= 0) {
+            return collected + " readings collected";
+        }
+
+        int expected = (int) Math.round(spanMs / 500.0) + 1;
+        if (expected <= 0) return collected + " readings collected";
+
+        int coverage = (int) Math.round(100.0 * collected / expected);
+        if (coverage > 100) coverage = 100;
+
+        return collected + " readings collected · "
+                + Math.min(coverage, 100) + "% coverage";
+    }
+
     /** Battery current is signed: negative values represent discharge. */
     private boolean hasAnySigned(List<Double> values) {
         return AnalysisMetricAvailability.hasAnySignedValues(values);
@@ -605,8 +629,8 @@ public class AnalysisContentBuilder {
         // presentation intervals, not the 500 ms sampled FPS values.
         double onePercentLow = FramePercentileCalculator.averageLowFps(
                 d.frameIntervalsMs, 0.01);
-        double pointOnePercentLow = FramePercentileCalculator.averageLowFps(
-                d.frameIntervalsMs, 0.001);
+        double worstOnePercentLow = FramePercentileCalculator.worstWindowedLowFps(
+                d.frameIntervalsMs, 0.01, 1000);
 
         String[] labels = {
                 "AVG FRAME TIME",
@@ -617,7 +641,7 @@ public class AnalysisContentBuilder {
                 "RECORDING GAPS",
                 "FPS STABILITY",
                 "1% FRAME LOW",
-                "0.1% FRAME LOW"
+                "WORST 1% / 10s"
         };
 
         String[] values = {
@@ -637,8 +661,8 @@ public class AnalysisContentBuilder {
                         ? String.format(Locale.US, "%.1f%%", stability) : "--",
                 onePercentLow >= 0
                         ? String.format(Locale.US, "%.1f", onePercentLow) : "--",
-                pointOnePercentLow >= 0
-                        ? String.format(Locale.US, "%.1f", pointOnePercentLow) : "--"
+                worstOnePercentLow >= 0
+                        ? String.format(Locale.US, "%.1f", worstOnePercentLow) : "--"
         };
 
         String[] units = {"ms", "ms", hitchUnit, "total", "total", "total", "", "FPS", "FPS"};
@@ -757,20 +781,10 @@ public class AnalysisContentBuilder {
             frameCount.setPadding(0, dp(10), 0, 0);
             card.addView(frameCount);
 
-            if (frameSummary.validIntervalCount < 1000) {
+            if (frameSummary.validIntervalCount < 2000) {
                 TextView unavailable = new TextView(context);
                 unavailable.setText(
-                        "1% low needs at least 1,000 valid frames; 0.1% low needs 10,000. "
-                                + "This session has "
-                                + frameSummary.validIntervalCount + ".");
-                unavailable.setTextSize(11);
-                unavailable.setTextColor(muted);
-                unavailable.setPadding(0, dp(4), 0, 0);
-                card.addView(unavailable);
-            } else if (frameSummary.validIntervalCount < 10000) {
-                TextView unavailable = new TextView(context);
-                unavailable.setText(
-                        "0.1% low needs at least 10,000 valid frames. "
+                        "Frame lows need at least 2,000 valid frames. "
                                 + "This session has "
                                 + frameSummary.validIntervalCount + ".");
                 unavailable.setTextSize(11);
